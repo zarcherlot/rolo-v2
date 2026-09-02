@@ -173,6 +173,7 @@ def run_probe_start(
         artifact_root=settings.rolo_artifact_dir,
         deployment_mode=evidence_mode.value,
         bundle_ref=bundle_ref,
+        legacy_root=settings.rolo_config_dir,
     )
     artifact_root = settings.rolo_artifact_dir.resolve()
 

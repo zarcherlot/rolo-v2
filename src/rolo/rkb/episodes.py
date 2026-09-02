@@ -220,8 +220,9 @@ class EpisodeStore:
 
     schema_version = "rkb-episode-store/v1"
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, legacy_root: Path | None = None) -> None:
         self.root = root.resolve()
+        self.legacy_root = (legacy_root or root).resolve()
         self.episode_root = self.root / "episodes"
         self.corrupt_root = self.root / "corrupt-episodes"
 
@@ -356,13 +357,22 @@ class EpisodeStore:
 
     def _resolve_legacy_ref(self, ref: str) -> Path:
         if ref.startswith("artifact://"):
-            candidate = (self.root / ref.removeprefix("artifact://")).resolve()
+            relative = ref.removeprefix("artifact://")
+            base = self.legacy_root if relative.startswith("legacy/") else self.root
+            if relative.startswith("legacy/"):
+                relative = relative.removeprefix("legacy/")
+            candidate = (base / relative).resolve()
         else:
             candidate = Path(ref).resolve()
         try:
             candidate.relative_to(self.root)
-        except ValueError as exc:
-            raise EvidenceValidationError("legacy artifact reference escapes store root") from exc
+        except ValueError:
+            try:
+                candidate.relative_to(self.legacy_root)
+            except ValueError as exc:
+                raise EvidenceValidationError(
+                    "legacy artifact reference escapes allowed root"
+                ) from exc
         return candidate
 
     @staticmethod
@@ -400,6 +410,7 @@ def publish_probe_episode(
     artifact_root: Path,
     deployment_mode: str,
     bundle_ref: str,
+    legacy_root: Path | None = None,
     probe_run_id: str | None = None,
 ) -> tuple[Snapshot, EpisodeMetadata, Path, Path]:
     """Persist the new snapshot and its Episode after Probe verification.
@@ -424,7 +435,7 @@ def publish_probe_episode(
         bundle_ref=bundle_ref,
         bundle_digest=bundle.payload_sha256,
     )
-    episode_path = EpisodeStore(rkb_root).publish(episode)
+    episode_path = EpisodeStore(rkb_root, legacy_root=legacy_root).publish(episode)
     return snapshot, episode, snapshot_path, episode_path
 
 

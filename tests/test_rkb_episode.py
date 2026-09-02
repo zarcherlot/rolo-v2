@@ -110,6 +110,13 @@ def test_dual_read_legacy_artifact_does_not_write_or_escape_store(tmp_path) -> N
     with pytest.raises(EvidenceValidationError, match="escapes"):
         store.read_legacy_json("artifact://../outside.json")
 
+    legacy_root = tmp_path / "legacy-root"
+    legacy_root.mkdir()
+    legacy_file = legacy_root / "bundle.json"
+    legacy_file.write_text(json.dumps({"status": "READY"}), encoding="utf-8")
+    configured_store = EpisodeStore(tmp_path / "rkb", legacy_root=legacy_root)
+    assert configured_store.read_legacy_json("artifact://legacy/bundle.json")["status"] == "READY"
+
 
 def test_probe_publication_is_one_way_and_keeps_legacy_bundle_untouched(tmp_path) -> None:
     bundle = TargetEvidenceBundle(
