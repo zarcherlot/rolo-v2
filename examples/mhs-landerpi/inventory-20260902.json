@@ -1,0 +1,21 @@
+{
+  "schema_version": "rolo-mhs-linux-inventory/v1",
+  "device_identity": {
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e"
+  },
+  "nodes": [
+    {"kind": "i2c", "path": "/dev/i2c-1", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "i2c", "path": "/dev/i2c-11", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "i2c", "path": "/dev/i2c-12", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "spi", "path": "/dev/spidev10.0", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "gpio", "path": "/dev/gpiochip0", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "gpio", "path": "/dev/gpiochip1", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "gpio", "path": "/dev/gpiochip2", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "gpio", "path": "/dev/gpiochip3", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "gpio", "path": "/dev/gpiochip4", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "thermal", "path": "/sys/class/thermal/thermal_zone0", "status": "DISCOVERED_UNVERIFIED"}
+  ],
+  "observed_at_epoch": 1788347648.7409124,
+  "read_only": true
+}

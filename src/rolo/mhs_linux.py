@@ -12,9 +12,12 @@ import math
 import platform
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from .mhs_hardware import MhsChannel, MhsDeviceClass, MhsDeviceManifest
+from pydantic import BaseModel, ConfigDict, Field
+
+from .mhs_hardware import MhsBackend, MhsChannel, MhsDeviceClass, MhsDeviceManifest
+from .mhs_hardware import MhsDeviceProvider
 
 DRIVER_ID = "rolo.mhs.linux-observer"
 DRIVER_VERSION = "0.1.0"
@@ -142,4 +145,157 @@ __all__ = [
     "DRIVER_SHA256",
     "LinuxHardwareBackend",
     "build_linux_manifest",
+    "LinuxPresenceBackend",
+    "LinuxThermalBackend",
+    "LinuxMhsCandidate",
+    "LinuxMhsInventory",
 ]
+
+
+class LinuxPresenceBackend:
+    """Read-only backend for a discovered node with presence-only semantics."""
+
+    def __init__(self, root: str | Path, node: str, kind: str) -> None:
+        self.root, self.node, self.kind = Path(root), node, kind
+
+    def read(self) -> Mapping[str, bool]:
+        return {"present": (self.root / self.node.lstrip("/")).exists()}
+
+    def status(self) -> Mapping[str, Any]:
+        path = self.root / self.node.lstrip("/")
+        return {"health": "OK" if path.exists() else "UNAVAILABLE", "kind": self.kind, "node": self.node}
+
+
+class LinuxThermalBackend(LinuxHardwareBackend):
+    """Linux thermal-zone reader parameterized by zone path."""
+
+    def __init__(self, root: str | Path, zone: str) -> None:
+        super().__init__(root)
+        self.zone = zone.strip("/")
+
+    def _temperature(self) -> float:
+        raw = self._read_text(f"/{self.zone}/temp")
+        if not raw:
+            raise RuntimeError("thermal zone is unavailable")
+        value = float(raw) / 1000.0
+        if not -40.0 <= value <= 150.0:
+            raise ValueError("thermal reading is outside physical bounds")
+        return round(value, 3)
+
+    def read(self) -> Mapping[str, float]:
+        return {"temperature": self._temperature()}
+
+    def status(self) -> Mapping[str, Any]:
+        return {"health": "OK", "zone": self.zone, "type": self._read_text(f"/{self.zone}/type")}
+
+
+class LinuxMhsCandidate(BaseModel):
+    """A discovered candidate; it is not verified until RKB evidence is added."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    manifest: MhsDeviceManifest
+    discovery_status: Literal["DISCOVERED_UNVERIFIED"] = "DISCOVERED_UNVERIFIED"
+    source: str = Field(min_length=1)
+    identity_stability: Literal["stable", "path", "unknown"] = "unknown"
+
+
+class LinuxMhsInventory:
+    """Discover generic Linux hardware candidates without board assumptions."""
+
+    def __init__(self, root: str | Path = "/", device_prefix: str = "linux") -> None:
+        self.root = Path(root)
+        self.device_prefix = device_prefix
+
+    def candidates(self) -> list[LinuxMhsCandidate]:
+        found: list[LinuxMhsCandidate] = []
+        status = LinuxHardwareBackend(self.root).status()
+        found.append(
+            LinuxMhsCandidate(
+                manifest=build_linux_manifest(
+                    device_id=f"{self.device_prefix}-compute",
+                    name="Linux compute host",
+                    vendor="unknown",
+                    model=str(status["model"]),
+                    serial=status.get("serial"),
+                    transport_target="local-linux",
+                ),
+                source="/proc/device-tree + /proc + /sys",
+                identity_stability="stable" if status.get("serial") else "unknown",
+            )
+        )
+        thermal_root = self.root / "sys/class/thermal"
+        for zone in sorted(thermal_root.glob("thermal_zone*/temp")):
+            zone_name = zone.parent.name
+            manifest = MhsDeviceManifest(
+                device_id=f"{self.device_prefix}-{zone_name}",
+                device_class=MhsDeviceClass.SENSOR,
+                name=f"Linux thermal {zone_name}",
+                vendor="linux-kernel",
+                model=LinuxHardwareBackend(self.root)._read_text(
+                    f"/sys/class/thermal/{zone_name}/type", "thermal-zone"
+                ),
+                channels=[
+                    MhsChannel(
+                        id="temperature", name="Temperature", unit="degC", min_value=-40, max_value=150
+                    )
+                ],
+                resources=[zone_name],
+                state={"read": ["health", "zone", "type"]},
+                transport={"kind": "sysfs", "properties": {"path": f"/sys/class/thermal/{zone_name}"}},
+                limits=["read-only", "path identity; serial not observed"],
+                driver_id=DRIVER_ID,
+                driver_version=DRIVER_VERSION,
+                driver_sha256=DRIVER_SHA256,
+            )
+            found.append(
+                LinuxMhsCandidate(
+                    manifest=manifest,
+                    source=f"/sys/class/thermal/{zone_name}",
+                    identity_stability="path",
+                )
+            )
+        found.extend(self._presence_candidates("dev/i2c-*", "bus", "i2c"))
+        found.extend(self._presence_candidates("dev/spidev*", "bus", "spi"))
+        found.extend(self._presence_candidates("dev/gpiochip*", "bus", "gpio"))
+        return found
+
+    def providers(self) -> list[tuple[LinuxMhsCandidate, MhsDeviceProvider]]:
+        providers: list[tuple[LinuxMhsCandidate, MhsDeviceProvider]] = []
+        for candidate in self.candidates():
+            device_id = candidate.manifest.device_id
+            if device_id.endswith("-compute"):
+                backend: MhsBackend = LinuxHardwareBackend(self.root)
+            elif "thermal_zone" in device_id:
+                zone = device_id.rsplit("-", 1)[-1]
+                backend = LinuxThermalBackend(self.root, f"sys/class/thermal/{zone}")
+            else:
+                node = candidate.manifest.transport.get("properties", {}).get("path", "")
+                backend = LinuxPresenceBackend(self.root, str(node), candidate.manifest.device_class.value)
+            providers.append((candidate, MhsDeviceProvider(candidate.manifest, backend)))
+        return providers
+
+    def _presence_candidates(self, pattern: str, kind: str, label: str) -> list[LinuxMhsCandidate]:
+        records: list[LinuxMhsCandidate] = []
+        for path in sorted(self.root.glob(pattern)):
+            node = "/" + path.relative_to(self.root).as_posix()
+            safe = node.strip("/").replace("/", "-").replace(".", "-")
+            manifest = MhsDeviceManifest(
+                device_id=f"{self.device_prefix}-{safe}",
+                device_class=MhsDeviceClass.BUS,
+                name=f"Linux {label} node {safe}",
+                vendor="linux-kernel",
+                model=label,
+                channels=[MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")],
+                resources=[safe],
+                state={"read": ["health", "kind", "node"]},
+                transport={"kind": "linux-device-node", "properties": {"path": node}},
+                limits=["read-only", "presence only", "path identity; serial not observed"],
+                driver_id=DRIVER_ID,
+                driver_version=DRIVER_VERSION,
+                driver_sha256=DRIVER_SHA256,
+            )
+            records.append(
+                LinuxMhsCandidate(manifest=manifest, source=node, identity_stability="path")
+            )
+        return records
