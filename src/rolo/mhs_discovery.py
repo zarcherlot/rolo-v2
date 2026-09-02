@@ -461,6 +461,16 @@ def snapshot_evidence_envelope(snapshot: LinuxDiscoverySnapshot) -> EvidenceEnve
     ).with_digest()
 
 
+def merge_ros_graph(
+    snapshot: LinuxDiscoverySnapshot, ros_graph: Mapping[str, Any]
+) -> LinuxDiscoverySnapshot:
+    """Attach a target-side ROS adapter result to an existing snapshot."""
+
+    payload = snapshot.model_dump(mode="json")
+    payload["ros_graph"] = dict(ros_graph)
+    return LinuxDiscoverySnapshot.model_validate(payload)
+
+
 def build_snapshot_candidates(snapshot: LinuxDiscoverySnapshot) -> list[LinuxMhsCandidate]:
     """Project a snapshot into conservative MHS candidates.
 
@@ -690,6 +700,7 @@ __all__ = [
     "build_snapshot_candidates",
     "collect_linux_snapshot",
     "mhs_evidence_envelope",
+    "merge_ros_graph",
     "redact_secrets",
     "resolve_identity",
     "snapshot_evidence_envelope",
