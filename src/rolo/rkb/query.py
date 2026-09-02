@@ -7,7 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .models import EvidenceEnvelope, Fact, FreshnessStatus
+from .models import EvidenceEnvelope, Fact, FreshnessStatus, Snapshot
+from .validation import validate_envelope
 
 
 class QueryResult(BaseModel):
@@ -22,11 +23,22 @@ class QueryResult(BaseModel):
 class ReadOnlyKnowledgeBase:
     """Index verified envelopes without exposing raw unverified bundle access."""
 
-    def __init__(self, envelopes: list[EvidenceEnvelope] | None = None) -> None:
+    def __init__(self, envelopes: list[EvidenceEnvelope | Snapshot] | None = None) -> None:
         self._envelopes = list(envelopes or [])
 
-    def add_verified(self, envelope: EvidenceEnvelope, *, now: datetime | None = None) -> None:
-        envelope.verify(now=now, require_fresh=False)
+    def add_verified(
+        self,
+        envelope: EvidenceEnvelope | Snapshot,
+        *,
+        now: datetime | None = None,
+        hmac_secret: bytes | None = None,
+    ) -> None:
+        validate_envelope(
+            envelope,
+            now=now,
+            require_fresh=False,
+            hmac_secret=hmac_secret,
+        )
         self._envelopes.append(envelope)
 
     def identity(self, *, now: datetime | None = None) -> QueryResult:
