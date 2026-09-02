@@ -178,7 +178,9 @@ class EvidenceEnvelope(BaseModel):
         return self
 
     def payload(self) -> dict[str, Any]:
-        return self.model_dump(mode="json", exclude={"digest"})
+        # Optional envelope metadata is omitted at the artifact boundary;
+        # explicit nulls inside ``value`` remain part of the observed fact.
+        return self.model_dump(mode="json", exclude={"digest"}, exclude_none=True)
 
     def computed_digest(self) -> str:
         return hashlib.sha256(canonical_json(self.payload())).hexdigest()

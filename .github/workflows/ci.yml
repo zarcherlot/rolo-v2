@@ -45,6 +45,7 @@ jobs:
           src/rolo/stages/probe/target_evidence.py
           src/rolo/release_check.py
           tests/test_rkb_envelope.py
+          tests/test_rkb_contract_baseline.py
           tests/test_mhs_hardware.py
           examples/mhs-sensor
       - name: Run the v2 Probe chain tests
@@ -62,6 +63,7 @@ jobs:
           tests/test_probe_pipeline.py
           tests/test_application_bundles.py
           tests/test_rkb_envelope.py
+          tests/test_rkb_contract_baseline.py
           tests/test_mhs_hardware.py
           examples/mhs-sensor/test_mhs_sensor.py
 

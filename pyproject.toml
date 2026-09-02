@@ -54,6 +54,7 @@ python_files = [
   "test_probe_pipeline.py",
   "test_application_bundles.py",
   "test_rkb_envelope.py",
+  "test_rkb_contract_baseline.py",
   "test_mhs_hardware.py",
   "test_mhs_sensor.py",
   "test_target_credentials.py",
