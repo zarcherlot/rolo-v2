@@ -20,9 +20,32 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [implementation map](reference/IMPLEMENTATION_MAP.md): code, schemas, artifacts, and tests;
 - [physical target enrollment record](validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md): one real-target verification.
 
+## Next phase (RKB drafts)
+
+- [RKB design](architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md): fact layers,
+  provenance, and freshness rules;
+- [plan review](review/ROLO_V2_RKB_DEVELOPMENT_PLAN_REVIEW_ZH.md): baseline corrections and blockers;
+- [executable development plan](architecture/ROLO_V2_RKB_EXECUTION_PLAN_ZH.md): the single RKB
+  scheduling entry point.
+- [Probe post-controlled write execution plan (RKB read-only prerequisite)](architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md):
+  gates for a future, explicitly authorized write-execution pilot; RKB itself never executes device writes.
+
 The root `OPERATION_CONTRACTS.md`, `CANONICAL_OPERATIONS.md`, and Episode contract files, plus
 `architecture/WORKBENCH_PLUGIN_HOST_CONTRACT.md`, are retained only because generators or existing
 tests reference them. They are not entry points for new feature design.
+
+## Directory responsibilities
+
+| Directory | Scope |
+|---|---|
+| `architecture/` | Current architecture, engineering principles, and RKB design/plan drafts |
+| `getting-started/` | Copyable installation and Probe journeys |
+| `probe/` | Agent-native Tools, application gaps, and operation reference |
+| `reference/` | Engineering status and implementation map |
+| `setup/` | Configuration and runtime prerequisites |
+| `target/` | Target evidence deployment and binding boundaries |
+| `validation/` | Current fixed-target enrollment evidence |
+| `review/` | Design reviews and unresolved blockers, not normative contracts |
 
 ## Four stable standards
 
