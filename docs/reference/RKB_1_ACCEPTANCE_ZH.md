@@ -27,9 +27,8 @@ RKB-1 在 `rkb-1` worktree 中交付 Evidence Envelope 与兼容读取。新路�
 python -m compileall -q src tests
 ```
 
-当前开发机结果：`72 passed, 1 skipped`（仓库配置收集的测试）；RKB-1 定向测试 14 项通过。
-目标机 `192.168.10.167` 已完成代码上传和 `compileall`；因设备 Python 3.11 环境缺少
-`pydantic` 且无法完成依赖安装，目标机 pytest 状态保持 `BLOCKED`，不宣称真机测试通过。
+当前开发机结果：`74 passed, 1 skipped`（Windows 跳过 POSIX 权限检查）；RKB-1 定向测试 14 项通过。
+真机 `192.168.10.167`（`raspberrypi` / aarch64 / Python 3.11.2）已完成代码上传、`compileall`、RKB-1 定向测试和仓库全量回归，结果为 `75 passed`、无失败。真机用户环境补齐了 `pydantic 2.13.5`、`pydantic-settings`、`PyYAML`、`pytest` 与 `typer`。
 
 ## 回滚
 
