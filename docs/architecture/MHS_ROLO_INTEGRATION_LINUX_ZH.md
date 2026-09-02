@@ -80,10 +80,11 @@ MhsWriteRequest + verified MhsWriteContext
   -> route/identity/digest/freshness/authorization/precondition
   -> process-local resource lock
   -> bounded input schema
-  -> MhsWriteBackend.write
+  -> MhsWriteBackend.write (timeout -> optional stop)
   -> auditable MhsWriteResult
 ```
 
 默认只允许 `fake`/`simulation` environment；native、ROS、serial、HTTP 等真实 adapter 即使
-声明了 command 也会被拒绝。首轮实现和后续台架/真机门槛见
+声明了 command 也会被拒绝。W3 台架还要求 external estop clear、watchdog healthy 和
+resource quiescent，并支持短时人工授权引用。首轮实现和后续台架/真机门槛见
 [`MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md`](../adapt/MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md)。

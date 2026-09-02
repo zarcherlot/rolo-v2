@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from datetime import datetime, timedelta, timezone
 
 from rolo.mhs_adapters import MhsEnvironmentDescriptor
@@ -21,6 +22,7 @@ FINGERPRINT = "a" * 64
 class FakeWriteBackend:
     def __init__(self, *, fail: bool = False) -> None:
         self.calls: list[tuple[str, dict, float, str]] = []
+        self.stop_calls: list[tuple[str, str]] = []
         self.fail = fail
 
     def read(self):
@@ -34,6 +36,10 @@ class FakeWriteBackend:
         if self.fail:
             raise RuntimeError("simulated backend fault")
         return {"accepted": True, "position": arguments["position"]}
+
+    def stop(self, hardware_resource_id, *, reason):
+        self.stop_calls.append((hardware_resource_id, reason))
+        return {"stopped": True, "resource": hardware_resource_id}
 
 
 class Allow:
@@ -109,6 +115,9 @@ def _context(**updates) -> MhsWriteContext:
         "safety_fresh_until": NOW + timedelta(seconds=30),
         "verified_preconditions": ["safety_approved", "actuator_idle"],
         "safety_evidence_ids": ["fact-safety-1"],
+        "external_estop_clear": True,
+        "watchdog_ok": True,
+        "quiescent": True,
     }
     values.update(updates)
     return MhsWriteContext(**values)
@@ -253,3 +262,100 @@ def test_idempotent_retry_does_not_repeat_backend_write() -> None:
     )
     assert collision.status == MhsWriteStatus.DENIED
     assert len(backend.calls) == 1
+
+
+def test_external_estop_blocks_write_before_backend() -> None:
+    manifest, backend = _manifest(), FakeWriteBackend()
+    result = _execute(
+        MhsWriteController(),
+        manifest,
+        backend,
+        context=_context(external_estop_clear=False),
+    )
+    assert result.status == MhsWriteStatus.DENIED
+    assert "estop" in (result.reason or "")
+    assert backend.calls == []
+
+
+def test_watchdog_and_quiescence_are_required_safety_gates() -> None:
+    for field in ("watchdog_ok", "quiescent"):
+        manifest, backend = _manifest(), FakeWriteBackend()
+        result = _execute(
+            MhsWriteController(),
+            manifest,
+            backend,
+            context=_context(**{field: False}),
+        )
+        assert result.status == MhsWriteStatus.DENIED
+        assert backend.calls == []
+
+
+class ManualAuthorizer:
+    def authorize(self, manifest, command, request, context) -> None:
+        del manifest, command, request
+        if not context.authorization_ref or not context.authorization_ref.startswith(
+            "human:"
+        ):
+            raise MhsWriteRejected("manual authorization reference is required")
+
+
+def test_manual_authorization_reference_is_checked_by_rolo() -> None:
+    manifest, backend = _manifest(), FakeWriteBackend()
+    denied = _execute(
+        MhsWriteController(),
+        manifest,
+        backend,
+        context=_context(authorization_ref="policy:auto"),
+        authorizer=ManualAuthorizer(),
+    )
+    assert denied.status == MhsWriteStatus.DENIED
+    assert backend.calls == []
+
+    approved = _execute(
+        MhsWriteController(),
+        manifest,
+        backend,
+        request=_request(manifest, idempotency_key="idem-manual"),
+        context=_context(authorization_ref="human:approval-1"),
+        authorizer=ManualAuthorizer(),
+    )
+    assert approved.status == MhsWriteStatus.SUCCEEDED
+    assert len(backend.calls) == 1
+
+
+class SlowWriteBackend(FakeWriteBackend):
+    def __init__(self) -> None:
+        super().__init__()
+        self.started = threading.Event()
+        self.released = threading.Event()
+
+    def write(self, command_id, arguments, *, timeout_s, idempotency_key):
+        self.started.set()
+        self.released.wait(timeout=1.0)
+        return super().write(
+            command_id,
+            arguments,
+            timeout_s=timeout_s,
+            idempotency_key=idempotency_key,
+        )
+
+    def stop(self, hardware_resource_id, *, reason):
+        value = super().stop(hardware_resource_id, reason=reason)
+        self.released.set()
+        return value
+
+
+def test_write_timeout_requests_stop_and_is_audited() -> None:
+    values = _manifest().model_dump(mode="json")
+    values["commands"][0]["timeout_s"] = 0.01
+    manifest, backend = MhsDeviceManifest.model_validate(values), SlowWriteBackend()
+    store = MhsWriteEventStore()
+    result = _execute(
+        MhsWriteController(event_store=store), manifest, backend,
+        request=_request(manifest, idempotency_key="idem-timeout"),
+    )
+    assert result.status == MhsWriteStatus.FAILED
+    assert "timed out" in (result.reason or "")
+    assert result.value == {"stop": {"stopped": True, "resource": "joint-1"}}
+    assert backend.stop_calls == [("joint-1", "write timeout")]
+    assert len(store.events()) == 1
