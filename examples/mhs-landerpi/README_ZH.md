@@ -40,3 +40,20 @@ ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 pi@192.168.10.167 \
 通用节点发现结果保存在 [`inventory-20260902.json`](inventory-20260902.json)。其中 3 个
 I²C、1 个 SPI、5 个 GPIO、1 个 thermal zone 和 10 个 USB sysfs 节点都只是
 `DISCOVERED_UNVERIFIED`，尚未代表已经绑定或验证的物理外设。
+
+## LanderPi MHS 采样包
+
+[`mhs-bundle-20260902.json`](mhs-bundle-20260902.json) 是基于本次只读观测生成的
+`rolo-mhs-bundle/v1`。它为 Aurora 930 深度相机、LiDAR、ROS robot controller 和
+servo actuator group 分别生成 `sensor`、`controller`、`actuator` manifest，并附带
+证据引用、置信度、限制和下一步采样契约。
+
+生成命令：
+
+```bash
+PYTHONPATH=src python examples/mhs-landerpi/generate_mhs.py
+```
+
+这四个条目全部保持 `DISCOVERED_UNVERIFIED`，且没有写命令。另一个工程可以直接
+校验 bundle 后按采样契约补充 ROS topic、设备序列号、量程、故障/限位和急停证据；
+只有证据充分时才应将条目提升为 `VERIFIED`，并另行提交经过安全评审的写适配器。
