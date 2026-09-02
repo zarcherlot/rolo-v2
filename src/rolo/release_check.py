@@ -18,6 +18,7 @@ from rolo.agent_tools import (
     ToolPlan,
     reduced_agent_native_catalog,
 )
+from rolo.rkb import EvidenceEnvelope
 from rolo.stages.probe.application import (
     ApplicationAdapterBundle,
     ApplicationCandidate,
@@ -27,7 +28,6 @@ from rolo.stages.probe.application import (
     ApplicationOperationConformanceReport,
 )
 from rolo.stages.probe.target_evidence import TargetEvidenceBundle
-from rolo.rkb import EvidenceEnvelope
 
 
 class ReleaseCheckResult(BaseModel):
