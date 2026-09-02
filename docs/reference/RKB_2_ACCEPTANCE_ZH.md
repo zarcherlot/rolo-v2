@@ -30,8 +30,20 @@ uv run ruff check src/rolo/rkb tests/test_rkb_typed_queries.py
 python scripts/check_docs.py
 ```
 
-本工作树的本地系统 Python 未安装 pytest/pydantic，无法在该解释器上宣称测试通过；CI 使用
-Python 3.10–3.13 的同一命令矩阵。
+本地 bundled Python 已通过 RKB-2 目标测试、全量 pytest、compileall、ruff 与文档检查。
+固定 LanderPi（`192.168.10.167`，严格 ECDSA host key）也完成了以下只读验收：
+
+```text
+target-evidence collect --robot-id mentorpi --deployment-config .../mentorpi.json
+  status=VERIFIED, access=READ_ONLY, mode=local
+pytest (RKB-1 envelope/compatibility + RKB-2 typed queries): 19 passed
+pytest (full suite) + compileall src tests: passed, 1 skipped
+rkb2_landerpi_smoke.py: exit 0; snapshot digest=d4fae183a64839b9...
+```
+
+实机结果保持 fail-closed 语义：硬件路径型资源标记 `UNSTABLE`，网络/PCI 枚举不可用；
+middleware 图因运行时采样未稳定及缺少 RMW/schema/provider 信息保持 `UNKNOWN`；
+state safety 没有观察证据，状态为 `UNKNOWN`。这些是目标机证据限制，不是查询层推断。
 
 ## 回滚
 
