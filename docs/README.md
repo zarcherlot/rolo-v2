@@ -20,6 +20,10 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [实现地图](reference/IMPLEMENTATION_MAP.md)：代码入口、Schema、产物与测试的对应关系；
 - [真实目标机 enrollment 记录](validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md)：一次物理目标的验证证据。
 
+根目录的 `OPERATION_CONTRACTS.md`、`CANONICAL_OPERATIONS.md` 和 Episode contract 文档，
+以及 `architecture/WORKBENCH_PLUGIN_HOST_CONTRACT.md`，仅因生成流程或现有测试的固定引用
+而保留；它们不是新增功能的设计入口。
+
 ## 四类稳定标准
 
 产品只定义四类稳定语义：hardware、OS、Middleware、application。MVP 可以先实现其中
@@ -41,5 +45,6 @@ Agent 负责理解目标和生成计划，Rolo 负责固定 argv、目标绑定�
 
 ## 文档治理
 
-本目录的 active 文档只描述 v2。旧的 Registry、Adapt、Diagnose、Verify 和平台专用计划
-已标记为 `archived` 或保留在 `archive/`，仅用于历史追溯，不是当前实现依据。
+本目录只保留 v2 开发所需的入口、规范、状态和验证材料。旧的 Registry、Adapt、Diagnose、
+Verify、平台专用计划及历史证据已从工作树移除；完整内容仍可通过 Git 历史追溯，不能作为
+当前实现依据。

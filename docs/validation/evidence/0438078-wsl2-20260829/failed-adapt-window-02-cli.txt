@@ -1,8 +1,0 @@
-Usage: robotctl adapt run [OPTIONS]
-Try 'robotctl adapt run --help' for help.
-╭─ Error ──────────────────────────────────────────────────────────────────────╮
-│ Invalid value: adapter package describe failed with code 1: bwrap: execvp    │
-│ /tmp/rolo-post-r5-results-0438078/artifacts/adapt/wsl2-post-r5-0438078/runs/ │
-│ 20260829T132201Z-57e95206/output-snapshot/adapter-files/adapter.pyz:         │
-│ Permission denied                                                            │
-╰──────────────────────────────────────────────────────────────────────────────╯
