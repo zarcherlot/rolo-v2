@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Protocol
 
@@ -103,6 +103,10 @@ class MhsResult(BaseModel):
     route: str
     value: dict[str, Any] | None = None
     observed_at: datetime | None = None
+    fresh_until: datetime | None = None
+    manifest_sha256: str | None = None
+    driver_version: str | None = None
+    transport: dict[str, Any] = Field(default_factory=dict)
     reason: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
@@ -112,6 +116,7 @@ class MhsDeviceProvider:
     """Read-only Provider SPI for one MHS device manifest and backend."""
 
     provider_version = "1.0.0"
+    freshness_seconds = 300
     READ_CAPABILITIES = frozenset({"inspect", "status", "read"})
 
     def __init__(self, manifest: MhsDeviceManifest, backend: MhsBackend) -> None:
@@ -198,13 +203,18 @@ class MhsDeviceProvider:
     def _ok(
         self, capability: str, value: dict[str, Any], observed_at: datetime | None = None
     ) -> MhsResult:
+        point = observed_at or datetime.now(timezone.utc)
         return MhsResult(
             status=MhsStatus.AVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
             route=self.route(capability),
             value=value,
-            observed_at=observed_at,
+            observed_at=point,
+            fresh_until=point + timedelta(seconds=self.freshness_seconds),
+            manifest_sha256=self.manifest.manifest_sha256,
+            driver_version=self.provider_version,
+            transport=self.manifest.transport,
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
                 f"mhs-driver:{self.manifest.driver_sha256}",
@@ -212,11 +222,17 @@ class MhsDeviceProvider:
         )
 
     def _error(self, capability: str, reason: str) -> MhsResult:
+        point = datetime.now(timezone.utc)
         return MhsResult(
             status=MhsStatus.UNAVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
             route=self.route(capability),
             reason=reason,
+            observed_at=point,
+            fresh_until=point + timedelta(seconds=self.freshness_seconds),
+            manifest_sha256=self.manifest.manifest_sha256,
+            driver_version=self.provider_version,
+            transport=self.manifest.transport,
             limitations=["read-only provider; no write operations"],
         )
