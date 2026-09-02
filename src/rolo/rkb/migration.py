@@ -19,6 +19,26 @@ from .models import (
 MAX_INLINE_STRING = 250_000
 _SECRET_MARKERS = ("secret", "password", "passwd", "token", "private_key", "api_key")
 
+# RKB-0 frozen defaults.  Values are serialized as seconds so the policy is
+# explicit and stable across Python/Pydantic versions.
+DEFAULT_FRESHNESS_POLICY: dict[str, int] = {
+    "middleware": 30,
+    "process_state": 30,
+    "hardware_topology": 600,
+    "thermal": 10,
+    "executable_identity": 86_400,
+}
+_LAYER_POLICY_KEY = {
+    "ros": "middleware",
+    "middleware": "middleware",
+    "linux": "process_state",
+    "application": "process_state",
+    "hw": "hardware_topology",
+    "hardware": "hardware_topology",
+    "thermal": "thermal",
+    "executable": "executable_identity",
+}
+
 
 def _scrub(value: Any, limitations: list[str], *, key: str = "") -> Any:
     lowered = key.lower()
@@ -67,6 +87,7 @@ def probe_to_snapshot(
     fresh_for: timedelta = timedelta(minutes=5),
     deployment_mode: str | None = None,
     observed_at: datetime | None = None,
+    freshness_policy: Mapping[str, int] | None = None,
 ) -> Snapshot:
     """Project one legacy ``ProbeResult`` without changing the probe itself."""
 
@@ -100,6 +121,13 @@ def probe_to_snapshot(
         "warnings": list(getattr(probe, "warnings", ())),
         "errors": list(getattr(probe, "errors", ())),
     }
+    layer = str(getattr(probe, "layer", "unknown"))
+    policy = dict(freshness_policy or DEFAULT_FRESHNESS_POLICY)
+    policy_key = _LAYER_POLICY_KEY.get(layer, "process_state")
+    fact_fresh_until = min(
+        snapshot_identity.fresh_until,
+        observed_at + timedelta(seconds=max(1, int(policy.get(policy_key, 300)))),
+    )
     fact = Fact(
         robot_id=snapshot_identity.robot_id,
         target_host_fingerprint=snapshot_identity.target_host_fingerprint,
@@ -110,14 +138,15 @@ def probe_to_snapshot(
         source_kind=FactSourceKind.TARGET_PROBE,
         source_ref=source_ref,
         observed_at=observed_at,
-        fresh_until=snapshot_identity.fresh_until,
+        fresh_until=fact_fresh_until,
         value=value,
         limitations=limitations,
     )
     return Snapshot(
         identity=snapshot_identity,
         facts=[fact],
-        metadata={"layer": getattr(probe, "layer", "unknown")},
+        snapshot={"layer": layer},
+        freshness_policy=policy,
     ).with_digest()
 
 
@@ -128,6 +157,7 @@ def bundle_to_snapshot(
     deployment_mode: str = "remote",
     fresh_for: timedelta = timedelta(minutes=5),
     source_ref: str = "artifact://target-evidence-bundle",
+    verification_secret: bytes | None = None,
 ) -> Snapshot:
     """Project a previously verified v2/v3 bundle into a standalone snapshot.
 
@@ -140,6 +170,15 @@ def bundle_to_snapshot(
         from rolo.stages.probe.target_evidence import TargetEvidenceBundle
 
         bundle = TargetEvidenceBundle.model_validate(bundle)
+    if verification_secret is not None:
+        from .validation import validate_bundle_hmac
+
+        validate_bundle_hmac(
+            bundle,
+            payload_sha256=bundle.payload_sha256,
+            signature_hmac_sha256=bundle.signature_hmac_sha256,
+            secret=verification_secret,
+        )
     collected_at = bundle.collected_at
     if identity is None:
         snapshot_identity = SnapshotIdentity(
@@ -157,6 +196,7 @@ def bundle_to_snapshot(
         if snapshot_identity.observed_at != collected_at:
             raise ValueError("bundle collected_at does not match snapshot identity")
     facts: list[Fact] = []
+    policy = dict(DEFAULT_FRESHNESS_POLICY)
     for layer, probe in sorted(bundle.probes.items()):
         migrated = probe_to_snapshot(
             probe,
@@ -164,6 +204,7 @@ def bundle_to_snapshot(
             source_ref=f"{source_ref}#/probes/{_escape_pointer(layer)}",
             fresh_for=fresh_for,
             observed_at=collected_at,
+            freshness_policy=policy,
         )
         facts.extend(migrated.facts)
     if getattr(bundle, "source_snapshot", None) is not None:
@@ -187,11 +228,12 @@ def bundle_to_snapshot(
     return Snapshot(
         identity=snapshot_identity,
         facts=facts,
-        metadata={
+        snapshot={
             "source_schema_version": bundle.schema_version,
             "requested_layers": list(bundle.requested_layers),
             "bundle_payload_sha256": bundle.payload_sha256,
         },
+        freshness_policy=policy,
     ).with_digest()
 
 
@@ -199,6 +241,38 @@ def snapshot_from_target_bundle(*args: Any, **kwargs: Any) -> Snapshot:
     """Compatibility alias retaining the P0 function name."""
 
     return bundle_to_snapshot(*args, **kwargs)
+
+
+def verified_bundle_to_snapshot(
+    bundle: Any,
+    *,
+    deployment: Any,
+    request: Any | None = None,
+    now: datetime | None = None,
+    **kwargs: Any,
+) -> Snapshot:
+    """Verify a TargetEvidenceBundle before projecting it into RKB.
+
+    The existing Probe verifier remains the authority for deployment pins,
+    replay windows and collector HMAC.  This wrapper makes the safe ordering
+    explicit for production callers while retaining ``bundle_to_snapshot`` as
+    a compatibility projection for already-verified fixtures.
+    """
+
+    from rolo.stages.probe.target_evidence import verify_evidence_bundle
+
+    verified = verify_evidence_bundle(
+        bundle,
+        deployment=deployment,
+        request=request,
+        now=now,
+    )
+    if hasattr(bundle, "model_copy"):
+        bundle = bundle.model_copy(update={"probes": verified})
+    else:
+        bundle = dict(bundle)
+        bundle["probes"] = verified
+    return bundle_to_snapshot(bundle, **kwargs)
 
 
 def envelope_from_probe(*args: Any, **kwargs: Any) -> EvidenceEnvelope:
@@ -234,6 +308,37 @@ def snapshot_to_legacy_probes(snapshot: Snapshot) -> dict[str, Any]:
             identity=snapshot.identity.model_dump(mode="json"),
         )
     return probes
+
+
+def snapshot_to_discovery_report(
+    snapshot: Snapshot,
+    *,
+    discovery_id: str | None = None,
+    platform: Mapping[str, Any] | None = None,
+    capability_manifest: Mapping[str, Any] | None = None,
+) -> Any:
+    """Build the legacy DiscoveryReport read projection without writing it."""
+
+    from rolo.core.models import DiscoveryReport, DiscoveryStatus
+
+    probes = snapshot_to_legacy_probes(snapshot)
+    statuses = [probe.status for probe in probes.values()]
+    if not statuses:
+        status = DiscoveryStatus.UNAVAILABLE
+    elif any(item == DiscoveryStatus.FAILED for item in statuses):
+        status = DiscoveryStatus.FAILED
+    elif any(item in {DiscoveryStatus.PARTIAL, DiscoveryStatus.UNAVAILABLE} for item in statuses):
+        status = DiscoveryStatus.PARTIAL
+    else:
+        status = DiscoveryStatus.SUCCEEDED
+    return DiscoveryReport(
+        discovery_id=discovery_id or f"rkb-{snapshot.digest or snapshot.computed_digest()[:16]}",
+        robot_id=snapshot.identity.robot_id,
+        status=status,
+        platform=dict(platform or {}),
+        capability_manifest=dict(capability_manifest or {}),
+        probes=probes,
+    )
 
 
 def _escape_pointer(value: str) -> str:

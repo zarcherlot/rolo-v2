@@ -51,8 +51,11 @@ def test_canonical_json_is_sorted_and_whitespace_free() -> None:
 def test_schema_drafts_and_dependency_matrix_are_versioned() -> None:
     envelope_schema = json.loads((ROOT / "schemas/RobotEvidenceEnvelope.schema.json").read_text())
     knowledge_schema = json.loads((ROOT / "schemas/RobotKnowledgeBase.schema.json").read_text())
+    snapshot_schema = json.loads((ROOT / "schemas/RobotSnapshot.schema.json").read_text())
     assert envelope_schema["$id"] == "robot-evidence-envelope/v1"
     assert knowledge_schema["$id"] == "robot-knowledge-base/v1"
+    assert snapshot_schema["$id"] == "robot-snapshot/v1"
+    assert "snapshots" in knowledge_schema["properties"]
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert project["project"]["requires-python"] == ">=3.10,<3.14"
     dev = project["dependency-groups"]["dev"]

@@ -143,6 +143,8 @@ def validate_envelope(
             clock_skew=clock_skew,
         )
     if hmac_secret is not None:
+        if len(hmac_secret) != 32:
+            raise EvidenceValidationError("evidence HMAC secret must contain exactly 32 bytes")
         signature = getattr(envelope, "signature_hmac_sha256", None)
         expected_signature = hmac.new(
             hmac_secret, envelope.digest.encode("ascii"), hashlib.sha256
@@ -179,10 +181,11 @@ def validate_bundle_hmac(
 ) -> None:
     """Validate legacy bundle digest/signature before read-only migration."""
 
+    if len(secret) != 32:
+        raise EvidenceValidationError("evidence HMAC secret must contain exactly 32 bytes")
     actual = payload_digest(payload, exclude=("payload_sha256", "signature_hmac_sha256"))
     if not hmac.compare_digest(actual, payload_sha256):
         raise EvidenceValidationError("evidence bundle payload hash mismatch")
     expected = hmac.new(secret, payload_sha256.encode("ascii"), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, signature_hmac_sha256):
         raise EvidenceValidationError("evidence bundle HMAC mismatch")
-

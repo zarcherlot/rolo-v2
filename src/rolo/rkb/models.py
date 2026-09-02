@@ -211,6 +211,8 @@ class EvidenceEnvelope(BaseModel):
                 fact.request_nonce or "",
             ) != identity:
                 raise ValueError("fact identity tuple does not match envelope identity")
+            if fact.fresh_until > self.identity.fresh_until:
+                raise ValueError("fact fresh_until exceeds envelope freshness window")
         return self
 
     def payload(self) -> dict[str, Any]:
@@ -229,6 +231,8 @@ class EvidenceEnvelope(BaseModel):
     def with_hmac(self, secret: bytes) -> EvidenceEnvelope:
         if not self.digest:
             raise ValueError("envelope digest is required before signing")
+        if len(secret) != 32:
+            raise ValueError("evidence HMAC secret must contain exactly 32 bytes")
         signature = hmac.new(secret, self.digest.encode("ascii"), hashlib.sha256).hexdigest()
         return self.model_copy(update={"signature_hmac_sha256": signature})
 
@@ -290,10 +294,19 @@ class Snapshot(BaseModel):
     schema_version: str = "robot-snapshot/v1"
     identity: SnapshotIdentity
     facts: list[Fact] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    snapshot: dict[str, Any] = Field(default_factory=dict)
+    freshness_policy: dict[str, int] = Field(default_factory=dict)
     digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     signature_hmac_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     created_at: datetime = Field(default_factory=_utc_now)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_metadata_alias(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "metadata" in value and "snapshot" not in value:
+            value = dict(value)
+            value["snapshot"] = value.pop("metadata")
+        return value
 
     @model_validator(mode="after")
     def validate_fact_identity(self) -> Snapshot:
@@ -308,6 +321,8 @@ class Snapshot(BaseModel):
                 fact.request_nonce or "",
             ) != identity:
                 raise ValueError("fact identity tuple does not match snapshot identity")
+            if fact.fresh_until > self.identity.fresh_until:
+                raise ValueError("fact fresh_until exceeds snapshot freshness window")
         return self
 
     def payload(self) -> dict[str, Any]:
@@ -326,7 +341,8 @@ class Snapshot(BaseModel):
         return cls(
             identity=envelope.identity,
             facts=envelope.facts,
-            metadata=envelope.snapshot,
+            snapshot=envelope.snapshot,
+            freshness_policy={},
             created_at=envelope.created_at,
         ).with_digest()
 
@@ -334,15 +350,23 @@ class Snapshot(BaseModel):
         return EvidenceEnvelope(
             identity=self.identity,
             facts=self.facts,
-            snapshot=self.metadata,
+            snapshot=self.snapshot,
             digest=self.digest,
             signature_hmac_sha256=self.signature_hmac_sha256,
             created_at=self.created_at,
         )
 
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Compatibility alias for the pre-RKB-1 field name."""
+
+        return self.snapshot
+
     def with_hmac(self, secret: bytes) -> Snapshot:
         if not self.digest:
             raise ValueError("snapshot digest is required before signing")
+        if len(secret) != 32:
+            raise ValueError("evidence HMAC secret must contain exactly 32 bytes")
         signature = hmac.new(secret, self.digest.encode("ascii"), hashlib.sha256).hexdigest()
         return self.model_copy(update={"signature_hmac_sha256": signature})
 

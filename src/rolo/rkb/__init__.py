@@ -10,7 +10,9 @@ from .canonical import (
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
+    snapshot_to_discovery_report,
     snapshot_to_legacy_probes,
+    verified_bundle_to_snapshot,
 )
 from .models import (
     EvidenceEnvelope,
@@ -56,6 +58,8 @@ __all__ = [
     "bundle_to_snapshot",
     "probe_to_snapshot",
     "snapshot_to_legacy_probes",
+    "snapshot_to_discovery_report",
+    "verified_bundle_to_snapshot",
     "EvidenceValidationError",
     "validate_identity",
     "validate_fact",

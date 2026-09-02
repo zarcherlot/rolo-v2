@@ -62,8 +62,15 @@ def payload_digest(value: Any, *, exclude: Iterable[str] = ("digest",)) -> str:
     if hasattr(value, "model_dump"):
         payload = value.model_dump(mode="json", exclude=set(exclude), exclude_none=True)
     elif isinstance(value, dict):
-        payload = {key: item for key, item in value.items() if key not in set(exclude)}
-        payload = _without_none(payload)
+        # Exclusions apply to the artifact's top-level fields only.  A nested
+        # ``None`` inside Fact.value is an observed value and must remain part
+        # of its digest.
+        excluded = set(exclude)
+        payload = {
+            key: item
+            for key, item in value.items()
+            if key not in excluded and item is not None
+        }
     else:
         payload = value
     return hashlib.sha256(canonical_json(payload)).hexdigest()
@@ -108,4 +115,3 @@ def pointer_for_fact(fact_index: int, field: str | None = None) -> str:
         raise ValueError("fact index must be non-negative")
     escaped = "" if field is None else "/" + field.replace("~", "~0").replace("/", "~1")
     return f"/facts/{fact_index}{escaped}"
-

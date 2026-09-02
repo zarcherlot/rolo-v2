@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -10,6 +12,7 @@ from rolo.rkb import (
     json_pointer,
     payload_digest,
     probe_to_snapshot,
+    snapshot_to_discovery_report,
     snapshot_to_legacy_probes,
     validate_snapshot,
 )
@@ -40,6 +43,8 @@ def test_probe_migration_preserves_unknown_status_and_pointer_source():
     )
     snapshot = probe_to_snapshot(probe, identity=make_identity(), source_ref="artifact://r#/ros")
     validate_snapshot(snapshot, now=NOW)
+    assert "snapshot" in snapshot.model_dump(mode="json")
+    assert "metadata" not in snapshot.model_dump(mode="json")
     assert snapshot.facts[0].value["status"] == "UNAVAILABLE"
     assert json_pointer(snapshot.model_dump(mode="json"), "/facts/0/value/data/domain_id") is None
 
@@ -72,9 +77,46 @@ def test_digest_is_stable_and_tamper_is_rejected():
         identity=make_identity(),
     )
     assert payload_digest(snapshot) == snapshot.digest
-    tampered = snapshot.model_copy(update={"metadata": {"secret": "must not pass"}})
+    tampered = snapshot.model_copy(update={"snapshot": {"secret": "must not pass"}})
     with pytest.raises(EvidenceValidationError, match="digest"):
         validate_snapshot(tampered, now=NOW)
+
+
+def test_nested_null_is_part_of_payload_digest():
+    assert payload_digest({"value": {"explicit": None}}) != payload_digest(
+        {"value": {"explicit": "<omitted>"}}
+    )
+
+
+def test_bundle_hmac_is_required_when_requested_and_report_projection_is_compatible():
+    bundle = TargetEvidenceBundle(
+        robot_id="robot-1",
+        collector_id="collector-1",
+        target_host_fingerprint=FP,
+        request_nonce=NONCE,
+        requested_layers=["linux"],
+        collected_at=NOW,
+        probes={
+            "linux": ProbeResult(
+                layer="linux", status=DiscoveryStatus.PARTIAL, observed_at=NOW
+            )
+        },
+        payload_sha256="0" * 64,
+        signature_hmac_sha256="0" * 64,
+    )
+    secret = b"s" * 32
+    payload = payload_digest(
+        bundle, exclude=("payload_sha256", "signature_hmac_sha256")
+    )
+    signature = hmac.new(secret, payload.encode("ascii"), hashlib.sha256).hexdigest()
+    signed = bundle.model_copy(
+        update={"payload_sha256": payload, "signature_hmac_sha256": signature}
+    )
+    snapshot = bundle_to_snapshot(signed, verification_secret=secret)
+    report = snapshot_to_discovery_report(snapshot)
+    assert report.robot_id == "robot-1"
+    with pytest.raises(EvidenceValidationError, match="HMAC"):
+        bundle_to_snapshot(signed, verification_secret=b"x" * 31)
 
 
 def test_future_identity_and_access_fail_closed():
