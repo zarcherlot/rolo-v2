@@ -110,10 +110,18 @@ def build_linux_manifest(
         serial=serial,
         channels=[
             MhsChannel(
-                id="cpu_temperature", name="CPU temperature", unit="degC", min_value=-40, max_value=125
+                id="cpu_temperature",
+                name="CPU temperature",
+                unit="degC",
+                min_value=-40,
+                max_value=125,
             ),
             MhsChannel(
-                id="memory_used_percent", name="Memory used", unit="percent", min_value=0, max_value=100
+                id="memory_used_percent",
+                name="Memory used",
+                unit="percent",
+                min_value=0,
+                max_value=100,
             ),
             MhsChannel(id="load_1m", name="One minute load average", unit="load", min_value=0),
         ],

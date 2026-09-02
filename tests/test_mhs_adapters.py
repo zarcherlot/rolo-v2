@@ -9,7 +9,9 @@ from rolo.mhs_hardware import MhsDeviceManifest
 
 
 class StaticAdapter:
-    def __init__(self, adapter_id: str, environment: MhsEnvironmentDescriptor, backend: object) -> None:
+    def __init__(
+        self, adapter_id: str, environment: MhsEnvironmentDescriptor, backend: object
+    ) -> None:
         self.adapter_id = adapter_id
         self.environment = environment
         self.backend = backend
@@ -41,7 +43,10 @@ def _manifest() -> MhsDeviceManifest:
 def test_same_manifest_can_use_multiple_software_adapters() -> None:
     registry = MhsAdapterRegistry()
     backend = Backend()
-    for adapter_id, kind in (("sim", MhsSoftwareEnvironment.SIMULATION), ("ros", MhsSoftwareEnvironment.ROS2)):
+    for adapter_id, kind in (
+        ("sim", MhsSoftwareEnvironment.SIMULATION),
+        ("ros", MhsSoftwareEnvironment.ROS2),
+    ):
         registry.register(
             StaticAdapter(
                 adapter_id,
