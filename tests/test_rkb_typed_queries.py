@@ -133,3 +133,34 @@ def test_state_safety_never_infers_safe():
     result = ReadOnlyKnowledgeBase([snapshot_for(fact("linux", {}))]).state_safety.snapshot(now=NOW)
     assert result.value.safety_status == "UNKNOWN"
     assert any("UNKNOWN" in item for item in result.limitations)
+
+
+def test_query_freshness_is_layer_scoped_and_stale_values_are_not_exposed():
+    snapshot = snapshot_for(
+        fact(
+            "hw",
+            {"resources": [{"serial": "S1", "kind": "camera"}]},
+            fresh_until=NOW + timedelta(minutes=4),
+        ),
+        fact(
+            "ros",
+            {"endpoints": [{"route_id": "scan", "endpoint": "/scan"}]},
+            fresh_until=NOW + timedelta(seconds=1),
+        ),
+    )
+    kb = ReadOnlyKnowledgeBase([snapshot])
+    hardware = kb.hw.inventory_scan(now=NOW + timedelta(seconds=30))
+    assert hardware.status.value == "FRESH"
+    assert hardware.value.resources[0].serial == "S1"
+    graph = kb.middleware.graph_snapshot(now=NOW + timedelta(seconds=30))
+    assert graph.status.value == "STALE"
+    assert graph.value is None
+
+
+def test_multiple_layer_facts_are_merged_without_dropping_resources():
+    snapshot = snapshot_for(
+        fact("hw", {"resources": [{"path": "/dev/ttyUSB0", "kind": "sensor"}]}),
+        fact("hw", {"resources": [{"serial": "S1", "kind": "camera"}]}),
+    )
+    result = ReadOnlyKnowledgeBase([snapshot]).hw.inventory_scan(now=NOW)
+    assert [item.resource_id for item in result.value.resources] == ["/dev/ttyUSB0", "S1"]

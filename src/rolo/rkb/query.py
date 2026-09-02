@@ -235,11 +235,13 @@ class ReadOnlyKnowledgeBase:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"linux", "os_runtime", "runtime", "ros"})
         data = self._merge_data(facts)
+        merge_limitations = self._take_merge_limitations(data)
         return self._typed(
             RuntimeStatusModel.model_validate(self._runtime_value(data)),
             facts,
             status=self._status_for(facts, now=now),
             reason="runtime observed" if facts else "runtime is UNKNOWN",
+            limitations=merge_limitations,
         )
 
     def query_hardware_inventory(
@@ -252,11 +254,12 @@ class ReadOnlyKnowledgeBase:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"hw", "hardware", "hardware_inventory"})
         data = self._merge_data(facts)
-        raw_resources = data.get("resources", data.get("devices", data.get("inventory", [])))
-        if isinstance(raw_resources, Mapping):
-            raw_resources = list(raw_resources.values())
+        merge_limitations = self._take_merge_limitations(data)
+        raw_resources = self._items_from_facts(
+            facts, ("resources", "devices", "inventory")
+        )
         resources: list[HardwareResourceModel] = []
-        for index, raw in enumerate(raw_resources if isinstance(raw_resources, list) else []):
+        for index, raw in enumerate(raw_resources):
             item = dict(raw) if isinstance(raw, Mapping) else {"name": str(raw)}
             resource_id = str(
                 item.get("resource_id")
@@ -281,6 +284,7 @@ class ReadOnlyKnowledgeBase:
             facts,
             status=self._status_for(facts, now=now),
             reason="hardware inventory observed" if facts else "hardware inventory is UNKNOWN",
+            limitations=merge_limitations,
         )
 
     def query_middleware_graph(
@@ -294,7 +298,13 @@ class ReadOnlyKnowledgeBase:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"ros", "middleware", "middleware_graph"})
         data = self._merge_data(facts)
-        endpoints, relationships = self._endpoint_values(data), self._relationship_values(data)
+        merge_limitations = self._take_merge_limitations(data)
+        endpoints = self._endpoint_values(
+            {"endpoints": self._items_from_facts(facts, ("endpoints", "routes", "topics"))}
+        )
+        relationships = self._relationship_values(
+            {"relationships": self._items_from_facts(facts, ("relationships", "edges"))}
+        )
         if facts:
             for endpoint in endpoints:
                 endpoint.observed_at = facts[-1].observed_at
@@ -335,6 +345,7 @@ class ReadOnlyKnowledgeBase:
             facts,
             status=self._status_for(facts, now=now),
             reason="middleware graph observed" if facts else "middleware graph is UNKNOWN",
+            limitations=merge_limitations,
         )
 
     def query_middleware_route(
@@ -369,10 +380,8 @@ class ReadOnlyKnowledgeBase:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"application", "executable", "app"})
         data = self._merge_data(facts)
-        raw = data.get("executables", data.get("applications", []))
-        items = (
-            list(raw.values()) if isinstance(raw, Mapping) else raw if isinstance(raw, list) else []
-        )
+        merge_limitations = self._take_merge_limitations(data)
+        items = self._items_from_facts(facts, ("executables", "applications"))
         for candidate in items:
             item = dict(candidate) if isinstance(candidate, Mapping) else {"name": str(candidate)}
             item.setdefault("name", item.get("executable") or executable_id)
@@ -385,6 +394,7 @@ class ReadOnlyKnowledgeBase:
                     facts,
                     status=self._status_for(facts, now=now),
                     reason="executable identity observed",
+                    limitations=merge_limitations,
                 )
         return TypedQueryResult(
             status=FreshnessStatus.UNKNOWN,
@@ -403,10 +413,8 @@ class ReadOnlyKnowledgeBase:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"capability", "capabilities", "application"})
         data = self._merge_data(facts)
-        raw = data.get("capabilities", data.get("operations", []))
-        items = (
-            list(raw.values()) if isinstance(raw, Mapping) else raw if isinstance(raw, list) else []
-        )
+        merge_limitations = self._take_merge_limitations(data)
+        items = self._items_from_facts(facts, ("capabilities", "operations"))
         for candidate in items:
             item = (
                 dict(candidate)
@@ -437,7 +445,13 @@ class ReadOnlyKnowledgeBase:
                 fingerprint=envelope.identity.target_host_fingerprint,
                 limitations=list(item.get("limitations", [])),
             )
-            return self._typed(value, facts, status=state, reason=reason)
+            return self._typed(
+                value,
+                facts,
+                status=state,
+                reason=reason,
+                limitations=merge_limitations,
+            )
         return TypedQueryResult(
             status=CapabilityState.UNAVAILABLE,
             limitations=[f"capability not found: {operation_id}"],
@@ -454,6 +468,7 @@ class ReadOnlyKnowledgeBase:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"state_safety", "safety", "state"})
         data = self._merge_data(facts)
+        merge_limitations = self._take_merge_limitations(data)
         raw_observed = data.get("observed_fields", data.get("fields", {}))
         observed = dict(raw_observed) if isinstance(raw_observed, Mapping) else {}
         value = StateSafetyModel(
@@ -461,7 +476,7 @@ class ReadOnlyKnowledgeBase:
             observed_fields=observed,
             safety_status=str(data.get("safety_status", "UNKNOWN")),
         )
-        limitations = self._limitations(facts)
+        limitations = self._limitations(facts) + merge_limitations
         if not facts:
             limitations.append("no state safety observation; safety remains UNKNOWN")
         elif "safety_status" not in data:
@@ -530,10 +545,19 @@ class ReadOnlyKnowledgeBase:
         if fingerprint and fingerprint != envelope.identity.target_host_fingerprint:
             raise QueryRejectedError("snapshot fingerprint mismatch")
         try:
-            # Query freshness is a hard contract.  The legacy validator's
-            # clock-skew grace is useful at ingestion but would turn an
-            # expired read into an apparently successful answer.
-            validate_envelope(envelope, now=now, require_fresh=True, clock_skew=timedelta(0))
+            # Validate the snapshot envelope and identity at query time, but
+            # defer fact freshness to the selected layer.  A 30-second ROS
+            # fact must not invalidate an otherwise usable 10-minute hardware
+            # projection.
+            validate_envelope(envelope, now=now, require_fresh=False, clock_skew=timedelta(0))
+            from .validation import validate_identity
+
+            validate_identity(
+                envelope.identity,
+                now=now,
+                require_fresh=True,
+                clock_skew=timedelta(0),
+            )
         except EvidenceValidationError as exc:
             raise QueryRejectedError(str(exc)) from exc
         return envelope
@@ -553,12 +577,47 @@ class ReadOnlyKnowledgeBase:
     @staticmethod
     def _merge_data(facts: Sequence[Fact]) -> dict[str, Any]:
         result: dict[str, Any] = {}
+        limitations: list[str] = []
         for fact in facts:
             value = fact.value if isinstance(fact.value, Mapping) else {}
             data = value.get("data", value)
             if isinstance(data, Mapping):
-                result.update(data)
+                for key, raw in data.items():
+                    if key not in result:
+                        result[key] = list(raw) if isinstance(raw, list) else raw
+                    elif isinstance(result[key], list) and isinstance(raw, list):
+                        result[key].extend(list(raw))
+                    elif result[key] != raw:
+                        limitations.append(
+                            f"conflicting observations for {key}; latest value selected"
+                        )
+                        result[key] = raw
+        if limitations:
+            result["_rkb_merge_limitations"] = sorted(set(limitations))
         return result
+
+    @staticmethod
+    def _take_merge_limitations(data: dict[str, Any]) -> list[str]:
+        raw = data.pop("_rkb_merge_limitations", [])
+        return [str(item) for item in raw] if isinstance(raw, list) else []
+
+    @staticmethod
+    def _items_from_facts(facts: Sequence[Fact], keys: Sequence[str]) -> list[Any]:
+        items: list[Any] = []
+        for fact in facts:
+            value = fact.value if isinstance(fact.value, Mapping) else {}
+            data = value.get("data", value)
+            if not isinstance(data, Mapping):
+                continue
+            for key in keys:
+                raw = data.get(key)
+                if isinstance(raw, Mapping):
+                    items.extend(raw.values())
+                    break
+                if isinstance(raw, list):
+                    items.extend(raw)
+                    break
+        return items
 
     @staticmethod
     def _status_for(facts: Sequence[Fact], *, now: datetime | None = None) -> FreshnessStatus:
@@ -587,7 +646,7 @@ class ReadOnlyKnowledgeBase:
     ) -> TypedQueryResult[T]:
         return TypedQueryResult(
             status=status,
-            value=value,
+            value=None if status == FreshnessStatus.STALE else value,
             evidence_ids=sorted({fact.fact_id for fact in facts}),
             observed_at=min((fact.observed_at for fact in facts), default=None),
             fresh_until=min((fact.fresh_until for fact in facts), default=None),
@@ -608,15 +667,35 @@ class ReadOnlyKnowledgeBase:
 
     @staticmethod
     def _runtime_value(data: Mapping[str, Any]) -> dict[str, Any]:
-        aliases = {
-            "os": "os_name",
-            "version": "os_version",
-            "kernel_release": "kernel",
-            "arch": "architecture",
-            "domain_id": "ros_domain_id",
-            "rmw": "rmw_implementation",
+        host = data.get("host") if isinstance(data.get("host"), Mapping) else {}
+        os_release = (
+            host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
+        )
+        environment = (
+            data.get("environment")
+            if isinstance(data.get("environment"), Mapping)
+            else {}
+        )
+        value = {
+            "os_name": host.get("system") or data.get("os_name") or data.get("os"),
+            "os_version": host.get("release") or data.get("os_version") or data.get("version"),
+            "kernel": host.get("version") or data.get("kernel") or data.get("kernel_release"),
+            "architecture": host.get("architecture")
+            or data.get("architecture")
+            or data.get("arch"),
+            "hostname": host.get("hostname") or data.get("hostname"),
+            "ros_distro": environment.get("ROS_DISTRO") or data.get("ros_distro"),
+            "ros_version": environment.get("ROS_VERSION") or data.get("ros_version"),
+            "ros_domain_id": environment.get("ROS_DOMAIN_ID")
+            or data.get("ros_domain_id")
+            or data.get("domain_id"),
+            "rmw_implementation": environment.get("RMW_IMPLEMENTATION")
+            or data.get("rmw_implementation")
+            or data.get("rmw"),
         }
-        value = {aliases.get(key, key): raw for key, raw in data.items()}
+        if not value["os_version"] and os_release:
+            value["os_version"] = os_release.get("VERSION_ID") or os_release.get("PRETTY_NAME")
+        value = {key: raw for key, raw in value.items() if raw is not None}
         value.setdefault("state", "UNKNOWN")
         if value.get("ros_domain_id") is None:
             value["ros_domain_id"] = UnknownValue()

@@ -15,8 +15,14 @@ from rolo.rkb import (
     snapshot_to_discovery_report,
     snapshot_to_legacy_probes,
     validate_snapshot,
+    verified_bundle_to_snapshot,
 )
-from rolo.stages.probe.target_evidence import TargetEvidenceBundle
+from rolo.stages.probe.target_evidence import (
+    CollectorDescriptor,
+    EvidenceDeploymentConfig,
+    EvidenceDeploymentMode,
+    TargetEvidenceBundle,
+)
 
 NOW = datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc)
 FP = "a" * 64
@@ -133,3 +139,47 @@ def test_future_identity_and_access_fail_closed():
             ),
         )
         validate_snapshot(snapshot, now=NOW)
+
+
+def test_verified_bundle_projection_requires_pinned_deployment(tmp_path):
+    secret = b"s" * 32
+    secret_path = tmp_path / "collector.key"
+    secret_path.write_bytes(secret)
+    descriptor = CollectorDescriptor(
+        robot_id="robot-1",
+        collector_id="collector-1",
+        target_host_fingerprint=FP,
+    )
+    deployment = EvidenceDeploymentConfig(
+        robot_id="robot-1",
+        mode=EvidenceDeploymentMode.LOCAL,
+        collector=descriptor,
+        verification_secret_path=str(secret_path),
+        verification_secret_sha256=hashlib.sha256(secret).hexdigest(),
+        local_collector_state_path=str(tmp_path / "collector-state.json"),
+    )
+    bundle = TargetEvidenceBundle(
+        robot_id="robot-1",
+        collector_id="collector-1",
+        target_host_fingerprint=FP,
+        request_nonce=NONCE,
+        requested_layers=["linux"],
+        collected_at=NOW,
+        probes={"linux": ProbeResult(layer="linux", status=DiscoveryStatus.PARTIAL)},
+        payload_sha256="0" * 64,
+        signature_hmac_sha256="0" * 64,
+    )
+    payload = payload_digest(bundle, exclude=("payload_sha256", "signature_hmac_sha256"))
+    signed = bundle.model_copy(
+        update={
+            "payload_sha256": payload,
+            "signature_hmac_sha256": hmac.new(
+                secret, payload.encode("ascii"), hashlib.sha256
+            ).hexdigest(),
+        }
+    )
+    snapshot = verified_bundle_to_snapshot(signed, deployment=deployment, now=NOW)
+    assert snapshot.identity.robot_id == "robot-1"
+    tampered = signed.model_copy(update={"robot_id": "other"})
+    with pytest.raises(ValueError, match="robot identity"):
+        verified_bundle_to_snapshot(tampered, deployment=deployment, now=NOW)

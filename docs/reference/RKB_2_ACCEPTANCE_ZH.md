@@ -36,14 +36,28 @@ python scripts/check_docs.py
 ```text
 target-evidence collect --robot-id mentorpi --deployment-config .../mentorpi.json
   status=VERIFIED, access=READ_ONLY, mode=local
-pytest (RKB-1 envelope/compatibility + RKB-2 typed queries): 19 passed
+python scripts/rkb2_landerpi_smoke.py bundle.json --deployment-config .../mentorpi.json --live
+  deployment/HMAC verification + typed query; fresh live canary
+pytest (RKB-1 envelope/compatibility + RKB-2 typed queries): 24 passed
 pytest (full suite) + compileall src tests: passed, 1 skipped
-rkb2_landerpi_smoke.py: exit 0; snapshot digest=d4fae183a64839b9...
+rkb2_landerpi_smoke.py (历史兼容 smoke): exit 0; snapshot digest=d4fae183a64839b9...
 ```
 
 实机结果保持 fail-closed 语义：硬件路径型资源标记 `UNSTABLE`，网络/PCI 枚举不可用；
 middleware 图因运行时采样未稳定及缺少 RMW/schema/provider 信息保持 `UNKNOWN`；
 state safety 没有观察证据，状态为 `UNKNOWN`。这些是目标机证据限制，不是查询层推断。
+
+本轮 verifier 加固后，容器内旧 Bundle 被拒绝为 `payload hash mismatch`；重新 live
+采集暂因目标机已有长期运行的 ROS 调试进程阻塞，未将旧 Bundle 冒充为新的 E4 证据。
+
+## 加固记录
+
+- smoke runner 现在必须接收 pinned deployment config，并调用
+  `verified_bundle_to_snapshot()`；缺少 deployment/HMAC 验证不能进入 typed query；
+- snapshot 完整性与 identity freshness 分开校验，事实 freshness 按查询层处理；过期层返回
+  `STALE` 且不暴露 value，无关层过期不会污染当前查询；
+- 多个同层 fact 的列表型资源按事实合并，不再静默覆盖或在合并过程中修改输入事实；
+- typed result 与主要 read model 带独立 schema version，runtime projection 只输出显式字段。
 
 ## 回滚
 
