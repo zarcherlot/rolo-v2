@@ -4,11 +4,13 @@
 
 ## 边界
 
-`src/rolo/mhs_linux.py` 是目标无关的只读 Linux MHS backend。它通过可配置 procfs/sysfs
-根目录读取 CPU 温度、内存占用、负载、设备型号/serial 和 transport presence；不执行
-shell，不写 GPIO/I²C/SPI，不做 reset、setpoint、power-cycle 或固件更新。landerpi 只作为
-一次性观测样本保存，不构成专用实现。官方 MHS wire schema 尚未公开，因此发布标识为
-**Rolo MHS-compatible profile**，不是官方 conformance。
+`src/rolo/mhs_hardware.py` 是硬件无关的 MHS device/provider 契约，`src/rolo/mhs_adapters.py`
+是软件环境适配 SPI；`src/rolo/mhs_linux.py` 只是其中一个 procfs/sysfs 实现。相同的
+manifest 和 `mhs://<device_id>/<capability>` route 可以由 native、ROS 2、serial/USB、HTTP
+或 simulation adapter 提供。Linux adapter 读取 CPU 温度、内存占用、负载、设备
+型号/serial 和 transport presence；不执行 shell，不写设备，不做 reset、setpoint、power-cycle
+或固件更新。landerpi 只作为一次性观测样本保存，不构成专用实现。官方 MHS wire schema
+尚未公开，因此发布标识为 **Rolo MHS-compatible profile**，不是官方 conformance。
 
 ## 调用链
 
@@ -17,8 +19,9 @@ Agent
   -> RKB typed query / MCP adapter
   -> Rolo session + capability gate
   -> MhsDeviceProvider (mhs://<device_id>/{inspect,status,read})
-  -> LinuxHardwareBackend (bounded procfs/sysfs reads)
-  -> target Linux hardware
+  -> MhsAdapterRegistry -> selected environment adapter
+  -> MhsBackend (bounded read/status)
+  -> target hardware/software stack
 ```
 
 `MhsDeviceManifest` 是 DECLARED/PROVIDER 证据；`status` 和 `read` 是目标 OBSERVED 证据。
@@ -34,6 +37,19 @@ Provider 注册成功只能得到 `DISCOVERED_UNVERIFIED`，不能直接得到 `
 Provider 的每个 `MhsResult` 已返回 manifest/driver 摘要、transport、route、观测时间和
 5 分钟 freshness window；RKB 负责把这些结果绑定到目标 identity，并在过期或 fingerprint
 不一致时拒绝消费。读数类型、非有限值、未知 channel 和上下限在 provider 边界 fail closed。
+
+软件环境适配器只负责把环境转换成 `MhsBackend.read/status`：
+
+| 环境 | 典型实现 | 设备身份/route |
+|---|---|---|
+| native | 厂商 SDK、系统 API | manifest 中的稳定 serial/resource |
+| ROS 2 | topic/service/action bridge（首版只读） | 同一 `mhs://<device_id>/...` |
+| serial/USB | 有界帧协议 driver | USB serial/设备 reference |
+| HTTP | TLS endpoint + schema 校验 | endpoint 不能代替 device identity |
+| simulation | fake/replay backend | 明确标记 simulation，不得冒充 observed hardware |
+
+因此硬件类型（sensor/controller/actuator 等）和软件环境是两个独立维度；更换 ROS 2、
+串口或仿真实现不会复制一套 RKB identity，也不会绕过同一个 provider safety gate。
 
 ## 真机验证记录
 

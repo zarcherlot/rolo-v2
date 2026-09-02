@@ -1,7 +1,8 @@
 # Linux MHS 只读抽象与 landerpi 观测记录
 
-通用实现位于 [`src/rolo/mhs_linux.py`](../../src/rolo/mhs_linux.py)，通过可配置的 Linux
-procfs/sysfs 根目录提供只读硬件观测和 manifest builder。它不绑定 Raspberry Pi、网络
+通用实现位于 [`src/rolo/mhs_hardware.py`](../../src/rolo/mhs_hardware.py) 和
+[`src/rolo/mhs_adapters.py`](../../src/rolo/mhs_adapters.py)；Linux procfs/sysfs 只是一个
+环境适配器。它不绑定 Raspberry Pi、网络
 地址、厂商或凭据。该目录只保留 landerpi 的一次性观测记录，不是 landerpi 专用驱动。
 
 ## 设备事实
