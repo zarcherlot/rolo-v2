@@ -31,6 +31,7 @@ class MhsDeviceClass(str, Enum):
     COMPUTE = "compute"
     BUS = "bus"
     TOOL = "tool"
+    END_EFFECTOR = "end-effector"
 
 
 class MhsChannel(BaseModel):
@@ -66,6 +67,8 @@ class MhsDeviceManifest(BaseModel):
     serial: str | None = None
     channels: list[MhsChannel] = Field(default_factory=list)
     resources: list[str] = Field(default_factory=list)
+    state: dict[str, list[str]] = Field(default_factory=lambda: {"read": []})
+    commands: list[dict[str, Any]] = Field(default_factory=list)
     transport: dict[str, Any] = Field(default_factory=dict)
     limits: list[str] = Field(default_factory=list)
     driver_id: str = Field(default="unknown-driver", min_length=1)

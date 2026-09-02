@@ -51,6 +51,8 @@ def test_landerpi_manifest_is_stable_and_read_only(tmp_path: Path) -> None:
     assert manifest.device_id == "landerpi"
     assert manifest.driver_sha256 == DRIVER_SHA256
     assert "read-only" in manifest.limits
+    assert manifest.state["read"] == ["health", "model", "serial", "transports"]
+    assert manifest.commands == []
 
 
 def test_real_shape_canary_is_accepted_by_provider(tmp_path: Path) -> None:

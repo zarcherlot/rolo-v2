@@ -128,6 +128,8 @@ def build_manifest(backend: LanderPiBackend | None = None):
             MhsChannel(id="load_1m", name="One minute load average", unit="load", min_value=0),
         ],
         resources=["cpu", "memory", "thermal-zone0", "i2c-1", "spidev10.0", "gpiochip0"],
+        state={"read": ["health", "model", "serial", "transports"]},
+        commands=[],
         transport={"kind": "local-linux", "properties": {"target": "landerpi"}},
         limits=["read-only", "procfs/sysfs bounded reads", "no GPIO/I2C/SPI writes"],
         driver_id=DRIVER_ID,
