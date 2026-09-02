@@ -51,7 +51,9 @@ servo actuator group 分别生成 `sensor`、`controller`、`actuator` manifest�
 本次在 `MentorPi` ROS 2 Humble 容器内的只读 graph 记录见
 [`ros-graph-20260902.json`](ros-graph-20260902.json)，已确认 Aurora 节点的图像/点云
 topic、`/scan` 的 LaserScan topic，以及控制器的 joint/servo state topic；消息 payload
-仍未读取，因而条目不会自动提升为 `VERIFIED`。
+仍未读取。有限窗口内的 payload 读取结果见
+[`ros-payload-20260902.json`](ros-payload-20260902.json)，因而条目不会自动提升为
+`VERIFIED`。
 
 生成命令：
 

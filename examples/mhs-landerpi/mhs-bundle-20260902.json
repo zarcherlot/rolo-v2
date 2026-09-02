@@ -1,7 +1,7 @@
 {
   "schema_version": "rolo-mhs-bundle/v1",
   "robot_id": "landerpi",
-  "generated_at": "2026-09-02T15:39:53.734154Z",
+  "generated_at": "2026-09-02T15:49:13.291579Z",
   "source_discovery": "artifact://mhs-landerpi/discovery-20260902.json",
   "devices": [
     {
@@ -221,6 +221,11 @@
           "kind": "documentation",
           "ref": "https://www.deptrum.com/en/site/product_details/318",
           "statement": "Aurora 930 is documented as a Linux/ROS 3D depth camera."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
+          "statement": "Bounded camera payload read did not receive a frame."
         }
       ],
       "sampling_contract": [
@@ -329,7 +334,7 @@
         "transport": {
           "kind": "ros2-laserscan",
           "properties": {
-            "node": "ldlidar_stl_ros",
+            "node": "/scan_to_scan_filter_chain",
             "topic_hint": "/scan"
           }
         },
@@ -421,6 +426,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/topic_info/~1scan",
           "statement": "/scan is a sensor_msgs/msg/LaserScan topic with a RELIABLE publisher."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
+          "statement": "Bounded /scan payload read timed out without a LaserScan message."
         }
       ],
       "sampling_contract": [
@@ -622,6 +632,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/bindings/2",
           "statement": "/ros_robot_controller exposes battery state and servo/motor command subscriptions."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
+          "statement": "No joint-state payload was observed in the bounded read window."
         }
       ],
       "sampling_contract": [

@@ -198,6 +198,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
 
     common = "artifact://mhs-landerpi/discovery-20260902.json"
     ros_graph = "artifact://mhs-landerpi/ros-graph-20260902.json"
+    ros_payload = "artifact://mhs-landerpi/ros-payload-20260902.json"
     devices = [
         MhsBundleDevice(
             manifest=_manifest(
@@ -336,14 +337,18 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     kind="software",
                     ref=f"{ros_graph}#/bindings/0",
                     statement=(
-                        "The /aurora/aurora node publishes RGB, IR, depth and "
-                        "point-cloud topics."
+                        "The /aurora/aurora node publishes RGB, IR, depth and point-cloud topics."
                     ),
                 ),
                 MhsEvidenceRef(
                     kind="documentation",
                     ref="https://www.deptrum.com/en/site/product_details/318",
                     statement="Aurora 930 is documented as a Linux/ROS 3D depth camera.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_payload,
+                    statement="Bounded camera payload read did not receive a frame.",
                 ),
             ],
             sampling_contract=[
@@ -377,7 +382,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 state={"read": ["health", "ros_topics", "frame_id", "scan_rate_hz"]},
                 transport={
                     "kind": "ros2-laserscan",
-                    "properties": {"node": "ldlidar_stl_ros", "topic_hint": "/scan"},
+                    "properties": {"node": "/scan_to_scan_filter_chain", "topic_hint": "/scan"},
                 },
                 limits=[
                     "driver presence only; model, serial, protocol and physical "
@@ -430,9 +435,13 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     kind="software",
                     ref=f"{ros_graph}#/topic_info/~1scan",
                     statement=(
-                        "/scan is a sensor_msgs/msg/LaserScan topic with a "
-                        "RELIABLE publisher."
+                        "/scan is a sensor_msgs/msg/LaserScan topic with a RELIABLE publisher."
                     ),
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_payload,
+                    statement="Bounded /scan payload read timed out without a LaserScan message.",
                 ),
             ],
             sampling_contract=[
@@ -530,6 +539,11 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         "servo/motor command subscriptions."
                     ),
                 ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_payload,
+                    statement="No joint-state payload was observed in the bounded read window.",
+                ),
             ],
             sampling_contract=[
                 "read controller manager state",
@@ -617,8 +631,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     kind="software",
                     ref=f"{ros_graph}#/topics/~1controller_manager~1servo_states",
                     statement=(
-                        "The controller graph exposes a servo state topic for "
-                        "feedback sampling."
+                        "The controller graph exposes a servo state topic for feedback sampling."
                     ),
                 ),
             ],
