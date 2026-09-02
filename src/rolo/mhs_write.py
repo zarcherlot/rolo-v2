@@ -88,6 +88,21 @@ class MhsWriteResult(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
+class MhsWriteEvent(BaseModel):
+    """Immutable audit record for one write attempt."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: str = "mhs-write-event/v1"
+    event_id: str
+    event_type: str = "MHS_WRITE"
+    occurred_at: datetime
+    result: MhsWriteResult
+    previous_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    immutable: bool = True
+
+
 class MhsWriteBackend(Protocol):
     def write(
         self,
@@ -132,6 +147,59 @@ class MhsResourceLocks:
             lock.release()
 
 
+class MhsWriteEventStore:
+    """Append-only hash-chained event store for the W2 simulation slice."""
+
+    def __init__(self) -> None:
+        self._events: list[MhsWriteEvent] = []
+
+    def append(self, result: MhsWriteResult) -> MhsWriteEvent:
+        if any(event.event_id == result.event_id for event in self._events):
+            raise ValueError(f"duplicate MHS write event id: {result.event_id}")
+        previous_digest = self._events[-1].digest if self._events else None
+        payload = {
+            "event_id": result.event_id,
+            "event_type": "MHS_WRITE",
+            "occurred_at": result.observed_at.isoformat(),
+            "result": result.model_dump(mode="json"),
+            "previous_digest": previous_digest,
+        }
+        digest = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        event = MhsWriteEvent(
+            event_id=result.event_id,
+            occurred_at=result.observed_at,
+            result=result,
+            previous_digest=previous_digest,
+            digest=digest,
+        )
+        self._events.append(event)
+        return event
+
+    def events(self) -> tuple[MhsWriteEvent, ...]:
+        return tuple(self._events)
+
+    def verify(self) -> None:
+        previous_digest: str | None = None
+        for event in self._events:
+            if event.previous_digest != previous_digest or not event.immutable:
+                raise ValueError("MHS write event chain is invalid")
+            payload = {
+                "event_id": event.event_id,
+                "event_type": event.event_type,
+                "occurred_at": event.occurred_at.isoformat(),
+                "result": event.result.model_dump(mode="json"),
+                "previous_digest": event.previous_digest,
+            }
+            expected = hashlib.sha256(
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            if expected != event.digest:
+                raise ValueError(f"MHS write event digest mismatch: {event.event_id}")
+            previous_digest = event.digest
+
+
 class MhsWriteController:
     """Validate Rolo policy context before invoking a bounded MHS backend."""
 
@@ -139,9 +207,11 @@ class MhsWriteController:
         self,
         *,
         locks: MhsResourceLocks | None = None,
+        event_store: MhsWriteEventStore | None = None,
         allowed_environment_kinds: set[str] | None = None,
     ) -> None:
         self.locks = locks or MhsResourceLocks()
+        self.event_store = event_store or MhsWriteEventStore()
         self.allowed_environment_kinds = allowed_environment_kinds or {"fake", "simulation"}
         self._idempotent_results: dict[
             tuple[str, str, str], tuple[str, MhsWriteResult]
@@ -194,25 +264,29 @@ class MhsWriteController:
             )
             if command.idempotent:
                 self._idempotent_results[key] = (arguments_sha256, result)
-            return result
+            return self._finalize(result)
         except MhsWriteRejected as exc:
-            return self._result(
+            return self._finalize(self._result(
                 MhsWriteStatus.DENIED,
                 manifest,
                 request,
                 context,
                 reason=str(exc),
                 observed_at=point,
-            )
+            ))
         except Exception as exc:
-            return self._result(
+            return self._finalize(self._result(
                 MhsWriteStatus.FAILED,
                 manifest,
                 request,
                 context,
                 reason=f"write backend failed: {type(exc).__name__}",
                 observed_at=point,
-            )
+            ))
+
+    def _finalize(self, result: MhsWriteResult) -> MhsWriteResult:
+        self.event_store.append(result)
+        return result
 
     @staticmethod
     def _command(manifest: MhsDeviceManifest, command_id: str) -> MhsCommandDescriptor:
@@ -323,6 +397,8 @@ __all__ = [
     "MhsWriteRequest",
     "MhsWriteContext",
     "MhsWriteResult",
+    "MhsWriteEvent",
+    "MhsWriteEventStore",
     "MhsWriteBackend",
     "MhsWriteAuthorizer",
     "MhsWriteRejected",

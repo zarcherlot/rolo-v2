@@ -8,6 +8,7 @@ from rolo.mhs_write import (
     MhsResourceLocks,
     MhsWriteContext,
     MhsWriteController,
+    MhsWriteEventStore,
     MhsWriteRejected,
     MhsWriteRequest,
     MhsWriteStatus,
@@ -141,6 +142,32 @@ def test_simulation_write_succeeds_only_through_rolo_controller() -> None:
     assert command["capability_id"] == "set_position"
     assert command["requires_rolo_write_gate"] is True
     assert provider.invoke("set_position").status == MhsStatus.UNAVAILABLE
+
+
+def test_write_attempts_are_hash_chained_and_verifiable() -> None:
+    manifest, backend = _manifest(), FakeWriteBackend()
+    store = MhsWriteEventStore()
+    controller = MhsWriteController(event_store=store)
+    success = _execute(controller, manifest, backend)
+    denied = _execute(
+        controller,
+        manifest,
+        backend,
+        request=_request(manifest, idempotency_key="idem-0002", arguments={"position": 2.0}),
+    )
+    assert success.status == MhsWriteStatus.SUCCEEDED
+    assert denied.status == MhsWriteStatus.DENIED
+    assert len(store.events()) == 2
+    assert store.events()[1].previous_digest == store.events()[0].digest
+    store.verify()
+    tampered = store.events()[0].model_copy(update={"immutable": False})
+    object.__setattr__(store, "_events", [tampered, *store.events()[1:]])
+    try:
+        store.verify()
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("tampered event chain was accepted")
 
 
 def test_write_command_requires_bounded_input_schema() -> None:

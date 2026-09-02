@@ -37,7 +37,8 @@ backend。
 ### Result/evidence
 
 结果必须带 event ID、请求/目标/route、manifest/driver digest、时间、状态、evidence IDs 和
-limitations；成功和失败都要可审计。首轮只返回事件对象，后续再接 immutable RKB event store。
+limitations；成功和失败都要可审计。W2 先使用内存 append-only hash-chained event store，
+后续再接持久化 immutable RKB event store。
 
 ## 3. 分阶段开发
 
