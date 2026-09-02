@@ -38,5 +38,5 @@ ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 pi@192.168.10.167 \
 设备型号、稳定 serial、驱动摘要和只读数值，不包含账户或密码。
 
 通用节点发现结果保存在 [`inventory-20260902.json`](inventory-20260902.json)。其中 3 个
-I²C、1 个 SPI、5 个 GPIO 和 1 个 thermal zone 都只是 `DISCOVERED_UNVERIFIED`，尚未代表
-已经绑定或验证的物理外设。
+I²C、1 个 SPI、5 个 GPIO、1 个 thermal zone 和 10 个 USB sysfs 节点都只是
+`DISCOVERED_UNVERIFIED`，尚未代表已经绑定或验证的物理外设。

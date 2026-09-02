@@ -14,8 +14,18 @@
     {"kind": "gpio", "path": "/dev/gpiochip2", "status": "DISCOVERED_UNVERIFIED"},
     {"kind": "gpio", "path": "/dev/gpiochip3", "status": "DISCOVERED_UNVERIFIED"},
     {"kind": "gpio", "path": "/dev/gpiochip4", "status": "DISCOVERED_UNVERIFIED"},
-    {"kind": "thermal", "path": "/sys/class/thermal/thermal_zone0", "status": "DISCOVERED_UNVERIFIED"}
+    {"kind": "thermal", "path": "/sys/class/thermal/thermal_zone0", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/1-1", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/1-2", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/3-1", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/3-2", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/3-2.1", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/3-2.2", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/usb1", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/usb2", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/usb3", "status": "DISCOVERED_UNVERIFIED"},
+    {"kind": "usb", "path": "/sys/bus/usb/devices/usb4", "status": "DISCOVERED_UNVERIFIED"}
   ],
-  "observed_at_epoch": 1788347648.7409124,
+  "observed_at_epoch": 1788347836.5053332,
   "read_only": true
 }
