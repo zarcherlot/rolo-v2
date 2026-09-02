@@ -50,6 +50,7 @@ def test_landerpi_manifest_is_stable_and_read_only(tmp_path: Path) -> None:
     manifest = build_manifest(LanderPiBackend(_fake_root(tmp_path)))
     assert manifest.device_id == "landerpi"
     assert manifest.driver_sha256 == DRIVER_SHA256
+    assert manifest.driver_version == "0.1.0"
     assert "read-only" in manifest.limits
     assert manifest.state["read"] == ["health", "model", "serial", "transports"]
     assert manifest.commands == []

@@ -72,6 +72,7 @@ class MhsDeviceManifest(BaseModel):
     transport: dict[str, Any] = Field(default_factory=dict)
     limits: list[str] = Field(default_factory=list)
     driver_id: str = Field(default="unknown-driver", min_length=1)
+    driver_version: str = Field(default="unknown", min_length=1)
     driver_sha256: str = Field(default="0" * 64, pattern=r"^[0-9a-f]{64}$")
 
     @model_validator(mode="after")
@@ -216,7 +217,7 @@ class MhsDeviceProvider:
             observed_at=point,
             fresh_until=point + timedelta(seconds=self.freshness_seconds),
             manifest_sha256=self.manifest.manifest_sha256,
-            driver_version=self.provider_version,
+            driver_version=self.manifest.driver_version,
             transport=self.manifest.transport,
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
@@ -235,7 +236,7 @@ class MhsDeviceProvider:
             observed_at=point,
             fresh_until=point + timedelta(seconds=self.freshness_seconds),
             manifest_sha256=self.manifest.manifest_sha256,
-            driver_version=self.provider_version,
+            driver_version=self.manifest.driver_version,
             transport=self.manifest.transport,
             limitations=["read-only provider; no write operations"],
         )

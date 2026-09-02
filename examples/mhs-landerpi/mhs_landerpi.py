@@ -133,6 +133,7 @@ def build_manifest(backend: LanderPiBackend | None = None):
         transport={"kind": "local-linux", "properties": {"target": "landerpi"}},
         limits=["read-only", "procfs/sysfs bounded reads", "no GPIO/I2C/SPI writes"],
         driver_id=DRIVER_ID,
+        driver_version=DRIVER_VERSION,
         driver_sha256=DRIVER_SHA256,
     )
 
