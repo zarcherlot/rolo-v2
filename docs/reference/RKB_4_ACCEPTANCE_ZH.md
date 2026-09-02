@@ -43,4 +43,4 @@ LanderPi 的 identity → runtime → graph → app 只读 smoke 必须使用当
 并在发布前记录 artifact；任何 MHS 观察结果仍只代表 generic observer 的 `OBSERVED` 事实，
 不升级为物理安全、行为正确或写授权。
 
-工程状态在完成本地拒绝路径和真机 smoke 前保持 `PARTIAL/E3`，不得改成 `STABLE`。
+工程状态在完成本地拒绝路径和真机 smoke 前保持 `PARTIAL/E2`，不得改成 `STABLE`。
