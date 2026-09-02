@@ -69,3 +69,21 @@ aarch64、serial `f96761a4f6b6d40e`。只读 canary 输出保存在
 quiescence/resource lock、短时人工授权、超时/取消、stop 和 compensation/rollback。
 在这些证据和官方 schema/conformance 测试具备前，保持本 provider 只读并禁止 release gate
 将 canary 解释为物理安全验证。
+
+## 写接口（simulation-first）
+
+MHS manifest 可以声明强类型 write command，但普通 `MhsDeviceProvider.invoke()` 不能执行它。
+写请求必须经过 Rolo-owned `MhsWriteController`：
+
+```text
+MhsWriteRequest + verified MhsWriteContext
+  -> route/identity/digest/freshness/authorization/precondition
+  -> process-local resource lock
+  -> bounded input schema
+  -> MhsWriteBackend.write
+  -> auditable MhsWriteResult
+```
+
+默认只允许 `fake`/`simulation` environment；native、ROS、serial、HTTP 等真实 adapter 即使
+声明了 command 也会被拒绝。首轮实现和后续台架/真机门槛见
+[`MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md`](../adapt/MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md)。

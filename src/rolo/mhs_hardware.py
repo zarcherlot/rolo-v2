@@ -12,7 +12,7 @@ import math
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -55,6 +55,33 @@ class MhsChannel(BaseModel):
         return self
 
 
+class MhsCommandDescriptor(BaseModel):
+    """One bounded write command declared by a device manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    access: Literal["write"] = "write"
+    hardware_resource_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.:/-]*$")
+    risk: str = Field(pattern=r"^R[1-3]$")
+    input_schema: dict[str, Any]
+    timeout_s: float = Field(gt=0, le=300)
+    idempotent: bool = False
+    requires: list[str] = Field(default_factory=list)
+    cancel_capability: str | None = None
+    compensation_capability: str | None = None
+
+    @model_validator(mode="after")
+    def validate_input_schema(self) -> MhsCommandDescriptor:
+        if self.input_schema.get("type", "object") != "object":
+            raise ValueError("MHS command input_schema must describe an object")
+        if self.input_schema.get("additionalProperties") is not False:
+            raise ValueError("MHS command input_schema must reject additional properties")
+        if not isinstance(self.input_schema.get("properties"), dict):
+            raise ValueError("MHS command input_schema must declare properties")
+        return self
+
+
 class MhsDeviceManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -68,7 +95,7 @@ class MhsDeviceManifest(BaseModel):
     channels: list[MhsChannel] = Field(default_factory=list)
     resources: list[str] = Field(default_factory=list)
     state: dict[str, list[str]] = Field(default_factory=lambda: {"read": []})
-    commands: list[dict[str, Any]] = Field(default_factory=list)
+    commands: list[MhsCommandDescriptor] = Field(default_factory=list)
     transport: dict[str, Any] = Field(default_factory=dict)
     limits: list[str] = Field(default_factory=list)
     driver_id: str = Field(default="unknown-driver", min_length=1)
@@ -80,6 +107,9 @@ class MhsDeviceManifest(BaseModel):
         ids = [item.id for item in self.channels]
         if len(ids) != len(set(ids)):
             raise ValueError("manifest contains duplicate channel ids")
+        command_ids = [item.id for item in self.commands]
+        if len(command_ids) != len(set(command_ids)):
+            raise ValueError("manifest contains duplicate command ids")
         return self
 
     @property
@@ -133,7 +163,7 @@ class MhsDeviceProvider:
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
-        return [
+        readable = [
             {
                 "capability_id": capability,
                 "access": "read",
@@ -143,6 +173,20 @@ class MhsDeviceProvider:
             }
             for capability in sorted(self.READ_CAPABILITIES)
         ]
+        writable = [
+            {
+                "capability_id": command.id,
+                "access": "write",
+                "route": self.route(command.id),
+                "status": "DISCOVERED_UNVERIFIED",
+                "risk": command.risk,
+                "hardware_resource_id": command.hardware_resource_id,
+                "requires_rolo_write_gate": True,
+                "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
+            }
+            for command in sorted(self.manifest.commands, key=lambda item: item.id)
+        ]
+        return [*readable, *writable]
 
     def inspect(self) -> MhsResult:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
