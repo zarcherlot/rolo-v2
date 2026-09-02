@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "robot-evidence-envelope/v1",
+  "title": "RobotEvidenceEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "identity", "facts", "snapshot", "digest", "created_at"],
+  "properties": {
+    "schema_version": {"const": "robot-evidence-envelope/v1"},
+    "identity": {"$ref": "#/$defs/SnapshotIdentity"},
+    "facts": {"type": "array", "items": {"$ref": "#/$defs/Fact"}},
+    "snapshot": {"type": "object"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "signature_hmac_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "SnapshotIdentity": {"type": "object", "additionalProperties": false, "required": ["schema_version", "robot_id", "target_host_fingerprint", "collector_id", "deployment_mode", "access", "observed_at", "fresh_until"], "properties": {"schema_version": {"type": "string"}, "robot_id": {"type": "string", "minLength": 1}, "target_host_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "collector_id": {"type": "string", "minLength": 1}, "deployment_mode": {"enum": ["local", "remote"]}, "access": {"const": "READ_ONLY"}, "request_nonce": {"type": ["string", "null"], "pattern": "^[0-9a-f]{32}$"}, "observed_at": {"type": "string", "format": "date-time"}, "fresh_until": {"type": "string", "format": "date-time"}, "identity_status": {"enum": ["VERIFIED", "UNKNOWN"]}}},
+    "SnapshotIdentity": {"type": "object", "additionalProperties": false, "required": ["schema_version", "robot_id", "target_host_fingerprint", "collector_id", "deployment_mode", "access", "observed_at", "fresh_until"], "properties": {"schema_version": {"type": "string"}, "robot_id": {"type": "string", "minLength": 1}, "target_host_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "collector_id": {"type": "string", "minLength": 1}, "deployment_mode": {"enum": ["local", "remote"]}, "access": {"const": "READ_ONLY"}, "request_nonce": {"type": ["string", "null"], "pattern": "^[0-9a-f]{32}$"}, "observed_at": {"type": "string", "format": "date-time"}, "fresh_until": {"type": "string", "format": "date-time"}, "identity_status": {"enum": ["VERIFIED", "UNKNOWN"]}}},
+    "Fact": {"type": "object", "additionalProperties": false, "required": ["schema_version", "fact_id", "robot_id", "target_host_fingerprint", "collector_id", "deployment_mode", "access", "source_kind", "source_ref", "observed_at", "fresh_until", "value", "sha256", "confidence", "limitations"], "properties": {"schema_version": {"type": "string"}, "fact_id": {"type": "string", "minLength": 1}, "robot_id": {"type": "string"}, "target_host_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "collector_id": {"type": "string"}, "deployment_mode": {"enum": ["local", "remote"]}, "access": {"const": "READ_ONLY"}, "request_nonce": {"type": ["string", "null"]}, "source_kind": {"enum": ["DECLARED", "OBSERVED", "VERIFIED", "INFERRED", "DECISION", "TARGET_PROBE", "DECLARED_STATIC", "OBSERVED_RUNTIME", "VERIFIED_BUNDLE"]}, "source_ref": {"type": "string", "minLength": 1}, "observed_at": {"type": "string", "format": "date-time"}, "fresh_until": {"type": "string", "format": "date-time"}, "value": {}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]}, "limitations": {"type": "array", "items": {"type": "string"}}}}
+  }
+}

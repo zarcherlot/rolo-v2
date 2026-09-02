@@ -136,6 +136,43 @@ class ProbeResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     observed_at: datetime = Field(default_factory=utc_now)
+    # v2 evidence metadata.  Legacy probe producers may omit these while the
+    # RKB envelope builder requires and validates them before publication.
+    identity: dict[str, Any] | None = None
+    access: Literal["READ_ONLY"] = "READ_ONLY"
+    fresh_until: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_freshness_window(self) -> ProbeResult:
+        if self.fresh_until is not None and self.fresh_until <= self.observed_at:
+            raise ValueError("fresh_until must be after observed_at")
+        return self
+
+    def to_rkb_snapshot(
+        self,
+        *,
+        identity: dict[str, Any] | Any | None = None,
+        source_ref: str = "artifact://probe",
+    ) -> Any:
+        """Read-only compatibility entry point for the RKB migration.
+
+        Importing lazily keeps the canonical Probe path independent from the
+        RKB package and preserves all legacy ``data`` callers.
+        """
+
+        from rolo.rkb.migration import probe_to_snapshot
+
+        return probe_to_snapshot(self, identity=identity, source_ref=source_ref)
+
+    def to_evidence_envelope(
+        self,
+        *,
+        identity: dict[str, Any] | Any | None = None,
+        source_ref: str = "artifact://probe",
+    ) -> Any:
+        """Alias for consumers migrating one ProbeResult at a time."""
+
+        return self.to_rkb_snapshot(identity=identity, source_ref=source_ref).to_envelope()
 
 
 class ToolDescriptor(BaseModel):
@@ -154,9 +191,7 @@ class ToolDescriptor(BaseModel):
     contract_version: str | None = None
     contract_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     data_classification: Literal["PUBLIC", "INTERNAL", "SENSITIVE", "SECRET"] | None = None
-    result_semantics: Literal[
-        "OBSERVATION", "ACKNOWLEDGEMENT_ONLY", "SESSION_HANDLE"
-    ] | None = None
+    result_semantics: Literal["OBSERVATION", "ACKNOWLEDGEMENT_ONLY", "SESSION_HANDLE"] | None = None
     execution_mode: Literal[
         "REQUEST_RESPONSE", "BOUNDED_STREAM", "SESSION_START", "SESSION_STOP"
     ] = "REQUEST_RESPONSE"
@@ -250,9 +285,9 @@ class OperationCandidate(BaseModel):
     status: Literal["DISCOVERED_UNVERIFIED"] = "DISCOVERED_UNVERIFIED"
     origin: Literal["DETERMINISTIC", "HEURISTIC_AGENT"] = "DETERMINISTIC"
     semantic_review_required: bool = False
-    semantic_review_disposition: Literal[
-        "NOT_REVIEWED", "ACCEPT", "DEFER", "REJECT"
-    ] = "NOT_REVIEWED"
+    semantic_review_disposition: Literal["NOT_REVIEWED", "ACCEPT", "DEFER", "REJECT"] = (
+        "NOT_REVIEWED"
+    )
     route_review_dispositions: dict[str, Literal["ACCEPT", "DEFER", "REJECT"]] = Field(
         default_factory=dict
     )

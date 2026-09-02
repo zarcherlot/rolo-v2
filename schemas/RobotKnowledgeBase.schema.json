@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "robot-knowledge-base/v1",
+  "title": "RobotKnowledgeBase",
+  "type": "object",
+  "required": ["schema_version"],
+  "anyOf": [{"required": ["envelopes"]}, {"required": ["snapshots"]}],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "robot-knowledge-base/v1"},
+    "envelopes": {"type": "array", "items": {"$ref": "RobotEvidenceEnvelope.schema.json"}},
+    "snapshots": {"type": "array", "items": {"$ref": "RobotSnapshot.schema.json"}}
+  }
+}
