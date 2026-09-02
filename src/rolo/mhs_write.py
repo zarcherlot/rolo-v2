@@ -66,6 +66,9 @@ class MhsWriteContext(BaseModel):
     safety_fresh_until: datetime
     verified_preconditions: list[str] = Field(default_factory=list)
     safety_evidence_ids: list[str] = Field(default_factory=list)
+    external_estop_clear: bool = False
+    watchdog_ok: bool = False
+    quiescent: bool = False
 
 
 class MhsWriteResult(BaseModel):
@@ -114,6 +117,10 @@ class MhsWriteBackend(Protocol):
     ) -> Mapping[str, Any]: ...
 
 
+class MhsStopCapableBackend(Protocol):
+    def stop(self, hardware_resource_id: str, *, reason: str) -> Mapping[str, Any]: ...
+
+
 class MhsWriteAuthorizer(Protocol):
     def authorize(
         self,
@@ -126,6 +133,12 @@ class MhsWriteAuthorizer(Protocol):
 
 class MhsWriteRejected(RuntimeError):
     pass
+
+
+class MhsWriteTimeout(RuntimeError):
+    def __init__(self, reason: str, stop_value: Mapping[str, Any] | None = None) -> None:
+        super().__init__(reason)
+        self.stop_value = dict(stop_value or {})
 
 
 class MhsResourceLocks:
@@ -246,14 +259,7 @@ class MhsWriteController:
                     )
                 return previous_result
             with self.locks.claim(command.hardware_resource_id):
-                value = dict(
-                    backend.write(
-                        command.id,
-                        request.arguments,
-                        timeout_s=command.timeout_s,
-                        idempotency_key=request.idempotency_key,
-                    )
-                )
+                value = self._invoke_backend(backend, command, request)
             result = self._result(
                 MhsWriteStatus.SUCCEEDED,
                 manifest,
@@ -274,6 +280,16 @@ class MhsWriteController:
                 reason=str(exc),
                 observed_at=point,
             ))
+        except MhsWriteTimeout as exc:
+            return self._finalize(self._result(
+                MhsWriteStatus.FAILED,
+                manifest,
+                request,
+                context,
+                value={"stop": exc.stop_value},
+                reason=str(exc),
+                observed_at=point,
+            ))
         except Exception as exc:
             return self._finalize(self._result(
                 MhsWriteStatus.FAILED,
@@ -287,6 +303,61 @@ class MhsWriteController:
     def _finalize(self, result: MhsWriteResult) -> MhsWriteResult:
         self.event_store.append(result)
         return result
+
+    @staticmethod
+    def _invoke_backend(
+        backend: MhsWriteBackend,
+        command: MhsCommandDescriptor,
+        request: MhsWriteRequest,
+    ) -> dict[str, Any]:
+        """Run a bounded write and request stop when the deadline expires."""
+
+        result: list[dict[str, Any]] = []
+        error: list[BaseException] = []
+        done = threading.Event()
+
+        def run() -> None:
+            try:
+                result.append(
+                    dict(
+                        backend.write(
+                            command.id,
+                            request.arguments,
+                            timeout_s=command.timeout_s,
+                            idempotency_key=request.idempotency_key,
+                        )
+                    )
+                )
+            except BaseException as exc:  # propagate through the bounded worker
+                error.append(exc)
+            finally:
+                done.set()
+
+        threading.Thread(
+            target=run,
+            name=f"mhs-write-{request.request_id}",
+            daemon=True,
+        ).start()
+        if not done.wait(command.timeout_s):
+            stop = getattr(backend, "stop", None)
+            stop_value: Mapping[str, Any] | None = None
+            if callable(stop):
+                try:
+                    stop_value = stop(
+                        command.hardware_resource_id,
+                        reason="write timeout",
+                    )
+                except Exception as exc:
+                    stop_value = {"status": "stop_failed", "error": type(exc).__name__}
+            reason = (
+                "write timed out; stop requested"
+                if stop_value is not None
+                else "write timed out; backend has no stop capability"
+            )
+            raise MhsWriteTimeout(reason, stop_value)
+        if error:
+            raise error[0]
+        return result[0] if result else {}
 
     @staticmethod
     def _command(manifest: MhsDeviceManifest, command_id: str) -> MhsCommandDescriptor:
@@ -317,6 +388,12 @@ class MhsWriteController:
             raise MhsWriteRejected("write request is not fresh")
         if now > context.safety_fresh_until:
             raise MhsWriteRejected("safety evidence is stale")
+        if not context.external_estop_clear:
+            raise MhsWriteRejected("external estop is not clear")
+        if not context.watchdog_ok:
+            raise MhsWriteRejected("watchdog is not healthy")
+        if not context.quiescent:
+            raise MhsWriteRejected("resource is not quiescent")
         if not context.authorization_ref:
             raise MhsWriteRejected("authorization reference is required")
         if not context.resource_lock_ref:
@@ -400,8 +477,10 @@ __all__ = [
     "MhsWriteEvent",
     "MhsWriteEventStore",
     "MhsWriteBackend",
+    "MhsStopCapableBackend",
     "MhsWriteAuthorizer",
     "MhsWriteRejected",
+    "MhsWriteTimeout",
     "MhsResourceLocks",
     "MhsWriteController",
 ]

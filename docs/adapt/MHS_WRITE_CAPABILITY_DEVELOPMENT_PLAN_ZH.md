@@ -50,6 +50,18 @@ limitations；成功和失败都要可审计。W2 先使用内存 append-only ha
 | MHS-W3 | 无负载台架单一低风险命令 | 人工授权、stop/timeout、外部急停验证 |
 | MHS-W4 | 限定真实设备 canary | 独立安全评审后单独批准；默认关闭 |
 
+### W3 当前实现（simulation bench）
+
+W3 已在无负载 fake/simulation 台架完成首轮实现：
+
+- `MhsWriteContext` 要求显式提供 `external_estop_clear`、`watchdog_ok` 和 `quiescent`；任一为假时，Rolo 在调用 backend 前拒绝请求。
+- 台架 authorizer 可要求 `human:<approval-id>` 形式的人工授权引用；授权引用不由 MHS 自行生成。
+- backend 写入在命令声明的 `timeout_s` 内执行；超时后 Rolo 调用可选的 `stop(resource, reason)`，并以失败结果记录 stop 结果。
+- 超时、急停拒绝和人工授权拒绝均写入 W2 的 hash-chained audit event；锁在所有路径释放。
+
+这组实现只证明 Rolo/MHS 交互面的控制顺序和失败闭环，不代表真实执行器安全认证，也不改变
+W4 的独立安全评审和默认关闭要求。
+
 ## 4. 首轮验收矩阵
 
 | 场景 | 预期 |
