@@ -47,11 +47,18 @@ def test_mhs_provider_exposes_only_read_routes():
         "status",
     }
     assert instance.route("read") == "mhs://cabinet-1/read"
-    assert instance.invoke("reset").status == MhsStatus.UNAVAILABLE
+    denied = instance.invoke("reset")
+    assert denied.status == MhsStatus.UNAVAILABLE
+    assert denied.observed_at is not None
+    assert denied.fresh_until is not None
+    assert denied.driver_sha256 == instance.manifest.driver_sha256
+    assert denied.evidence_ids
 
 
 def test_mhs_provider_rejects_unknown_and_unsafe_measurements():
     instance, _ = make_provider({"pressure": 1})
     assert instance.read().status == MhsStatus.UNAVAILABLE
     instance, _ = make_provider({"temperature": 100})
-    assert instance.read().status == MhsStatus.UNAVAILABLE
+    rejected = instance.read()
+    assert rejected.status == MhsStatus.UNAVAILABLE
+    assert rejected.manifest_sha256 == instance.manifest.manifest_sha256
