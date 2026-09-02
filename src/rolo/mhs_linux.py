@@ -258,6 +258,7 @@ class LinuxMhsInventory:
         found.extend(self._presence_candidates("dev/i2c-*", "bus", "i2c"))
         found.extend(self._presence_candidates("dev/spidev*", "bus", "spi"))
         found.extend(self._presence_candidates("dev/gpiochip*", "bus", "gpio"))
+        found.extend(self._usb_candidates())
         return found
 
     def providers(self) -> list[tuple[LinuxMhsCandidate, MhsDeviceProvider]]:
@@ -297,5 +298,45 @@ class LinuxMhsInventory:
             )
             records.append(
                 LinuxMhsCandidate(manifest=manifest, source=node, identity_stability="path")
+            )
+        return records
+
+    def _usb_candidates(self) -> list[LinuxMhsCandidate]:
+        records: list[LinuxMhsCandidate] = []
+        usb_root = self.root / "sys/bus/usb/devices"
+        for path in sorted(usb_root.glob("*")):
+            if not path.is_dir() or not (path / "idVendor").exists():
+                continue
+            safe = path.name.replace(".", "-")
+            vendor = (path / "idVendor").read_text(encoding="utf-8", errors="ignore").strip()
+            product = (path / "idProduct").read_text(encoding="utf-8", errors="ignore").strip()
+            serial_path = path / "serial"
+            serial = (
+                serial_path.read_text(encoding="utf-8", errors="ignore").strip()
+                if serial_path.exists()
+                else None
+            )
+            manifest = MhsDeviceManifest(
+                device_id=f"{self.device_prefix}-usb-{safe}",
+                device_class=MhsDeviceClass.BUS,
+                name=f"USB device {safe}",
+                vendor=vendor or "unknown-usb-vendor",
+                model=product or "unknown-usb-product",
+                serial=serial,
+                channels=[MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")],
+                resources=[safe],
+                state={"read": ["health", "kind", "node"]},
+                transport={"kind": "sysfs-usb", "properties": {"path": f"/sys/bus/usb/devices/{path.name}"}},
+                limits=["read-only", "presence only", "USB identity requires serial when available"],
+                driver_id=DRIVER_ID,
+                driver_version=DRIVER_VERSION,
+                driver_sha256=DRIVER_SHA256,
+            )
+            records.append(
+                LinuxMhsCandidate(
+                    manifest=manifest,
+                    source=f"/sys/bus/usb/devices/{path.name}",
+                    identity_stability="stable" if serial else "path",
+                )
             )
         return records

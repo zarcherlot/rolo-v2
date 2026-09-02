@@ -21,13 +21,17 @@ def _root(tmp_path: Path) -> Path:
     (tmp_path / "dev").mkdir()
     for node in ("i2c-1", "spidev0.0", "gpiochip0"):
         (tmp_path / "dev" / node).touch()
+    usb = tmp_path / "sys/bus/usb/devices/1-1"
+    usb.mkdir(parents=True)
+    (usb / "idVendor").write_text("1234\n")
+    (usb / "idProduct").write_text("5678\n")
     return tmp_path
 
 
 def test_inventory_creates_unverified_candidates_and_read_only_providers(tmp_path: Path) -> None:
     inventory = LinuxMhsInventory(_root(tmp_path), device_prefix="target")
     candidates = inventory.candidates()
-    assert len(candidates) == 5  # compute + thermal + three device nodes
+    assert len(candidates) == 6  # compute + thermal + three device nodes + USB
     assert {candidate.discovery_status for candidate in candidates} == {"DISCOVERED_UNVERIFIED"}
     providers = inventory.providers()
     thermal = next(provider for candidate, provider in providers if "thermal_zone0" in candidate.source)

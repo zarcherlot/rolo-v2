@@ -27,6 +27,9 @@ def collect(root: str | Path = "/") -> dict:
     for path in sorted((root / "sys/class/thermal").glob("thermal_zone*/temp")):
         zone = path.parent.name
         nodes.append({"kind": "thermal", "path": f"/sys/class/thermal/{zone}", "status": "DISCOVERED_UNVERIFIED"})
+    for path in sorted((root / "sys/bus/usb/devices").glob("*")):
+        if path.is_dir() and (path / "idVendor").exists():
+            nodes.append({"kind": "usb", "path": f"/sys/bus/usb/devices/{path.name}", "status": "DISCOVERED_UNVERIFIED"})
     return {
         "schema_version": "rolo-mhs-linux-inventory/v1",
         "device_identity": {
