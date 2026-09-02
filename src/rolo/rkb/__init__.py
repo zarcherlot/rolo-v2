@@ -44,6 +44,7 @@ from .read_models import (
     TypedQueryResult,
     UnknownValue,
 )
+from .storage import RKBMetrics, RKBStore
 from .validation import (
     EvidenceValidationError,
     freshness_status,
@@ -101,4 +102,6 @@ __all__ = [
     "validate_snapshot",
     "validate_bundle_hmac",
     "freshness_status",
+    "RKBMetrics",
+    "RKBStore",
 ]

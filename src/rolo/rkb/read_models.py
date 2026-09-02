@@ -59,6 +59,10 @@ class TypedQueryResult(BaseModel, Generic[T]):
     fresh_until: datetime | None = None
     limitations: list[str] = Field(default_factory=list)
     status_reason: str = ""
+    total: int | None = None
+    offset: int = 0
+    limit: int | None = None
+    next_offset: int | None = None
 
 
 class RobotIdentityModel(BaseModel):

@@ -60,6 +60,15 @@ state safety 没有观察证据，状态为 `UNKNOWN`。这些是目标机证据
 - typed result 与主要 read model 带独立 schema version，runtime projection 只输出显式字段；
 - middleware selector 使用 route/node/endpoint 的精确 token 匹配，避免模糊 substring 命中。
 
+## 存储、Schema 与运行基线
+
+- `src/rolo/rkb/storage.py` 提供 append-only snapshot、atomic `latest.json`、损坏 artifact
+  隔离/回退、重启后 digest 校验，以及持久化 `metrics.json`；
+- `schemas/RKBTypedReadModels.schema.json` 与 `tests/test_rkb_schema_roundtrip.py` 固化 typed
+  result 的版本和 round-trip 入口；
+- `scripts/rkb2_canary.py` 是一次 bounded、只读、可由 cron/systemd 调度的 latest/freshness
+  检查；`scripts/rkb2_capacity_baseline.py --count N` 输出 bytes、读写吞吐和拒绝/损坏指标。
+
 ## 回滚
 
 关闭 typed query 入口即可继续使用 RKB-1 的 `ReadOnlyKnowledgeBase.identity/facts/get` 和

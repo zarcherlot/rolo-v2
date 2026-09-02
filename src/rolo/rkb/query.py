@@ -250,6 +250,8 @@ class ReadOnlyKnowledgeBase:
         snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
         fingerprint: str | None = None,
         now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
     ) -> TypedQueryResult[HardwareInventoryModel]:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"hw", "hardware", "hardware_inventory"})
@@ -279,12 +281,18 @@ class ReadOnlyKnowledgeBase:
                 item.setdefault("limitations", []).append("resource identity is path-only")
             item["resource_id"] = resource_id
             resources.append(HardwareResourceModel.model_validate(item))
+        ordered = sorted(resources, key=lambda item: item.resource_id)
+        page, total, next_offset = self._paginate(ordered, offset=offset, limit=limit)
         return self._typed(
-            HardwareInventoryModel(resources=sorted(resources, key=lambda item: item.resource_id)),
+            HardwareInventoryModel(resources=page),
             facts,
             status=self._status_for(facts, now=now),
             reason="hardware inventory observed" if facts else "hardware inventory is UNKNOWN",
             limitations=merge_limitations,
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
         )
 
     def query_middleware_graph(
@@ -294,6 +302,8 @@ class ReadOnlyKnowledgeBase:
         snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
         fingerprint: str | None = None,
         now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
     ) -> TypedQueryResult[MiddlewareGraphModel]:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
         facts = self._layer_facts(envelope, {"ros", "middleware", "middleware_graph"})
@@ -334,9 +344,17 @@ class ReadOnlyKnowledgeBase:
                 for item in relationships
                 if token in {item.source, item.target}
             ]
+        ordered_endpoints = sorted(endpoints, key=lambda item: item.route_id)
+        ordered_relationships = sorted(relationships, key=lambda item: item.relationship_id)
+        endpoint_page, endpoint_total, endpoint_next = self._paginate(
+            ordered_endpoints, offset=offset, limit=limit
+        )
+        relationship_page, relationship_total, relationship_next = self._paginate(
+            ordered_relationships, offset=offset, limit=limit
+        )
         value = MiddlewareGraphModel(
-            endpoints=sorted(endpoints, key=lambda item: item.route_id),
-            relationships=sorted(relationships, key=lambda item: item.relationship_id),
+            endpoints=endpoint_page,
+            relationships=relationship_page,
         )
         return self._typed(
             value,
@@ -344,6 +362,12 @@ class ReadOnlyKnowledgeBase:
             status=self._status_for(facts, now=now),
             reason="middleware graph observed" if facts else "middleware graph is UNKNOWN",
             limitations=merge_limitations,
+            total=max(endpoint_total, relationship_total),
+            offset=offset,
+            limit=limit,
+            next_offset=(
+                endpoint_next if endpoint_total >= relationship_total else relationship_next
+            ),
         )
 
     def query_middleware_route(
@@ -641,6 +665,10 @@ class ReadOnlyKnowledgeBase:
         status: FreshnessStatus | CapabilityState,
         reason: str,
         limitations: Sequence[str] = (),
+        total: int | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+        next_offset: int | None = None,
     ) -> TypedQueryResult[T]:
         return TypedQueryResult(
             status=status,
@@ -650,7 +678,22 @@ class ReadOnlyKnowledgeBase:
             fresh_until=min((fact.fresh_until for fact in facts), default=None),
             limitations=sorted(set(limitations) | set(cls._limitations(facts))),
             status_reason=reason,
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
         )
+
+    @staticmethod
+    def _paginate(
+        items: Sequence[T], *, offset: int, limit: int | None
+    ) -> tuple[list[T], int, int | None]:
+        if offset < 0 or (limit is not None and limit < 1):
+            raise ValueError("offset must be non-negative and limit must be positive")
+        total = len(items)
+        page = list(items[offset : offset + limit if limit is not None else None])
+        next_offset = offset + len(page) if offset + len(page) < total else None
+        return page, total, next_offset
 
     @staticmethod
     def _fact_result(fact: Fact, *, now: datetime | None) -> QueryResult:

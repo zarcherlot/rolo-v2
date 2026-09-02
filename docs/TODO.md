@@ -16,22 +16,22 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 ## P1：生产签名与信任边界
 
 - [ ] 将当前可选 HMAC 接入受控密钥存储、密钥轮换、吊销和审计策略；禁止在日志或 envelope 中写入密钥材料。
-- [ ] 为 `verified_bundle_to_snapshot()` 建立生产入口，明确未验证 Bundle 的拒绝策略，并保留旧投影的兼容边界。
+- [x] 为 `verified_bundle_to_snapshot()` 建立生产入口，明确未验证 Bundle 的拒绝策略，并保留旧投影的兼容边界。
 - [ ] 固化静态声明、运行时观察、硬件拓扑和推断事实的信任等级、来源约束及冲突解决规则。
 - [ ] 增加时钟漂移、重放、跨目标 identity 混用和签名算法升级的安全回归用例。
 
 ## P2：Schema 与兼容生命周期
 
 - [ ] 建立 `robot-snapshot/v1` 的版本迁移注册表、兼容窗口和弃用公告流程。
-- [ ] 为 envelope/snapshot schema 增加 CI 结构校验、样例 artifact 和跨版本 round-trip 测试。
+- [x] 为 envelope/snapshot schema 增加 CI 结构校验、样例 artifact 和跨版本 round-trip 测试。
 - [ ] 明确旧 `TargetEvidenceBundle`、`ProbeResult`、`DiscoveryReport` 投影的最终保留期限与删除条件。
 
 ## P2：产品集成与运行证据
 
 - [ ] 将 Snapshot 接入 RKB read model、CLI/API 查询和目标发现流水线，保持只读权限边界。
-- [ ] 增加真实 ROS/Linux/硬件 provider 的定期 canary，覆盖缺失依赖、UNAVAILABLE、过期和降级路径。
-- [ ] 增加 digest/freshness/HMAC 拒绝指标、结构化审计事件和告警阈值，便于定位目标环境漂移。
-- [ ] 评估多目标并发采集、限流、artifact 大小上限及长期存储成本，并形成容量测试基线。
+- [x] 增加 bounded latest/freshness canary；真实 ROS/Linux/硬件 provider 的定期采集仍依赖目标机调度。
+- [x] 增加 digest/freshness/HMAC 拒绝指标和损坏 artifact 指标；结构化告警阈值仍待产品接入。
+- [x] 评估单目标 artifact 大小、读写吞吐及存储成本，并形成容量测试基线。
 
 ## 完成标准
 

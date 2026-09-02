@@ -206,3 +206,34 @@ def test_runtime_projection_is_explicit_and_does_not_leak_probe_payload():
     assert value.ros_domain_id == 7
     assert value.ros_distro == "humble"
     assert "processes" not in value.model_dump()
+
+
+def test_typed_collections_share_offset_limit_contract():
+    snapshot = snapshot_for(
+        fact(
+            "hw",
+            {
+                "resources": [
+                    {"serial": "S1", "kind": "camera"},
+                    {"serial": "S2", "kind": "camera"},
+                ]
+            },
+        ),
+        fact(
+            "ros",
+            {
+                "endpoints": [
+                    {"route_id": "r1", "endpoint": "/r1"},
+                    {"route_id": "r2", "endpoint": "/r2"},
+                ]
+            },
+        ),
+    )
+    kb = ReadOnlyKnowledgeBase([snapshot])
+    hardware = kb.hw.inventory_scan(offset=1, limit=1, now=NOW)
+    graph = kb.middleware.graph_snapshot(offset=1, limit=1, now=NOW)
+    assert hardware.total == 2
+    assert hardware.offset == graph.offset == 1
+    assert hardware.limit == graph.limit == 1
+    assert hardware.next_offset is None
+    assert graph.next_offset is None
