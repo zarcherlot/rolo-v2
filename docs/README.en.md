@@ -20,6 +20,10 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [implementation map](reference/IMPLEMENTATION_MAP.md): code, schemas, artifacts, and tests;
 - [physical target enrollment record](validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md): one real-target verification.
 
+The root `OPERATION_CONTRACTS.md`, `CANONICAL_OPERATIONS.md`, and Episode contract files, plus
+`architecture/WORKBENCH_PLUGIN_HOST_CONTRACT.md`, are retained only because generators or existing
+tests reference them. They are not entry points for new feature design.
+
 ## Four stable standards
 
 Rolo exposes four platform-neutral semantic families: hardware, OS, Middleware, and application.
@@ -43,6 +47,7 @@ budgets, evidence, and Conformance.
 
 ## Documentation governance
 
-Active documents describe v2 only. Older Registry, lifecycle, and platform-specific plans are
-marked `archived` or kept under `archive/` for historical reference and are not implementation
-authority.
+This directory keeps only the entry points, contracts, status, and validation material needed to
+develop v2. Older Registry, lifecycle, platform-specific plans, and historical evidence were
+removed from the working tree; their full contents remain available in Git history and are not
+implementation authority.
