@@ -59,6 +59,7 @@ python_files = [
   "test_mhs_linux_inventory.py",
   "test_mhs_flow_validation.py",
   "test_mhs_write.py",
+  "test_mhs_canary.py",
   "test_mhs_adapters.py",
   "test_mhs_sensor.py",
   "test_target_credentials.py",

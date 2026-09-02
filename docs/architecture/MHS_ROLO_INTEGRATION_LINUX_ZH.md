@@ -88,3 +88,7 @@ MhsWriteRequest + verified MhsWriteContext
 声明了 command 也会被拒绝。W3 台架还要求 external estop clear、watchdog healthy 和
 resource quiescent，并支持短时人工授权引用。首轮实现和后续台架/真机门槛见
 [`MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md`](../adapt/MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md)。
+
+W4 只实现 `MhsCanaryGate` admission preflight：它验证独立安全评审、R1 命令、目标指纹、
+人工批准、急停/stop/rollback 证据和有限次数 lease；`enabled=false` 时 fail-closed，且不会
+自行发起网络或硬件 I/O。

@@ -62,6 +62,14 @@ W3 已在无负载 fake/simulation 台架完成首轮实现：
 这组实现只证明 Rolo/MHS 交互面的控制顺序和失败闭环，不代表真实执行器安全认证，也不改变
 W4 的独立安全评审和默认关闭要求。
 
+### W4 当前进度（canary admission only）
+
+已增加无 I/O 的 `MhsCanaryGate`：真实 canary 必须绑定 `human:` 批准引用、独立安全评审、
+目标指纹、设备/命令、软件环境、R1 风险等级，并具备 external-estop、stop 和 rollback 的
+证据；同时受 1--3 次 attempt budget 约束。`enabled` 默认为 `false`，校验成功后只发放一次
+有界 lease，不自动调用 adapter。真实写入仍需部署方显式组合 canary lease、`MhsWriteController`
+和经过独立审查的 adapter；本仓库不连接 LanderPi。
+
 ## 4. 首轮验收矩阵
 
 | 场景 | 预期 |
