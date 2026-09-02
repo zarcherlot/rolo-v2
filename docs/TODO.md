@@ -47,7 +47,7 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 
 ## RKB-4 工程项
 
-- [ ] 将每次 Probe run 的 Episode metadata 接入正式 Probe orchestration，并保留旧 bundle/report 双读路径。
+- [x] 将每次 Probe run 的 Episode metadata 接入正式 Probe orchestration，并保留旧 bundle/report 双读路径。
 - [ ] 为 Episode latest 指针接入跨进程故障恢复、损坏隔离和审计指标。
 - [ ] 在固定目标机完成 identity → runtime → graph → app 的只读 smoke 后，记录灰度放量决策。
 - [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐真机重启、跨进程和迁移回滚证据。

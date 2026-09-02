@@ -15,6 +15,7 @@ from .episodes import (
     EpisodeState,
     EpisodeStore,
     build_episode_from_snapshot,
+    publish_probe_episode,
 )
 from .migration import (
     bundle_to_snapshot,
@@ -120,4 +121,5 @@ __all__ = [
     "EpisodeState",
     "EpisodeStore",
     "build_episode_from_snapshot",
+    "publish_probe_episode",
 ]

@@ -10,6 +10,7 @@ metadata-only Episode。Episode 只索引 Probe run、bundle/report/snapshot 引
 ## 实施入口
 
 - `src/rolo/rkb/episodes.py`：Episode metadata schema、typed-query 投影、双读兼容和原子发布/回滚；
+- `src/rolo/commands/lifecycle.py`：Probe 验证成功后自动 append snapshot 和 metadata-only Episode；
 - `scripts/rkb4_episode_canary.py`：从已验证 `robot-snapshot/v1` 运行只读 Episode canary；
 - `schemas/RKBEpisodeMetadata.schema.json`：`rkb-episode-metadata/v1` 契约；
 - `tests/test_rkb_episode.py`：正向、身份/父 digest、失败不移动 latest、回滚、敏感字段拒绝和 legacy 双读测试。

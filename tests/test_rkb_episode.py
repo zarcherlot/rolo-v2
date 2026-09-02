@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from rolo.core.models import DiscoveryStatus, ProbeResult
 from rolo.rkb import (
     EpisodeEvent,
     EpisodeEventKind,
@@ -14,8 +15,10 @@ from rolo.rkb import (
     Snapshot,
     SnapshotIdentity,
     build_episode_from_snapshot,
+    publish_probe_episode,
 )
 from rolo.rkb.validation import EvidenceValidationError
+from rolo.stages.probe.target_evidence import TargetEvidenceBundle
 
 NOW = datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc)
 
@@ -106,3 +109,32 @@ def test_dual_read_legacy_artifact_does_not_write_or_escape_store(tmp_path) -> N
     assert store.read_legacy_json(legacy)["status"] == "PARTIAL"
     with pytest.raises(EvidenceValidationError, match="escapes"):
         store.read_legacy_json("artifact://../outside.json")
+
+
+def test_probe_publication_is_one_way_and_keeps_legacy_bundle_untouched(tmp_path) -> None:
+    bundle = TargetEvidenceBundle(
+        robot_id="mentorpi",
+        collector_id="rkb4-test",
+        target_host_fingerprint="a" * 64,
+        request_nonce="1" * 32,
+        requested_layers=["linux"],
+        collected_at=NOW,
+        probes={
+            "linux": ProbeResult(layer="linux", status=DiscoveryStatus.PARTIAL, observed_at=NOW)
+        },
+        payload_sha256="b" * 64,
+        signature_hmac_sha256="c" * 64,
+    )
+    legacy = tmp_path / "legacy-bundle.json"
+    legacy.write_text(bundle.model_dump_json(), encoding="utf-8")
+    before = legacy.read_bytes()
+    _, episode, snapshot_path, episode_path = publish_probe_episode(
+        bundle,
+        artifact_root=tmp_path,
+        deployment_mode="local",
+        bundle_ref="artifact://legacy-bundle.json",
+        probe_run_id="run-legacy",
+    )
+    assert snapshot_path.is_file() and episode_path.is_file()
+    assert episode.bundle is not None and episode.bundle.sha256 == "b" * 64
+    assert legacy.read_bytes() == before

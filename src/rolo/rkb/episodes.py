@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, m
 from rolo.core.persistence import atomic_write_text, interprocess_lock
 
 from .canonical import canonical_json
+from .migration import bundle_to_snapshot
 from .models import Snapshot, SnapshotIdentity
 from .query import ReadOnlyKnowledgeBase
 from .validation import EvidenceValidationError, validate_snapshot
@@ -393,13 +394,50 @@ class EpisodeStore:
             pass
 
 
+def publish_probe_episode(
+    bundle: Any,
+    *,
+    artifact_root: Path,
+    deployment_mode: str,
+    bundle_ref: str,
+    probe_run_id: str | None = None,
+) -> tuple[Snapshot, EpisodeMetadata, Path, Path]:
+    """Persist the new snapshot and its Episode after Probe verification.
+
+    The caller must verify the legacy bundle first.  This helper never rewrites
+    that bundle; it only appends the RKB snapshot and metadata-only Episode.
+    """
+
+    from .storage import RKBStore
+
+    snapshot = bundle_to_snapshot(
+        bundle,
+        deployment_mode=deployment_mode,
+        source_ref=bundle_ref,
+    )
+    rkb_root = artifact_root / "rkb"
+    snapshot_path = RKBStore(rkb_root).write(snapshot, now=bundle.collected_at)
+    episode = build_episode_from_snapshot(
+        snapshot,
+        probe_run_id=probe_run_id or f"probe-{bundle.payload_sha256[:24]}",
+        snapshot_ref=f"artifact://rkb/snapshots/{snapshot.digest}.json",
+        bundle_ref=bundle_ref,
+        bundle_digest=bundle.payload_sha256,
+    )
+    episode_path = EpisodeStore(rkb_root).publish(episode)
+    return snapshot, episode, snapshot_path, episode_path
+
+
 def build_episode_from_snapshot(
     snapshot: Snapshot,
     *,
     probe_run_id: str,
     snapshot_ref: str | None = None,
+    snapshot_digest: str | None = None,
     bundle_ref: str | None = None,
+    bundle_digest: str | None = None,
     report_ref: str | None = None,
+    report_digest: str | None = None,
     episode_id: str | None = None,
 ) -> EpisodeMetadata:
     """Create the RKB-4 metadata envelope from typed read-only queries."""
@@ -502,9 +540,11 @@ def build_episode_from_snapshot(
         probe_run_id=probe_run_id,
         episode_id=episode_id,
         snapshot_ref=evidence_ref,
-        snapshot_digest=snapshot.digest or snapshot.computed_digest(),
+        snapshot_digest=snapshot_digest or snapshot.digest or snapshot.computed_digest(),
         bundle_ref=bundle_ref,
+        bundle_digest=bundle_digest,
         report_ref=report_ref,
+        report_digest=report_digest,
         events=events,
         limitations=limitations,
     )
