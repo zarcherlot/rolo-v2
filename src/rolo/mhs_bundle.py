@@ -348,7 +348,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=ros_payload,
-                    statement="Bounded camera payload read did not receive a frame.",
+                    statement="Camera payload was not sampled in this bounded observation window.",
                 ),
             ],
             sampling_contract=[

@@ -33,7 +33,7 @@ def test_landerpi_bundle_covers_sensor_controller_and_actuator() -> None:
     assert bundle.devices[0].next_action
     aurora = bundle.devices[0].manifest
     assert aurora.identity.stable_id == "HY400516001016421G00082"
-    assert {interface.kind for interface in aurora.interfaces} == {"image"}
+    assert {interface.kind for interface in aurora.interfaces} == {"image", "point_cloud"}
     assert aurora.provenance.field_status["vendor"] == "inferred"
     lidar = bundle.devices[1].manifest
     assert lidar.interfaces[0].kind == "laser_scan"

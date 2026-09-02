@@ -1,7 +1,7 @@
 {
   "schema_version": "rolo-mhs-bundle/v1",
   "robot_id": "landerpi",
-  "generated_at": "2026-09-02T15:49:13.291579Z",
+  "generated_at": "2026-09-02T15:52:01.645488Z",
   "source_discovery": "artifact://mhs-landerpi/discovery-20260902.json",
   "devices": [
     {
@@ -225,7 +225,7 @@
         {
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
-          "statement": "Bounded camera payload read did not receive a frame."
+          "statement": "Camera payload was not sampled in this bounded observation window."
         }
       ],
       "sampling_contract": [
