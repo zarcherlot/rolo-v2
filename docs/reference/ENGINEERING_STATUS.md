@@ -18,7 +18,7 @@
 | FEAT-APPLICATION-OPERATION-SLICE | STABLE | E4 | `rolo target application-operation --profile --operation` | `src/rolo/stages/probe/application.py`; `src/rolo/product_cli.py` | `tests/test_application_bundles.py` | v1 137 项中先实现 32 个只读 route-binding rules；当前 bundle 是 route-level candidate，不等同于行为/结果验证；R2/R3 明确 DEFERRED |
 | FEAT-RKB-EVIDENCE-ENVELOPE | PARTIAL | E1 | typed read-only envelope API | `src/rolo/rkb/`; `src/rolo/stages/probe/target_evidence.py` | `tests/test_rkb_envelope.py` | RKB-1 已覆盖 identity/digest/freshness 拒绝；尚无真机 Episode 持久化 |
 | FEAT-MHS-READONLY-PROVIDER | PARTIAL | E1 | MHS inspect/status/read SPI | `src/rolo/mhs_hardware.py`; `examples/mhs-sensor/` | `tests/test_mhs_hardware.py`; `examples/mhs-sensor/test_mhs_sensor.py` | 仅 fake backend；写能力（reset/calibrate/setpoint/power）不属于当前 v2 |
-| FEAT-RKB-0-BASELINE | PARTIAL | E1 | RKB 契约与依赖验收 | `docs/architecture/RKB_CONTRACT_DECISIONS_ZH.md`; `docs/reference/RKB_IMPLEMENTATION_MAP_ZH.md`; `docs/reference/RKB_DEPENDENCIES_ZH.md` | `tests/test_rkb_contract_baseline.py` | RKB-0 已冻结 vocabulary、route、TTL 和依赖入口；真机 canary 与后续 read model 尚未开始 |
+| FEAT-RKB-0-BASELINE | STABLE | E1 | RKB 契约与依赖验收 | `docs/architecture/RKB_CONTRACT_DECISIONS_ZH.md`; `docs/reference/RKB_IMPLEMENTATION_MAP_ZH.md`; `docs/reference/RKB_DEPENDENCIES_ZH.md` | `tests/test_rkb_contract_baseline.py` | RKB-0 契约、schema、依赖入口和拒绝路径已冻结；真机 canary 与后续 read model 属于 RKB-1/RKB-3，尚未开始 |
 
 ## 可信度边界
 

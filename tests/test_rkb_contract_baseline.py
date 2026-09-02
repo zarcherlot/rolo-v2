@@ -62,6 +62,44 @@ def test_schema_drafts_and_dependency_matrix_are_versioned() -> None:
     assert all(any(name in item for item in dev) for name in ("pytest", "ruff"))
 
 
+def test_schema_required_fields_match_the_read_only_artifact_contract() -> None:
+    envelope_schema = json.loads((ROOT / "schemas/RobotEvidenceEnvelope.schema.json").read_text())
+    defs = envelope_schema["$defs"]
+    assert {"schema_version", "identity", "facts", "snapshot", "digest", "created_at"} <= set(
+        envelope_schema["required"]
+    )
+    identity_required = {
+        "schema_version",
+        "robot_id",
+        "target_host_fingerprint",
+        "collector_id",
+        "deployment_mode",
+        "access",
+        "observed_at",
+        "fresh_until",
+    }
+    assert identity_required <= set(defs["SnapshotIdentity"]["required"])
+    fact_required = {
+        "schema_version",
+        "fact_id",
+        "source_ref",
+        "observed_at",
+        "fresh_until",
+        "sha256",
+        "confidence",
+        "limitations",
+    }
+    assert fact_required <= set(defs["Fact"]["required"])
+
+
+def test_native_smoke_uses_public_catalog_tool_ids() -> None:
+    smoke = (ROOT / "scripts/rolo_v2_native_smoke.py").read_text(encoding="utf-8")
+    assert 'tool_id="native.os.host.inspect"' in smoke
+    assert 'tool_id="native.middleware.graph.inspect"' in smoke
+    assert "native.linux.host.inspect" not in smoke
+    assert "native.ros.graph.inspect" not in smoke
+
+
 def test_ci_matrix_and_rkb_test_entry_are_declared() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text()
     for version in ('"3.10"', '"3.11"', '"3.12"', '"3.13"'):

@@ -51,12 +51,12 @@ plan = planning.build_tool_plan(
     surface_digest=surface_digest,
     steps=[
         planning.ToolPlanStep(
-            tool_id="native.linux.host.inspect",
+            tool_id="native.os.host.inspect",
             arguments={"mode": "inventory"},
             expected_observation="目标主机内核和架构",
         ),
         planning.ToolPlanStep(
-            tool_id="native.ros.graph.inspect",
+            tool_id="native.middleware.graph.inspect",
             arguments={"mode": "nodes"},
             expected_observation="当前 ROS 节点列表",
         ),
