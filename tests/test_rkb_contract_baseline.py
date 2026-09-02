@@ -4,7 +4,10 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 uses declared tomli dependency
+    import tomli as tomllib  # type: ignore[no-redef]
 
 from rolo.core.models import ProbeResult
 from rolo.rkb import SnapshotIdentity, canonical_json
