@@ -56,3 +56,12 @@ service 或 action，也没有由此生成可执行的 R1 MHS command。
 `DISCOVERED_UNVERIFIED`。arm 的 external-estop、stop、rollback、watchdog、no-load 证据
 仍未齐全，因此 manifest 明确禁止写入。确认记录要求来源证据；“有 manifest”与“允许写入”
 仍是两个独立条件。
+
+当前记录中没有 LanderPi 相机 manifest；ROS/设备证据未观察到 `/dev/video*` 或图像话题，
+因此不会凭空创建相机设备。LD19 的 `landerpi-ld19` 仅是只读候选，需稳定设备身份、驱动
+摘要和 `/scan` freshness 证据后才能升级。通用 Linux inventory 会在实际出现 `/dev/video*`
+时生成 camera candidate，并保持 `DISCOVERED_UNVERIFIED`。
+
+`src/rolo/mhs_watchdog.py` 提供厂商 watchdog 的只读 discovery/status 协议和无 I/O 的
+`WatchdogTestFixture`。它用于验证 heartbeat 丢失、超时、trip 和 safe-state readback，
+不代表真实 LanderPi 已安装独立 watchdog。
