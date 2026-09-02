@@ -64,11 +64,11 @@ W4 的独立安全评审和默认关闭要求。
 
 ### W4 当前进度（canary admission only）
 
-已增加无 I/O 的 `MhsCanaryGate`：真实 canary 必须绑定 `human:` 批准引用、独立安全评审、
+已增加无 I/O 的 `MhsCanaryGate` 和 `MhsCanaryRunner`：真实 canary 必须绑定 `human:` 批准引用、独立安全评审、
 目标指纹、设备/命令、软件环境、R1 风险等级，并具备 external-estop、stop 和 rollback 的
 证据；同时受 1--3 次 attempt budget 约束。`enabled` 默认为 `false`，校验成功后只发放一次
-有界 lease，不自动调用 adapter。真实写入仍需部署方显式组合 canary lease、`MhsWriteController`
-和经过独立审查的 adapter；本仓库不连接 LanderPi。
+有界 lease。Runner 只有在部署方显式设置 `real_execution_enabled` 且配置 controller 环境白名单后，
+才会将 lease ID 绑定到 `MhsWriteResult` 并调用 adapter；本仓库当前不连接 LanderPi 的写入口。
 
 ## 4. 首轮验收矩阵
 

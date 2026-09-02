@@ -1,0 +1,66 @@
+{
+  "schema_version": "rolo-mhs-landerpi-ros-graph/v1",
+  "target": {
+    "host": "192.168.10.167",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "os": "Debian 12",
+    "kernel": "6.6.20+rpt-rpi-2712",
+    "container": "MentorPi",
+    "container_image": "ros:humble",
+    "transport": "ros2/host-network"
+  },
+  "observed_at_epoch": 1788357257.8258864,
+  "nodes": [
+    "/ros_robot_controller",
+    "/controller_manager",
+    "/arm_controller",
+    "/gripper_controller",
+    "/LD19",
+    "/aurora/aurora",
+    "/robot_state_publisher",
+    "/robot_api",
+    "/joy_node",
+    "/imu_filter",
+    "/odom_publisher"
+  ],
+  "topics": [
+    {"name": "/joint_states", "type": "sensor_msgs/msg/JointState", "publishers": 1, "subscribers": 2, "access": "read"},
+    {"name": "/controller_manager/servo_states", "type": "servo_controller_msgs/msg/ServoStateList", "publishers": 1, "subscribers": 0, "access": "read"},
+    {"name": "/ros_robot_controller/battery", "type": "std_msgs/msg/UInt16", "publishers": 1, "subscribers": 2, "access": "read"},
+    {"name": "/imu", "type": "sensor_msgs/msg/Imu", "publishers": 1, "subscribers": 0, "access": "read"},
+    {"name": "/scan", "type": "sensor_msgs/msg/LaserScan", "publishers": 1, "subscribers": 3, "access": "read"},
+    {"name": "/odom", "type": "nav_msgs/msg/Odometry", "publishers": 1, "subscribers": 0, "access": "read"},
+    {"name": "/cmd_vel", "type": "geometry_msgs/msg/Twist", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
+    {"name": "/ros_robot_controller/set_motor", "type": "ros_robot_controller_msgs/msg/MotorsState", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
+    {"name": "/ros_robot_controller/bus_servo/set_position", "type": "ros_robot_controller_msgs/msg/ServosPosition", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
+    {"name": "/ros_robot_controller/pwm_servo/set_state", "type": "unknown-observed", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"}
+  ],
+  "actions": [
+    {"name": "/arm_controller/follow_joint_trajectory", "type": "unknown-observed", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
+    {"name": "/gripper_controller/follow_joint_trajectory", "type": "unknown-observed", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"}
+  ],
+  "device_nodes": ["/dev/ttyACM0", "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/i2c-1", "/dev/i2c-11", "/dev/i2c-12", "/dev/spidev10.0"],
+  "joint_names_observed": [
+    "wheel_left_front_joint",
+    "wheel_left_back_joint",
+    "wheel_right_front_joint",
+    "wheel_right_back_joint",
+    "joint1",
+    "joint2",
+    "joint3",
+    "joint4",
+    "joint5",
+    "gripper_base_joint",
+    "gripper_left_join",
+    "gripper_right_joint",
+    "left_jaw_joint",
+    "right_jaw_joint"
+  ],
+  "limitations": [
+    "ROS graph and topic samples were read only; no topic, service, or action was invoked.",
+    "All write candidates remain DISCOVERED_UNVERIFIED; no hardware_resource_id, risk approval, or safety evidence is bound.",
+    "The graph does not prove actuator wiring, emergency-stop state, watchdog health, or rollback behavior.",
+    "This artifact contains no credentials or raw command arguments."
+  ]
+}

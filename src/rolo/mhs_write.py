@@ -66,6 +66,7 @@ class MhsWriteContext(BaseModel):
     safety_fresh_until: datetime
     verified_preconditions: list[str] = Field(default_factory=list)
     safety_evidence_ids: list[str] = Field(default_factory=list)
+    canary_lease_id: str | None = None
     external_estop_clear: bool = False
     watchdog_ok: bool = False
     quiescent: bool = False
@@ -87,6 +88,7 @@ class MhsWriteResult(BaseModel):
     reason: str | None = None
     manifest_sha256: str
     driver_sha256: str
+    canary_lease_id: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
 
@@ -460,6 +462,7 @@ class MhsWriteController:
             observed_at=observed_at,
             manifest_sha256=manifest.manifest_sha256,
             driver_sha256=manifest.driver_sha256,
+            canary_lease_id=context.canary_lease_id,
             evidence_ids=[
                 *context.safety_evidence_ids,
                 f"authorization:{context.authorization_ref}",

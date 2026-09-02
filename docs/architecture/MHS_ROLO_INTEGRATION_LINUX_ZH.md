@@ -89,6 +89,7 @@ MhsWriteRequest + verified MhsWriteContext
 resource quiescent，并支持短时人工授权引用。首轮实现和后续台架/真机门槛见
 [`MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md`](../adapt/MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md)。
 
-W4 只实现 `MhsCanaryGate` admission preflight：它验证独立安全评审、R1 命令、目标指纹、
-人工批准、急停/stop/rollback 证据和有限次数 lease；`enabled=false` 时 fail-closed，且不会
-自行发起网络或硬件 I/O。
+W4 实现 `MhsCanaryGate` admission preflight 和 `MhsCanaryRunner`：前者验证独立安全评审、R1
+命令、目标指纹、人工批准、急停/stop/rollback 证据和有限次数 lease；后者默认关闭，只有部署方
+显式启用并配置 controller 环境白名单后才执行，且把 lease ID 绑定到审计结果。两者都不会自行
+发起网络或硬件 I/O。
