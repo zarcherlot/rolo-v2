@@ -15,6 +15,7 @@ from rolo.rkb import (
     Snapshot,
     SnapshotIdentity,
     build_episode_from_snapshot,
+    build_terminal_episode,
     publish_probe_episode,
 )
 from rolo.rkb.validation import EvidenceValidationError
@@ -75,6 +76,71 @@ def test_episode_store_publishes_immutable_latest_and_rolls_back(tmp_path) -> No
     rolled_back = store.rollback("mentorpi", "ep-1")
     assert rolled_back.probe_run_id == "run-1"
     assert store.load_latest("mentorpi", "ep-1").probe_run_id == "run-1"
+
+
+def test_episode_store_is_idempotent_for_probe_run_and_rejects_conflicts(tmp_path) -> None:
+    store = EpisodeStore(tmp_path)
+    first = build_episode_from_snapshot(make_snapshot(), probe_run_id="same-run", episode_id="ep-1")
+    first_path = store.publish(first)
+    repeated_path = store.publish(first)
+    assert repeated_path == first_path
+    conflicting = first.model_copy(
+        update={"limitations": ["different"], "content_sha256": None}
+    ).with_digest()
+    with pytest.raises(EvidenceValidationError, match="conflicting Episode"):
+        store.publish(conflicting)
+    assert store.metrics.idempotency_hits == 1
+    assert store.metrics.idempotency_conflicts == 1
+
+
+def test_episode_store_recovers_corrupt_latest_and_persists_metrics(tmp_path) -> None:
+    store = EpisodeStore(tmp_path)
+    first = build_episode_from_snapshot(make_snapshot(), probe_run_id="run-1", episode_id="ep-1")
+    store.publish(first)
+    second = first.model_copy(
+        update={"probe_run_id": "run-2", "content_sha256": None}
+    ).with_digest()
+    store.publish(second)
+    latest_path = tmp_path / "episodes" / "mentorpi" / "ep-1" / "latest.json"
+    latest_path.write_text("{broken", encoding="utf-8")
+    recovered = store.load_latest("mentorpi", "ep-1")
+    assert recovered.probe_run_id == "run-2"
+    assert store.metrics.latest_recoveries == 1
+    assert EpisodeStore(tmp_path).metrics.latest_recoveries == 1
+    metrics = json.loads((tmp_path / "episode-metrics.json").read_text(encoding="utf-8"))
+    assert metrics["latest_recoveries"] == 1
+
+
+def test_episode_query_filters_and_prune_are_bounded(tmp_path) -> None:
+    store = EpisodeStore(tmp_path, retention_limit=1)
+    first = build_episode_from_snapshot(make_snapshot(), probe_run_id="run-1", episode_id="ep-1")
+    store.publish(first)
+    second = first.model_copy(
+        update={"probe_run_id": "run-2", "content_sha256": None}
+    ).with_digest()
+    store.publish(second)
+    page = store.query(robot_id="mentorpi", source="rkb4-test", limit=1)
+    assert page.total == 2
+    assert len(page.items) == 1
+    assert page.next_offset == 1
+    assert store.query(state="PARTIAL", freshness="FRESH", now=NOW, limit=10).total == 2
+    assert store.prune("mentorpi", "ep-1") == 1
+    assert store.load_latest("mentorpi", "ep-1").probe_run_id == "run-2"
+
+
+def test_terminal_episode_records_state_without_raw_error_payload() -> None:
+    identity = make_snapshot().identity
+    episode = build_terminal_episode(
+        identity,
+        probe_run_id="run-failed",
+        state="FAILED",
+        reason_code="SSH_SIGNATURE_BLOCKED",
+    )
+    assert episode.state.value == "FAILED"
+    assert episode.events[-1].metadata == {
+        "state": "FAILED",
+        "reason_code": "SSH_SIGNATURE_BLOCKED",
+    }
 
 
 def test_episode_store_rejects_wrong_parent_without_moving_latest(tmp_path) -> None:

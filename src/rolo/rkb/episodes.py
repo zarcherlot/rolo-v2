@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -23,7 +24,7 @@ from rolo.core.persistence import atomic_write_text, interprocess_lock
 
 from .canonical import canonical_json
 from .migration import bundle_to_snapshot
-from .models import Snapshot, SnapshotIdentity
+from .models import FreshnessStatus, Snapshot, SnapshotIdentity
 from .query import ReadOnlyKnowledgeBase
 from .validation import EvidenceValidationError, validate_snapshot
 
@@ -48,6 +49,34 @@ class EpisodeState(str, Enum):
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     PARTIAL = "PARTIAL"
+
+
+@dataclass
+class EpisodeMetrics:
+    """Durable counters for publication and recovery diagnostics."""
+
+    writes: int = 0
+    reads: int = 0
+    rollbacks: int = 0
+    idempotency_hits: int = 0
+    idempotency_conflicts: int = 0
+    validation_rejections: int = 0
+    corrupt_artifacts: int = 0
+    latest_recoveries: int = 0
+    pruned_records: int = 0
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "writes": self.writes,
+            "reads": self.reads,
+            "rollbacks": self.rollbacks,
+            "idempotency_hits": self.idempotency_hits,
+            "idempotency_conflicts": self.idempotency_conflicts,
+            "validation_rejections": self.validation_rejections,
+            "corrupt_artifacts": self.corrupt_artifacts,
+            "latest_recoveries": self.latest_recoveries,
+            "pruned_records": self.pruned_records,
+        }
 
 
 class EpisodeArtifactRef(BaseModel):
@@ -184,6 +213,7 @@ class EpisodeMetadata(BaseModel):
         identity: SnapshotIdentity,
         *,
         probe_run_id: str,
+        state: EpisodeState = EpisodeState.COMPLETED,
         snapshot_ref: str | None = None,
         snapshot_digest: str | None = None,
         bundle_ref: str | None = None,
@@ -205,6 +235,7 @@ class EpisodeMetadata(BaseModel):
             episode_id=episode_id or f"episode-{probe_run_id}",
             probe_run_id=probe_run_id,
             identity=identity,
+            state=state,
             started_at=started_at or identity.observed_at,
             ended_at=ended_at or identity.observed_at,
             snapshot=ref("snapshot", snapshot_ref, snapshot_digest),
@@ -215,16 +246,52 @@ class EpisodeMetadata(BaseModel):
         ).with_digest()
 
 
+class EpisodeQueryPage(BaseModel):
+    """Bounded, newest-first Episode query response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["rkb-episode-query-page/v1"] = "rkb-episode-query-page/v1"
+    items: list[EpisodeMetadata] = Field(default_factory=list, max_length=100)
+    total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=100)
+    next_offset: int | None = Field(default=None, ge=0)
+    limitations: list[str] = Field(default_factory=list, max_length=16)
+
+
 class EpisodeStore:
     """Append-only Episode records with atomic latest publication and rollback."""
 
     schema_version = "rkb-episode-store/v1"
 
-    def __init__(self, root: Path, *, legacy_root: Path | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        legacy_root: Path | None = None,
+        retention_limit: int = 20,
+        metrics: EpisodeMetrics | None = None,
+    ) -> None:
         self.root = root.resolve()
         self.legacy_root = (legacy_root or root).resolve()
         self.episode_root = self.root / "episodes"
         self.corrupt_root = self.root / "corrupt-episodes"
+        self.metrics_path = self.root / "episode-metrics.json"
+        if retention_limit < 1:
+            raise ValueError("retention_limit must be positive")
+        self.retention_limit = retention_limit
+        self.metrics = metrics or self._load_metrics()
+
+    def _load_metrics(self) -> EpisodeMetrics:
+        try:
+            value = json.loads(self.metrics_path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("metrics must be an object")
+            fields = EpisodeMetrics.__dataclass_fields__
+            return EpisodeMetrics(**{name: int(value.get(name, 0)) for name in fields})
+        except (OSError, TypeError, ValueError):
+            return EpisodeMetrics()
 
     def _dir(self, robot_id: str, episode_id: str) -> Path:
         return self.episode_root / robot_id / episode_id
@@ -254,9 +321,30 @@ class EpisodeStore:
         with interprocess_lock(latest):
             current = self._read_index(latest, allow_missing=True)
             current_digest = current.get("digest") if current else None
+            if current_digest:
+                current_episode = self.load(
+                    episode.identity.robot_id,
+                    episode.episode_id,
+                    str(current_digest),
+                )
+                if current_episode.probe_run_id == episode.probe_run_id:
+                    if (
+                        episode.content_sha256 == current_digest
+                        or episode.computed_digest() == current_digest
+                    ):
+                        self.metrics.idempotency_hits += 1
+                        self._flush_metrics()
+                        return self._record_path(current_episode)
+                    self.metrics.idempotency_conflicts += 1
+                    self._flush_metrics()
+                    raise EvidenceValidationError("probe_run_id already has a conflicting Episode")
             if expected_parent_digest is not None and current_digest != expected_parent_digest:
+                self.metrics.validation_rejections += 1
+                self._flush_metrics()
                 raise EvidenceValidationError("episode parent digest does not match latest")
             if episode.parent_digest is not None and current_digest != episode.parent_digest:
+                self.metrics.validation_rejections += 1
+                self._flush_metrics()
                 raise EvidenceValidationError("episode parent_digest does not match latest")
             if episode.parent_digest is None and current_digest is not None:
                 episode = episode.model_copy(update={"parent_digest": current_digest}).with_digest()
@@ -288,6 +376,8 @@ class EpisodeStore:
                 json.dumps(index, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
                 acquire_lock=False,
             )
+            self.metrics.writes += 1
+            self._flush_metrics()
         return path
 
     def load(self, robot_id: str, episode_id: str, digest: str) -> EpisodeMetadata:
@@ -296,19 +386,31 @@ class EpisodeStore:
             episode = EpisodeMetadata.model_validate_json(path.read_text(encoding="utf-8"))
             if episode.content_sha256 != digest or episode.computed_digest() != digest:
                 raise EvidenceValidationError("episode content digest mismatch")
+            self.metrics.reads += 1
+            self._flush_metrics()
             return episode
         except EvidenceValidationError:
+            self.metrics.corrupt_artifacts += 1
+            self._flush_metrics()
             raise
         except (OSError, ValueError) as exc:
             self._isolate(path)
+            self.metrics.corrupt_artifacts += 1
+            self._flush_metrics()
             raise EvidenceValidationError("episode artifact is unreadable") from exc
 
     def load_latest(self, robot_id: str, episode_id: str) -> EpisodeMetadata:
         latest = self._latest_path(robot_id, episode_id)
-        index = self._read_index(latest)
-        if index.get("robot_id") != robot_id or index.get("episode_id") != episode_id:
-            raise EvidenceValidationError("episode latest identity mismatch")
-        return self.load(robot_id, episode_id, str(index["digest"]))
+        try:
+            index = self._read_index(latest)
+            if index.get("robot_id") != robot_id or index.get("episode_id") != episode_id:
+                raise EvidenceValidationError("episode latest identity mismatch")
+            return self.load(robot_id, episode_id, str(index["digest"]))
+        except EvidenceValidationError as exc:
+            recovered = self._recover_latest(robot_id, episode_id)
+            if recovered is not None:
+                return recovered
+            raise exc
 
     def rollback(self, robot_id: str, episode_id: str) -> EpisodeMetadata:
         latest = self._latest_path(robot_id, episode_id)
@@ -332,7 +434,140 @@ class EpisodeStore:
                 + "\n",
                 acquire_lock=False,
             )
+            self.metrics.rollbacks += 1
+            self._flush_metrics()
             return episode
+
+    def query(
+        self,
+        *,
+        robot_id: str | None = None,
+        source: str | None = None,
+        freshness: FreshnessStatus | str | None = None,
+        state: EpisodeState | str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+        now: datetime | None = None,
+    ) -> EpisodeQueryPage:
+        """Read and page immutable Episode records by safe metadata filters."""
+
+        if offset < 0 or limit < 1 or limit > 100:
+            raise ValueError("Episode query offset/limit is outside bounds")
+        requested_freshness = FreshnessStatus(freshness) if freshness is not None else None
+        requested_state = EpisodeState(state) if state is not None else None
+        records: list[EpisodeMetadata] = []
+        roots = [self.episode_root / robot_id] if robot_id else [self.episode_root]
+        for root in roots:
+            if not root.exists():
+                continue
+            for path in root.glob("**/records/*.json"):
+                try:
+                    parts = path.relative_to(self.episode_root).parts
+                    if len(parts) < 4:
+                        continue
+                    item = self.load(parts[0], parts[1], path.stem)
+                except (EvidenceValidationError, ValueError):
+                    continue
+                if requested_state is not None and item.state != requested_state:
+                    continue
+                if (
+                    requested_freshness is not None
+                    and item.identity.freshness(now=now) != requested_freshness
+                ):
+                    continue
+                if source is not None and not self._matches_source(item, source):
+                    continue
+                records.append(item)
+        unique = {item.content_sha256: item for item in records}
+        ordered = sorted(
+            unique.values(),
+            key=lambda item: (item.created_at, item.content_sha256 or ""),
+            reverse=True,
+        )
+        page = ordered[offset : offset + limit]
+        next_offset = offset + limit if offset + limit < len(ordered) else None
+        return EpisodeQueryPage(
+            items=page,
+            total=len(ordered),
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
+        )
+
+    def prune(self, robot_id: str, episode_id: str, *, keep: int | None = None) -> int:
+        """Apply bounded retention without removing the current latest record."""
+
+        count = keep if keep is not None else self.retention_limit
+        if count < 1:
+            raise ValueError("retention keep must be positive")
+        latest = self.load_latest(robot_id, episode_id)
+        record_root = self._dir(robot_id, episode_id) / "records"
+        paths = sorted(
+            record_root.glob("*.json"),
+            key=lambda item: item.stat().st_mtime_ns,
+            reverse=True,
+        )
+        removed = 0
+        for path in paths[count:]:
+            if path.stem == latest.content_sha256:
+                continue
+            path.unlink(missing_ok=True)
+            removed += 1
+        if removed:
+            self.metrics.pruned_records += removed
+            self._flush_metrics()
+        return removed
+
+    def _recover_latest(self, robot_id: str, episode_id: str) -> EpisodeMetadata | None:
+        record_root = self._dir(robot_id, episode_id) / "records"
+        candidates = sorted(
+            record_root.glob("*.json"),
+            key=lambda item: item.stat().st_mtime_ns,
+            reverse=True,
+        )
+        for candidate in candidates:
+            try:
+                episode = self.load(robot_id, episode_id, candidate.stem)
+            except EvidenceValidationError:
+                continue
+            replacement = {
+                "schema_version": "rkb-episode-latest-index/v1",
+                "robot_id": robot_id,
+                "episode_id": episode_id,
+                "digest": episode.content_sha256,
+                "previous_digest": episode.parent_digest,
+                "revision": episode.revision,
+                "updated_at": _utc_now().isoformat(),
+            }
+            atomic_write_text(
+                self._latest_path(robot_id, episode_id),
+                json.dumps(replacement, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                + "\n",
+            )
+            self.metrics.latest_recoveries += 1
+            self._flush_metrics()
+            return episode
+        return None
+
+    @staticmethod
+    def _matches_source(episode: EpisodeMetadata, source: str) -> bool:
+        token = source.casefold()
+        values = [episode.identity.collector_id]
+        for ref in (episode.bundle, episode.report, episode.snapshot):
+            if ref is not None:
+                values.append(ref.ref)
+        for event in episode.events:
+            values.extend(event.evidence_refs)
+        return any(token in value.casefold() for value in values)
+
+    def _flush_metrics(self) -> None:
+        atomic_write_text(
+            self.metrics_path,
+            json.dumps(
+                self.metrics.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            + "\n",
+        )
 
     def read_legacy_json(self, ref: str | Path) -> dict[str, Any]:
         """Read an old bundle/report without ever writing or migrating it in place."""
@@ -549,6 +784,7 @@ def build_episode_from_snapshot(
     return EpisodeMetadata.from_probe_run(
         snapshot.identity,
         probe_run_id=probe_run_id,
+        state=EpisodeState.COMPLETED if smoke_ok else EpisodeState.PARTIAL,
         episode_id=episode_id,
         snapshot_ref=evidence_ref,
         snapshot_digest=snapshot_digest or snapshot.digest or snapshot.computed_digest(),
@@ -558,4 +794,47 @@ def build_episode_from_snapshot(
         report_digest=report_digest,
         events=events,
         limitations=limitations,
+    )
+
+
+def build_terminal_episode(
+    identity: SnapshotIdentity,
+    *,
+    probe_run_id: str,
+    state: EpisodeState | str,
+    reason_code: str,
+    episode_id: str | None = None,
+) -> EpisodeMetadata:
+    """Create a bounded FAILED/CANCELLED/PARTIAL record without raw errors."""
+
+    state = EpisodeState(state)
+    if state not in {EpisodeState.FAILED, EpisodeState.CANCELLED, EpisodeState.PARTIAL}:
+        raise ValueError("terminal Episode state must be FAILED, CANCELLED, or PARTIAL")
+    if not reason_code or len(reason_code) > 128 or not reason_code.replace("_", "").isalnum():
+        raise ValueError("reason_code must be a bounded identifier")
+    now = identity.observed_at
+    events = [
+        EpisodeEvent(
+            sequence=1,
+            kind=EpisodeEventKind.BASELINE,
+            occurred_at=now,
+            summary="Probe run identity recorded before terminal outcome",
+        ),
+        EpisodeEvent(
+            sequence=2,
+            kind=EpisodeEventKind.DECISION,
+            occurred_at=now,
+            summary="Probe run ended without a complete RKB-4 publication",
+            metadata={"state": state.value, "reason_code": reason_code},
+        ),
+    ]
+    return EpisodeMetadata.from_probe_run(
+        identity,
+        probe_run_id=probe_run_id,
+        state=state,
+        episode_id=episode_id,
+        events=events,
+        limitations=[
+            "Terminal outcome is metadata only; raw error details are intentionally omitted.",
+        ],
     )

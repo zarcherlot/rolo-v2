@@ -12,9 +12,12 @@ from .episodes import (
     EpisodeEvent,
     EpisodeEventKind,
     EpisodeMetadata,
+    EpisodeMetrics,
+    EpisodeQueryPage,
     EpisodeState,
     EpisodeStore,
     build_episode_from_snapshot,
+    build_terminal_episode,
     publish_probe_episode,
 )
 from .migration import (
@@ -117,9 +120,12 @@ __all__ = [
     "EpisodeArtifactRef",
     "EpisodeEvent",
     "EpisodeEventKind",
+    "EpisodeMetrics",
     "EpisodeMetadata",
+    "EpisodeQueryPage",
     "EpisodeState",
     "EpisodeStore",
     "build_episode_from_snapshot",
+    "build_terminal_episode",
     "publish_probe_episode",
 ]

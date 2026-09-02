@@ -13,7 +13,8 @@ metadata-only Episode。Episode 只索引 Probe run、bundle/report/snapshot 引
 - `src/rolo/commands/lifecycle.py`：Probe 验证成功后自动 append snapshot 和 metadata-only Episode；
 - `scripts/rkb4_episode_canary.py`：从已验证 `robot-snapshot/v1` 运行只读 Episode canary；
 - `schemas/RKBEpisodeMetadata.schema.json`：`rkb-episode-metadata/v1` 契约；
-- `tests/test_rkb_episode.py`：正向、身份/父 digest、失败不移动 latest、回滚、敏感字段拒绝和 legacy 双读测试。
+- `schemas/RKBEpisodeQueryPage.schema.json`：`rkb-episode-query-page/v1` 分页契约；
+- `tests/test_rkb_episode.py`：正向、身份/父 digest、幂等、恢复、分页、retention、失败不移动 latest、回滚、敏感字段拒绝和 legacy 双读测试。
 
 ## 双读一写
 
@@ -21,6 +22,8 @@ metadata-only Episode。Episode 只索引 Probe run、bundle/report/snapshot 引
 `read_legacy_report()` 只读解析；RKB-4 新写入只允许 `EpisodeStore.publish()` 生成
 `episodes/<robot>/<episode>/records/<digest>.json` 和原子 `latest.json`。旧 artifact 不回写，
 发布失败不会替换既有 latest，回滚只切换指针到已验证的上一份不可变记录。
+EpisodeStore 同时持久化跨进程指标，支持 latest 损坏后的记录扫描恢复、按 identity/source/freshness/status
+分页查询、同一 `probe_run_id` 的幂等重放和受限 retention；retention 不删除当前 latest。
 
 ## 验收命令
 
