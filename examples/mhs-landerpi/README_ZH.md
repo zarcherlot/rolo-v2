@@ -2,7 +2,7 @@
 
 通用实现位于 [`src/rolo/mhs_hardware.py`](../../src/rolo/mhs_hardware.py) 和
 [`src/rolo/mhs_adapters.py`](../../src/rolo/mhs_adapters.py)；Linux procfs/sysfs 只是一个
-环境适配器。它不绑定 Raspberry Pi、网络
+可替换环境适配器，Rolo 不捆绑 ROS 2 或其他环境 SDK。它不绑定 Raspberry Pi、网络
 地址、厂商或凭据。该目录只保留 landerpi 的一次性观测记录，不是 landerpi 专用驱动。
 
 ## 设备事实

@@ -8,7 +8,6 @@ validation.  Adapters only supply the existing read/status backend.
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,20 +15,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from .mhs_hardware import MhsBackend, MhsDeviceManifest, MhsDeviceProvider
 
 
-class MhsSoftwareEnvironment(str, Enum):
-    NATIVE = "native"
-    ROS2 = "ros2"
-    SERIAL = "serial"
-    HTTP = "http"
-    SIMULATION = "simulation"
-
-
 class MhsEnvironmentDescriptor(BaseModel):
-    """Non-secret description of the software/transport boundary."""
+    """Non-secret, open-ended description of a software/transport boundary.
+
+    ``kind`` is intentionally a string rather than an enum.  Integrations can
+    register ``ros2``, ``dds``, ``modbus``, a vendor runtime, or any future
+    environment without changing the Rolo package.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    kind: MhsSoftwareEnvironment
+    kind: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.:/-]*$")
     runtime: str = Field(min_length=1)
     version: str | None = None
     endpoint: str | None = None
@@ -68,7 +64,6 @@ class MhsAdapterRegistry:
 
 
 __all__ = [
-    "MhsSoftwareEnvironment",
     "MhsEnvironmentDescriptor",
     "MhsEnvironmentAdapter",
     "MhsAdapterRegistry",

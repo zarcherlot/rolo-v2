@@ -3,7 +3,6 @@ from __future__ import annotations
 from rolo.mhs_adapters import (
     MhsAdapterRegistry,
     MhsEnvironmentDescriptor,
-    MhsSoftwareEnvironment,
 )
 from rolo.mhs_hardware import MhsDeviceManifest
 
@@ -43,10 +42,7 @@ def _manifest() -> MhsDeviceManifest:
 def test_same_manifest_can_use_multiple_software_adapters() -> None:
     registry = MhsAdapterRegistry()
     backend = Backend()
-    for adapter_id, kind in (
-        ("sim", MhsSoftwareEnvironment.SIMULATION),
-        ("ros", MhsSoftwareEnvironment.ROS2),
-    ):
+    for adapter_id, kind in (("sim", "simulator"), ("ros", "custom-runtime")):
         registry.register(
             StaticAdapter(
                 adapter_id,
@@ -55,10 +51,7 @@ def test_same_manifest_can_use_multiple_software_adapters() -> None:
             )
         )
     assert registry.provider("sim", _manifest()).route("read") == "mhs://sensor-1/read"
-    assert [item.kind for item in registry.descriptors()] == [
-        MhsSoftwareEnvironment.ROS2,
-        MhsSoftwareEnvironment.SIMULATION,
-    ]
+    assert [item.kind for item in registry.descriptors()] == ["custom-runtime", "simulator"]
 
 
 def test_unknown_or_duplicate_adapter_fails_closed() -> None:

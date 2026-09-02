@@ -38,18 +38,19 @@ Provider 的每个 `MhsResult` 已返回 manifest/driver 摘要、transport、ro
 5 分钟 freshness window；RKB 负责把这些结果绑定到目标 identity，并在过期或 fingerprint
 不一致时拒绝消费。读数类型、非有限值、未知 channel 和上下限在 provider 边界 fail closed。
 
-软件环境适配器只负责把环境转换成 `MhsBackend.read/status`：
+软件环境适配器只负责把环境转换成 `MhsBackend.read/status`。环境 `kind` 是开放的
+插件标识，不是 Rolo 内置枚举；下面只是可能的实现示例，并不表示 Rolo 捆绑这些 SDK：
 
-| 环境 | 典型实现 | 设备身份/route |
+| kind 示例 | 典型实现 | 设备身份/route |
 |---|---|---|
 | native | 厂商 SDK、系统 API | manifest 中的稳定 serial/resource |
-| ROS 2 | topic/service/action bridge（首版只读） | 同一 `mhs://<device_id>/...` |
+| ros2（可选） | topic/service/action bridge（首版只读） | 同一 `mhs://<device_id>/...` |
 | serial/USB | 有界帧协议 driver | USB serial/设备 reference |
 | HTTP | TLS endpoint + schema 校验 | endpoint 不能代替 device identity |
 | simulation | fake/replay backend | 明确标记 simulation，不得冒充 observed hardware |
 
-因此硬件类型（sensor/controller/actuator 等）和软件环境是两个独立维度；更换 ROS 2、
-串口或仿真实现不会复制一套 RKB identity，也不会绕过同一个 provider safety gate。
+因此硬件类型（sensor/controller/actuator 等）和软件环境是两个独立维度；更换任意
+adapter 不会复制一套 RKB identity，也不会绕过同一个 provider safety gate。
 
 ## 真机验证记录
 
