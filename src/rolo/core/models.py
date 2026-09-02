@@ -165,9 +165,7 @@ class ToolDescriptor(BaseModel):
     contract_version: str | None = None
     contract_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     data_classification: Literal["PUBLIC", "INTERNAL", "SENSITIVE", "SECRET"] | None = None
-    result_semantics: Literal[
-        "OBSERVATION", "ACKNOWLEDGEMENT_ONLY", "SESSION_HANDLE"
-    ] | None = None
+    result_semantics: Literal["OBSERVATION", "ACKNOWLEDGEMENT_ONLY", "SESSION_HANDLE"] | None = None
     execution_mode: Literal[
         "REQUEST_RESPONSE", "BOUNDED_STREAM", "SESSION_START", "SESSION_STOP"
     ] = "REQUEST_RESPONSE"
@@ -261,9 +259,9 @@ class OperationCandidate(BaseModel):
     status: Literal["DISCOVERED_UNVERIFIED"] = "DISCOVERED_UNVERIFIED"
     origin: Literal["DETERMINISTIC", "HEURISTIC_AGENT"] = "DETERMINISTIC"
     semantic_review_required: bool = False
-    semantic_review_disposition: Literal[
-        "NOT_REVIEWED", "ACCEPT", "DEFER", "REJECT"
-    ] = "NOT_REVIEWED"
+    semantic_review_disposition: Literal["NOT_REVIEWED", "ACCEPT", "DEFER", "REJECT"] = (
+        "NOT_REVIEWED"
+    )
     route_review_dispositions: dict[str, Literal["ACCEPT", "DEFER", "REJECT"]] = Field(
         default_factory=dict
     )

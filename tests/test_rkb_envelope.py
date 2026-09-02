@@ -5,7 +5,6 @@ import pytest
 from rolo.core.models import DiscoveryStatus, ProbeResult
 from rolo.rkb import EvidenceEnvelope, SnapshotIdentity, envelope_from_probe
 
-
 NOW = datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc)
 FP = "a" * 64
 
@@ -25,7 +24,9 @@ def identity(**changes):
 
 
 def test_probe_becomes_canonical_digestable_envelope():
-    probe = ProbeResult(layer="linux", status=DiscoveryStatus.SUCCEEDED, data={"os": "Linux"}, observed_at=NOW)
+    probe = ProbeResult(
+        layer="linux", status=DiscoveryStatus.SUCCEEDED, data={"os": "Linux"}, observed_at=NOW
+    )
     envelope = envelope_from_probe(probe, identity=identity(), source_ref="artifact://run-1#/linux")
     assert envelope.digest == envelope.computed_digest()
     envelope.verify(now=NOW)
@@ -44,6 +45,10 @@ def test_digest_tamper_and_identity_mismatch_fail_closed():
 
 def test_stale_envelope_is_rejected():
     probe = ProbeResult(layer="ros", status=DiscoveryStatus.UNAVAILABLE, observed_at=NOW)
-    envelope = envelope_from_probe(probe, identity=identity(fresh_until=NOW + timedelta(seconds=1)), source_ref="artifact://run-1")
+    envelope = envelope_from_probe(
+        probe,
+        identity=identity(fresh_until=NOW + timedelta(seconds=1)),
+        source_ref="artifact://run-1",
+    )
     with pytest.raises(ValueError, match="stale"):
         envelope.verify(now=NOW + timedelta(seconds=2))
