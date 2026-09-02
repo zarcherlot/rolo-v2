@@ -109,3 +109,14 @@ W4 实现 `MhsCanaryGate` admission preflight 和 `MhsCanaryRunner`：前者验�
 `landerpi-rrc:5b22016029:bus-servo:arm`，反馈来自 `/joint_states` 和
 `/controller_manager/servo_states`，限位来自 servo YAML 与 arm URDF。external-estop、
 stop 实测、rollback、独立 watchdog 和 no-load 现场证据仍未验证，所以不能进入 canary write。
+
+## Watchdog discovery 与无负载 fixture
+
+`rolo.mhs_watchdog.MhsWatchdogRegistry` 会主动调用环境/厂商 adapter 的只读 `inspect()`，
+仅注册显式声明 `independent_of_rolo=true` 的 watchdog capability；应用层 ROS heartbeat、
+`/diagnostics` 和 systemd restart 不会被自动升级。`MhsWatchdogStatus.is_eligible()` 要求
+armed、healthy、heartbeat 未过期、独立来源和 safe-state readback 同时成立。
+
+`rolo.mhs_fixture.MhsBenchFixture` 记录 external-estop、stop、rollback、watchdog 和 no-load
+证据，默认全部为 `NOT_OBSERVED`。结合 `WatchdogTestFixture` 可在无 I/O 台架中注入心跳丢失，
+验证 timeout/trip/readback；它不能替代 LanderPi 的物理安全控制器。
