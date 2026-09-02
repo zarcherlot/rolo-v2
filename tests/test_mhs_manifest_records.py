@@ -36,8 +36,29 @@ def test_landerpi_actuator_endpoints_remain_unverified_and_non_writable() -> Non
         if item.manifest.device_class.value in {"actuator", "end-effector"}
     }
     assert set(candidates) == {"landerpi-base-drive", "landerpi-arm", "landerpi-gripper"}
-    assert all(item.confirmation_status == "DISCOVERED_UNVERIFIED" for item in candidates.values())
-    assert all(not item.manifest.commands for item in candidates.values())
+    assert candidates["landerpi-arm"].confirmation_status == "CONFIRMED_BOUND_WRITE_BLOCKED"
+    assert candidates["landerpi-arm"].manifest.commands[0].id == "stop_arm"
+    assert candidates["landerpi-arm"].manifest.commands[0].risk == "R1"
+    assert (
+        candidates["landerpi-arm"].manifest.commands[0].hardware_resource_id
+        == "landerpi-rrc:5b22016029:bus-servo:arm"
+    )
+    assert candidates["landerpi-arm"].hardware_bindings[0].feedback_routes == [
+        "ros2:/joint_states",
+        "ros2:/controller_manager/servo_states",
+    ]
+    assert candidates["landerpi-arm"].safety_evidence is not None
+    assert candidates["landerpi-arm"].safety_evidence.is_write_ready() is False
+    assert all(
+        item.confirmation_status == "DISCOVERED_UNVERIFIED"
+        for key, item in candidates.items()
+        if key != "landerpi-arm"
+    )
+    assert all(
+        not item.manifest.commands
+        for key, item in candidates.items()
+        if key != "landerpi-arm"
+    )
 
 
 def test_confirmed_record_rejects_path_identity_or_write_commands() -> None:

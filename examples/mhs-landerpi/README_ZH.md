@@ -50,6 +50,9 @@ service 或 action，也没有由此生成可执行的 R1 MHS command。
 ## 已确认 manifest
 
 [`mhs_manifests.py`](mhs_manifests.py) 生成 5 条带证据的记录：`landerpi-rrc` 为
-`CONFIRMED_READ_ONLY`，其余 `landerpi-ld19`、`landerpi-base-drive`、`landerpi-arm` 和
-`landerpi-gripper` 为 `DISCOVERED_UNVERIFIED`。确认记录要求稳定 serial、来源证据且不含
-写 command；因此“有 manifest”与“允许写入”仍是两个独立条件。
+`CONFIRMED_READ_ONLY`；`landerpi-arm` 为 `CONFIRMED_BOUND_WRITE_BLOCKED`，绑定
+`landerpi-rrc:5b22016029:bus-servo:arm`、`joint1..joint5 -> servo ID 1..5` 和 R1
+`stop_arm` command；`landerpi-ld19`、`landerpi-base-drive` 和 `landerpi-gripper` 仍为
+`DISCOVERED_UNVERIFIED`。arm 的 external-estop、stop、rollback、watchdog、no-load 证据
+仍未齐全，因此 manifest 明确禁止写入。确认记录要求来源证据；“有 manifest”与“允许写入”
+仍是两个独立条件。
