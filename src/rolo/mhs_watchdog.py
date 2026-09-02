@@ -43,6 +43,7 @@ class MhsWatchdogStatus(BaseModel):
     last_heartbeat_at: datetime | None = None
     max_age_ms: int = Field(gt=0, le=60000)
     trip_count: int = Field(ge=0)
+    safe_state_capable: bool = False
     safe_state_confirmed: bool
     actuator_enable: bool | None = None
     observed_at: datetime = Field(default_factory=_now)
@@ -61,7 +62,7 @@ class MhsWatchdogStatus(BaseModel):
             and self.healthy
             and self.independent_source
             and self.is_fresh(now)
-            and self.safe_state_confirmed
+            and self.safe_state_capable
         )
 
 
@@ -114,6 +115,7 @@ class WatchdogTestFixture:
         self._sequence = 0
         self._trip_count = 0
         self._safe_state = True
+        self._safe_state_capable = False
         self._armed = False
 
     def arm(self, *, at: datetime | None = None) -> None:
@@ -136,6 +138,7 @@ class WatchdogTestFixture:
         ):
             self._trip_count += 1
             self._safe_state = True
+            self._safe_state_capable = True
         healthy = bool(
             self._armed
             and self._last_heartbeat is not None
@@ -150,6 +153,7 @@ class WatchdogTestFixture:
             last_heartbeat_at=self._last_heartbeat,
             max_age_ms=self.timeout_ms,
             trip_count=self._trip_count,
+            safe_state_capable=self._safe_state_capable,
             safe_state_confirmed=self._safe_state,
             actuator_enable=not self._safe_state,
             observed_at=point,

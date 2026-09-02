@@ -22,7 +22,12 @@ def test_fixture_watchdog_is_healthy_then_trips_to_safe_state() -> None:
     tripped = fixture.observe(at=start + timedelta(milliseconds=150))
     assert tripped.healthy is False
     assert tripped.safe_state_confirmed is True
+    assert tripped.safe_state_capable is True
     assert tripped.trip_count == 1
+
+    fixture.arm(at=start + timedelta(milliseconds=160))
+    recovered = fixture.observe(at=start + timedelta(milliseconds=180))
+    assert recovered.is_eligible(start + timedelta(milliseconds=180)) is True
 
 
 def test_registry_rejects_application_heartbeat_and_registers_independent_fixture() -> None:
