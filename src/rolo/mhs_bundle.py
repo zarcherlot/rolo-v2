@@ -198,7 +198,8 @@ def landerpi_mhs_bundle() -> MhsBundle:
 
     common = "artifact://mhs-landerpi/discovery-20260902.json"
     ros_graph = "artifact://mhs-landerpi/ros-graph-20260902.json"
-    ros_payload = "artifact://mhs-landerpi/ros-payload-20260902.json"
+    ros_payload = "artifact://mhs-landerpi/ros-payload-20260903.json"
+    ros_diagnostic = "artifact://mhs-landerpi/ros-diagnostic-20260903.json"
     devices = [
         MhsBundleDevice(
             manifest=_manifest(
@@ -317,7 +318,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 safety=MhsSafetyContract(read_only=True),
             ),
             dependencies=["USB sysfs", "/aurora/aurora", "ROS 2 adapter"],
-            next_action="sample RGB/IR/depth topics and bind them to the USB serial",
+            next_action="bind observed RGB/IR/depth streams to the USB serial and verify calibration/long-run health",
             sampling_plan=_sampling_plan(common, "landerpi-vision-aurora930", structured=True),
             confidence=MhsConfidence.HIGH,
             evidence=[
@@ -348,7 +349,12 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=ros_payload,
-                    statement="Camera payload was not sampled in this bounded observation window.",
+                    statement="Bounded rclpy subscription observed RGB/IR/depth Image payloads.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_diagnostic,
+                    statement="After bringup restart, a direct rclpy subscription observed RGB/IR/depth frames.",
                 ),
             ],
             sampling_contract=[
@@ -356,7 +362,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 "observe one RGB/IR/depth frame without commanding hardware",
                 "bind topic stream to USB serial",
             ],
-            limitations=["No frame payload or calibration was observed during discovery."],
+            limitations=["Frame payload was observed; calibration and long-run stream health remain unverified."],
         ),
         MhsBundleDevice(
             manifest=_manifest(
@@ -422,7 +428,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 safety=MhsSafetyContract(read_only=True),
             ),
             dependencies=["/scan_to_scan_filter_chain", "ROS 2 adapter", "serial identity"],
-            next_action="sample one LaserScan and resolve transport serial/model",
+            next_action="resolve the observed LaserScan transport to a serial/model and run a stability sample",
             sampling_plan=_sampling_plan(common, "landerpi-lidar", structured=True),
             confidence=MhsConfidence.MEDIUM,
             evidence=[
@@ -441,7 +447,12 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=ros_payload,
-                    statement="Bounded /scan payload read timed out without a LaserScan message.",
+                    statement="Bounded rclpy subscription observed a LaserScan payload on /scan.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_diagnostic,
+                    statement="A direct bounded subscription observed /scan and its /scan_raw upstream.",
                 ),
             ],
             sampling_contract=[
@@ -449,7 +460,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 "observe one bounded LaserScan message",
                 "identify transport device and serial",
             ],
-            limitations=["No ROS payload was read; this remains a sensor candidate."],
+            limitations=["Payload is observed; physical model/serial binding and long-run health remain unverified."],
         ),
         MhsBundleDevice(
             manifest=_manifest(
@@ -522,7 +533,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 safety=MhsSafetyContract(read_only=True, estop_required=None),
             ),
             dependencies=["ros_robot_controller", "joint_state_pub", "controller manager"],
-            next_action="read controller resources, limits, faults and estop state",
+            next_action="correlate observed joint states with controller resources, limits, faults and estop state",
             sampling_plan=_sampling_plan(common, "landerpi-ros-robot-controller", structured=True),
             confidence=MhsConfidence.MEDIUM,
             evidence=[
@@ -542,7 +553,12 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=ros_payload,
-                    statement="No joint-state payload was observed in the bounded read window.",
+                    statement="Bounded rclpy subscription observed six joint-state entries.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_diagnostic,
+                    statement="JointState payload was observed after bringup restart with the workspace overlay.",
                 ),
             ],
             sampling_contract=[
@@ -611,7 +627,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         kind="joint_state",
                         access="stream",
                         transport_ref="ros2:///controller_manager/servo_states",
-                        encoding="sensor_msgs/JointState",
+                        encoding="servo_controller_msgs/ServoStateList",
                         timestamp="source",
                     )
                 ],
@@ -632,6 +648,14 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     ref=f"{ros_graph}#/topics/~1controller_manager~1servo_states",
                     statement=(
                         "The controller graph exposes a servo state topic for feedback sampling."
+                    ),
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=ros_diagnostic,
+                    statement=(
+                        "ServoStateList type resolves after sourcing the ROS workspace overlay; "
+                        "a six-servo feedback payload was observed."
                     ),
                 ),
             ],

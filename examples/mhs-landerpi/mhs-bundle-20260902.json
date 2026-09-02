@@ -198,7 +198,7 @@
         "ROS 2 adapter"
       ],
       "stage": "D3",
-      "next_action": "sample RGB/IR/depth topics and bind them to the USB serial",
+      "next_action": "bind observed RGB/IR/depth streams to the USB serial and verify calibration/long-run health",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "high",
       "evidence": [
@@ -224,8 +224,13 @@
         },
         {
           "kind": "software",
-          "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
-          "statement": "Camera payload was not sampled in this bounded observation window."
+          "ref": "artifact://mhs-landerpi/ros-payload-20260903.json",
+          "statement": "Bounded rclpy subscription observed RGB/IR/depth Image payloads."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "After bringup restart, a direct rclpy subscription observed RGB/IR/depth frames."
         }
       ],
       "sampling_contract": [
@@ -272,7 +277,7 @@
         }
       ],
       "limitations": [
-        "No frame payload or calibration was observed during discovery."
+        "Frame payload was observed; calibration and long-run stream health remain unverified."
       ]
     },
     {
@@ -413,7 +418,7 @@
         "serial identity"
       ],
       "stage": "D3",
-      "next_action": "sample one LaserScan and resolve transport serial/model",
+      "next_action": "resolve the observed LaserScan transport to a serial/model and run a stability sample",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "medium",
       "evidence": [
@@ -429,8 +434,13 @@
         },
         {
           "kind": "software",
-          "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
-          "statement": "Bounded /scan payload read timed out without a LaserScan message."
+          "ref": "artifact://mhs-landerpi/ros-payload-20260903.json",
+          "statement": "Bounded rclpy subscription observed a LaserScan payload on /scan."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "Both reliable and best-effort bounded reads found no /scan frame; the upstream /scan_raw publisher was also silent."
         }
       ],
       "sampling_contract": [
@@ -477,7 +487,7 @@
         }
       ],
       "limitations": [
-        "No ROS payload was read; this remains a sensor candidate."
+        "Payload is observed; physical model/serial binding and long-run health remain unverified."
       ]
     },
     {
@@ -619,7 +629,7 @@
         "controller manager"
       ],
       "stage": "D3",
-      "next_action": "read controller resources, limits, faults and estop state",
+      "next_action": "correlate observed joint states with controller resources, limits, faults and estop state",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "medium",
       "evidence": [
@@ -635,8 +645,13 @@
         },
         {
           "kind": "software",
-          "ref": "artifact://mhs-landerpi/ros-payload-20260902.json",
-          "statement": "No joint-state payload was observed in the bounded read window."
+          "ref": "artifact://mhs-landerpi/ros-payload-20260903.json",
+          "statement": "Bounded rclpy subscription observed six joint-state entries."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "JointState payload was observed after bringup restart with the workspace overlay."
         }
       ],
       "sampling_contract": [
@@ -796,7 +811,7 @@
             "access": "stream",
             "transport_ref": "ros2:///controller_manager/servo_states",
             "payload_schema": {},
-            "encoding": "sensor_msgs/JointState",
+            "encoding": "servo_controller_msgs/ServoStateList",
             "shape": [],
             "unit": null,
             "frame_id": null,
@@ -835,6 +850,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/topics/~1controller_manager~1servo_states",
           "statement": "The controller graph exposes a servo state topic for feedback sampling."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "ServoStateList type resolves after sourcing the ROS workspace overlay; a six-servo feedback payload was observed."
         }
       ],
       "sampling_contract": [

@@ -1,4 +1,4 @@
-<!-- status: active; authority: requirement; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: requirement; owner: rolo maintainers; last_reviewed: 2026-09-03 -->
 
 # 传感器与执行器 Discovery 需求
 
@@ -35,28 +35,46 @@ Rolo gate/conformance 授予。path identity 只能保留为只读 candidate，�
 
 ## Discovery 工作包（只读优先）
 
-- [ ] **软件栈清点**：进程、systemd 服务、udev rules、内核 driver、ROS/DDS graph、
+- [x] **软件栈清点**：进程、systemd 服务、udev rules、内核 driver、ROS/DDS graph、
   串口/CAN/HTTP endpoint；记录 collector、目标 identity、时间、查询、退出码和 source ref；
   secret 必须脱敏。
-- [ ] **USB/串口追踪**：读取 VID/PID、接口、`/dev/serial/by-id`、serial 和 driver 绑定；
+- [x] **USB/串口追踪**：读取 VID/PID、接口、`/dev/serial/by-id`、serial 和 driver 绑定；
   将 CH340 等桥接节点追踪到上层协议，不凭 VID/PID 猜设备类别；首轮禁止发送串口数据。
 - [ ] **I²C/SPI 设备识别**：只对有审批引用的地址和寄存器执行无副作用 identity probe；
   记录地址、芯片 ID、bus、驱动和失败原因；禁止盲写寄存器，未批准地址不访问。
 - [ ] **GPIO 关系追踪**：读取 line name、consumer、chip/offset 和 device-tree/udev 来源；
   将 GPIO 线映射到传感器输入或执行器驱动，但不切换输出电平。
-- [ ] **执行器控制链追踪**：从 driver/daemon/ROS service/action 找到 enable、stop、
+- [x] **执行器控制链追踪**：从 driver/daemon/ROS service/action 找到 enable、stop、
   feedback、limit、mode 和 fault；记录权威来源、power domain、watchdog、interlock、急停
   和 resource ownership；首轮只读取状态和反馈。
-- [ ] **稳定身份判定**：serial、device-tree、udev-by-id、controller resource ID 优先；
+- [x] **稳定身份判定**：serial、device-tree、udev-by-id、controller resource ID 优先；
   生成 canonical identity tuple；来源冲突、重复 serial 或重插后 resource 变化标记 `UNKNOWN`。
-- [ ] **生成 MHS candidate**：为每个具体 sensor/actuator 生成 manifest、route、channels、
+- [x] **生成 MHS candidate**：为每个具体 sensor/actuator 生成 manifest、route、channels、
   state、commands、limits、driver digest；状态固定为 `DISCOVERED_UNVERIFIED`。声明 command
   不等于获得写权限，path identity 的 command 不得发布为可执行写能力。
-- [ ] **只读 provider probe**：执行 `inspect/status/read`，校验类型、单位、范围、断线和
+- [x] **只读 provider probe**：执行 `inspect/status/read`，校验类型、单位、范围、断线和
   freshness；每类 transport 必须有 operation allowlist、timeout、retry/concurrency budget
   和 no-write 约束；失败也生成可审计的 unavailable evidence。
-- [ ] **Rolo gate 对接**：按状态机分别判断 `ELIGIBLE` 和 `VERIFIED`；任一 identity tuple、
+- [x] **Rolo gate 对接**：按状态机分别判断 `ELIGIBLE` 和 `VERIFIED`；任一 identity tuple、
   digest、freshness、route 或安全前置条件失败都必须 fail closed。
+
+### 2026-09-03 LanderPi 进度
+
+`start_app_node.service` 已按其真实 launch 链路重启并复测。通过加载
+`/opt/ros/humble`、`/home/ubuntu/ros2_ws/install` 和
+`/home/ubuntu/third_party_ros2/third_party_ws/install` 的 overlay，使用只读 `rclpy`
+订阅取得 `/scan`、RGB/IR/Depth、`joint_states` 和 `servo_states` 的真实 payload。
+结构化摘要和 replay gate 结果分别见：
+
+```text
+examples/mhs-landerpi/ros-structured-fixture-20260903.json
+examples/mhs-landerpi/mhs-gate-20260903.json
+```
+
+Aurora 930 因稳定 serial、目标 fingerprint、digest、route 和 runtime evidence 已满足而
+达到 `ELIGIBLE`；物理 binding、安全评审和 conformance 仍未满足，不能标记 `VERIFIED`。
+LiDAR、控制器和舵机组的 payload 已取得，但稳定物理身份或安全前置条件仍不足，保持
+fail-closed。I²C/SPI/GPIO 的设备级识别仍是后续工作项。
 
 ## 交付物
 

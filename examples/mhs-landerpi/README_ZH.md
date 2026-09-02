@@ -51,9 +51,22 @@ servo actuator group 分别生成 `sensor`、`controller`、`actuator` manifest�
 本次在 `MentorPi` ROS 2 Humble 容器内的只读 graph 记录见
 [`ros-graph-20260902.json`](ros-graph-20260902.json)，已确认 Aurora 节点的图像/点云
 topic、`/scan` 的 LaserScan topic，以及控制器的 joint/servo state topic；消息 payload
-仍未读取。有限窗口内的 payload 读取结果见
-[`ros-payload-20260902.json`](ros-payload-20260902.json)，因而条目不会自动提升为
+重启前曾未读取。重启后的有限窗口 payload 读取结果见
+[`ros-payload-20260903.json`](ros-payload-20260903.json)，此前重启前的记录仍保留在
+[`ros-payload-20260902.json`](ros-payload-20260902.json)。本次已通过只读 rclpy 订阅取得
+LaserScan、Image、JointState 和 ServoStateList 的结构化摘要；条目仍不会自动提升为
 `VERIFIED`。
+
+2026-09-03 进一步使用 `reliable` 与 `best_effort` 两种只读 QoS 进行 6 秒有界读取，
+并检查 `/scan_raw` 上游、ROS workspace overlay 和容器网络模式；结果见
+[`ros-diagnostic-20260903.json`](ros-diagnostic-20260903.json)。重启后使用工作区 overlay
+进行直接订阅，已确认运行时 payload 可达；此前的 QoS 回退失败记录保留用于对比。
+结构化 fixture 见 [`ros-structured-fixture-20260903.json`](ros-structured-fixture-20260903.json)。
+
+fixture 可通过 `examples/mhs-landerpi/evaluate_fixture.py` 加载到
+`MhsReplayBackend`，再执行只读门禁评估；本次评估结果见
+[`mhs-gate-20260903.json`](mhs-gate-20260903.json)。Aurora 930 已达到 `ELIGIBLE`，
+但尚未 `VERIFIED`；LiDAR、控制器和舵机组仍因缺少稳定物理身份及安全绑定而被拒绝。
 
 生成命令：
 

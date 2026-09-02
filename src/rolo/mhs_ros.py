@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -42,6 +42,8 @@ class RosGraphSnapshot(BaseModel):
 
 
 Runner = Callable[[Sequence[str], float], Mapping[str, Any]]
+QosReliability = Literal["system_default", "reliable", "best_effort"]
+QosDurability = Literal["system_default", "volatile", "transient_local"]
 
 
 class MhsRosSampler:
@@ -115,14 +117,60 @@ class MhsRosSampler:
             limitations=limitations,
         )
 
-    def sample_topic_once(self, topic: str) -> tuple[RosObservation, str | None]:
+    def sample_topic_once(
+        self,
+        topic: str,
+        *,
+        qos_reliability: QosReliability = "system_default",
+        qos_durability: QosDurability = "system_default",
+    ) -> tuple[RosObservation, str | None]:
         """Read one bounded message from an explicitly named absolute topic."""
 
         if not topic.startswith("/"):
             raise ValueError("topic must be an absolute ROS name")
-        argv = ["ros2", "topic", "echo", "--once", topic]
+        argv = ["ros2", "topic", "echo", "--once"]
+        if qos_reliability != "system_default":
+            argv.extend(["--qos-reliability", qos_reliability])
+        if qos_durability != "system_default":
+            argv.extend(["--qos-durability", qos_durability])
+        argv.append(topic)
         observation, output = self._query(f"topic_sample.{topic}", argv)
-        return observation, output[:20_000] if observation.returncode == 0 else None
+        payload = output[:20_000] if observation.returncode == 0 and output.strip() else None
+        return observation, payload
+
+    def sample_topic_once_with_qos_fallback(
+        self,
+        topic: str,
+        *,
+        qos_reliabilities: Sequence[QosReliability] = ("system_default", "reliable", "best_effort"),
+    ) -> tuple[list[RosObservation], str | None]:
+        """Try bounded read-only samples with explicit QoS profiles.
+
+        The first successful payload wins.  Every attempt is returned so an
+        evidence artifact can distinguish a QoS mismatch from a silent
+        publisher.  No publisher, service, action, or parameter operation is
+        invoked.
+        """
+
+        observations: list[RosObservation] = []
+        seen: set[str] = set()
+        for reliability in qos_reliabilities:
+            if reliability in seen:
+                continue
+            seen.add(reliability)
+            observation, payload = self.sample_topic_once(
+                topic, qos_reliability=reliability
+            )
+            observations.append(observation)
+            if payload is not None:
+                return observations, payload
+        return observations, None
 
 
-__all__ = ["MhsRosSampler", "RosGraphSnapshot", "RosObservation"]
+__all__ = [
+    "MhsRosSampler",
+    "QosDurability",
+    "QosReliability",
+    "RosGraphSnapshot",
+    "RosObservation",
+]
