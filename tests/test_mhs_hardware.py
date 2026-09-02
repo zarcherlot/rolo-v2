@@ -51,6 +51,8 @@ def test_mhs_provider_exposes_only_read_routes():
     assert denied.status == MhsStatus.UNAVAILABLE
     assert denied.observed_at is not None
     assert denied.fresh_until is not None
+    assert denied.driver_sha256 == instance.manifest.driver_sha256
+    assert denied.evidence_ids
 
 
 def test_mhs_provider_rejects_unknown_and_unsafe_measurements():

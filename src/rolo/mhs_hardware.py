@@ -139,7 +139,10 @@ class MhsResult(BaseModel):
     observed_at: datetime | None = None
     fresh_until: datetime | None = None
     manifest_sha256: str | None = None
+    driver_id: str | None = None
     driver_version: str | None = None
+    driver_sha256: str | None = None
+    provider_version: str | None = None
     transport: dict[str, Any] = Field(default_factory=dict)
     reason: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
@@ -261,7 +264,10 @@ class MhsDeviceProvider:
             observed_at=point,
             fresh_until=point + timedelta(seconds=self.freshness_seconds),
             manifest_sha256=self.manifest.manifest_sha256,
+            driver_id=self.manifest.driver_id,
             driver_version=self.manifest.driver_version,
+            driver_sha256=self.manifest.driver_sha256,
+            provider_version=self.provider_version,
             transport=self.manifest.transport,
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
@@ -280,7 +286,14 @@ class MhsDeviceProvider:
             observed_at=point,
             fresh_until=point + timedelta(seconds=self.freshness_seconds),
             manifest_sha256=self.manifest.manifest_sha256,
+            driver_id=self.manifest.driver_id,
             driver_version=self.manifest.driver_version,
+            driver_sha256=self.manifest.driver_sha256,
+            provider_version=self.provider_version,
             transport=self.manifest.transport,
+            evidence_ids=[
+                f"mhs-manifest:{self.manifest.manifest_sha256}",
+                f"mhs-driver:{self.manifest.driver_sha256}",
+            ],
             limitations=["read-only provider; no write operations"],
         )

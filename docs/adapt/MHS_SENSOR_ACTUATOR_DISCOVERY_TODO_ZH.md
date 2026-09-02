@@ -1,6 +1,6 @@
-<!-- status: active; authority: TODO; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: requirement; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
 
-# 传感器与执行器 Discovery TODO
+# 传感器与执行器 Discovery 需求
 
 ## 背景
 
@@ -14,26 +14,49 @@
 或安全限制已知；未知设备不能被猜测为可控设备。责任边界在 discovery：它负责追踪证据
 和产出 candidate，不负责绕过安全 gate 执行控制。
 
-## TODO（只读优先）
+## 目标与范围
+
+目标是把 Linux 节点或总线上的具体设备追踪为可审计的 MHS candidate，并为 Rolo
+capability gate 提供目标绑定、可复现、只读的证据。首批优先处理影响安全/运动决策、
+具有稳定 serial/resource ID、且能从 driver/daemon/ROS graph 找到协议和反馈的设备；
+仅能证明节点存在的对象保留为 presence-only candidate。每个设备必须有 owner、目标主机、
+依赖、当前阶段和下一步行动。
+
+## 状态与资格
+
+```text
+DECLARED -> DISCOVERED_UNVERIFIED -> ELIGIBLE -> VERIFIED -> STALE / UNAVAILABLE
+```
+
+`DISCOVERED_UNVERIFIED` 是 discovery 的最高直接产出；`ELIGIBLE` 需要 canonical route、
+provider、目标身份、manifest/driver digest 和有效 runtime evidence；`VERIFIED` 必须由
+Rolo gate/conformance 授予。path identity 只能保留为只读 candidate，不得进入写 gate 或
+`VERIFIED`；缺失或冲突的信息保持 `UNKNOWN`。
+
+## Discovery 工作包（只读优先）
 
 - [ ] **软件栈清点**：进程、systemd 服务、udev rules、内核 driver、ROS/DDS graph、
-  串口/CAN/HTTP endpoint；记录 collector、时间和原始 source ref。
+  串口/CAN/HTTP endpoint；记录 collector、目标 identity、时间、查询、退出码和 source ref；
+  secret 必须脱敏。
 - [ ] **USB/串口追踪**：读取 VID/PID、接口、`/dev/serial/by-id`、serial 和 driver 绑定；
-  将 CH340 等桥接节点追踪到上层协议，不凭 VID/PID 猜设备类别。
-- [ ] **I²C/SPI 设备识别**：只对已批准地址执行无副作用的 identity probe；记录地址、芯片
-  ID、bus、驱动和失败原因；禁止盲写寄存器。
+  将 CH340 等桥接节点追踪到上层协议，不凭 VID/PID 猜设备类别；首轮禁止发送串口数据。
+- [ ] **I²C/SPI 设备识别**：只对有审批引用的地址和寄存器执行无副作用 identity probe；
+  记录地址、芯片 ID、bus、驱动和失败原因；禁止盲写寄存器，未批准地址不访问。
 - [ ] **GPIO 关系追踪**：读取 line name、consumer、chip/offset 和 device-tree/udev 来源；
   将 GPIO 线映射到传感器输入或执行器驱动，但不切换输出电平。
 - [ ] **执行器控制链追踪**：从 driver/daemon/ROS service/action 找到 enable、stop、
-  feedback、limit、mode 和 fault；首轮只读取状态和反馈。
+  feedback、limit、mode 和 fault；记录权威来源、power domain、watchdog、interlock、急停
+  和 resource ownership；首轮只读取状态和反馈。
 - [ ] **稳定身份判定**：serial、device-tree、udev-by-id、controller resource ID 优先；
-  只有路径的设备标记 `identity_stability=path`，禁止进入写能力或 VERIFIED。
+  生成 canonical identity tuple；来源冲突、重复 serial 或重插后 resource 变化标记 `UNKNOWN`。
 - [ ] **生成 MHS candidate**：为每个具体 sensor/actuator 生成 manifest、route、channels、
-  state、commands、limits、driver digest；状态固定为 `DISCOVERED_UNVERIFIED`。
+  state、commands、limits、driver digest；状态固定为 `DISCOVERED_UNVERIFIED`。声明 command
+  不等于获得写权限，path identity 的 command 不得发布为可执行写能力。
 - [ ] **只读 provider probe**：执行 `inspect/status/read`，校验类型、单位、范围、断线和
-  freshness；结果写入 RKB Fact/EvidenceEnvelope。
-- [ ] **Rolo gate 对接**：只有 identity、digest、observed evidence 和 safety 前置条件齐全，
-  才允许 `ELIGIBLE/VERIFIED`；任何不确定性保留为 UNKNOWN/UNAVAILABLE。
+  freshness；每类 transport 必须有 operation allowlist、timeout、retry/concurrency budget
+  和 no-write 约束；失败也生成可审计的 unavailable evidence。
+- [ ] **Rolo gate 对接**：按状态机分别判断 `ELIGIBLE` 和 `VERIFIED`；任一 identity tuple、
+  digest、freshness、route 或安全前置条件失败都必须 fail closed。
 
 ## 交付物
 
@@ -45,10 +68,32 @@ MHS manifest + manifest digest
 driver/provider identity + digest
 mhs://<device_id>/<capability> routes
 RKB facts（observed_at/fresh_until/limitations）
-未解决映射和安全限制清单
+identity resolution、channel 语义、command 限制（仅声明）
+未解决映射和安全限制清单（severity、owner、next action）
 ```
+
+所有交付物必须 machine-readable、带 schema/version，并可通过 deterministic canonicalization
+重新计算相同 digest。RKB evidence 至少包含 `robot_id`、`target_host_fingerprint`、
+`collector_id`、`deployment_mode`、`access=READ_ONLY`、`request_nonce`、`source_kind`、
+`source_ref`、`observed_at`、`fresh_until`、`sha256`、manifest/driver digest、canonical route、
+fact IDs 和 limitations。
+
+## 分阶段交付与验收
+
+| 阶段 | 范围 | 完成条件 |
+|---|---|---|
+| D0 | 范围、身份和 probe policy | 首批设备清单、owner、allowlist、权限和脱敏规则冻结 |
+| D1 | inventory 与 trace | 每个节点有 source ref、collector、时间和 identity resolution |
+| D2 | 具体设备识别 | USB/串口/I²C/SPI/GPIO/ROS 有设备级证据；未知项保持 UNKNOWN |
+| D3 | MHS candidate/provider | schema、canonical digest、route、driver digest 验证通过 |
+| D4 | RKB probe | 成功、断线、超时、越界、未知 channel、STALE 和错误均可追溯 |
+| D5 | Gate readiness | digest/fingerprint/freshness/route 负测通过；未授权写请求 backend 调用为 0 |
+
+最小负测包括：未批准地址、设备替换、重复 serial、path identity、fingerprint/digest 漂移、
+过期 evidence、未知 channel、非法类型、NaN/越界值、transport timeout、断线和含 secret 的输出。
 
 ## 安全边界
 
 本 TODO 不包含 reset、calibrate、setpoint、enable、power-cycle 或固件更新。真实执行器
 写能力必须在 fake/simulation → 无负载台架 → 人工授权 canary 之后另行评审。
+本需求不授予真实设备写权限，也不替代急停、碰撞检测、watchdog、功能安全控制器或硬件限位。
