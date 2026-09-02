@@ -88,7 +88,7 @@ uv run rolo
 ## 工程结构
 
 ```text
-src/rolo/stages/probe/       目标证据、硬件/OS/Middleware/Application Probe
+src/rolo/stages/probe/       目标绑定的只读发现、证据与 conformance
 src/rolo/stages/diagnose/    诊断、调参与 robot_use
 src/rolo/stages/verify/      验证计划、证据与验收门禁
 src/rolo/commands/           robotctl 命令域

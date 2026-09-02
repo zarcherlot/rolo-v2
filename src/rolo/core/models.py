@@ -136,6 +136,17 @@ class ProbeResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     observed_at: datetime = Field(default_factory=utc_now)
+    # v2 evidence metadata.  Legacy probe producers may omit these while the
+    # RKB envelope builder requires and validates them before publication.
+    identity: dict[str, Any] | None = None
+    access: Literal["READ_ONLY"] = "READ_ONLY"
+    fresh_until: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_freshness_window(self) -> ProbeResult:
+        if self.fresh_until is not None and self.fresh_until <= self.observed_at:
+            raise ValueError("fresh_until must be after observed_at")
+        return self
 
 
 class ToolDescriptor(BaseModel):

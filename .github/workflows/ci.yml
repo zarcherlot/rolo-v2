@@ -50,6 +50,9 @@ jobs:
           tests/test_product_cli_v2.py
           tests/test_probe_pipeline.py
           tests/test_application_bundles.py
+          tests/test_rkb_envelope.py
+          tests/test_mhs_hardware.py
+          examples/mhs-sensor/test_mhs_sensor.py
 
   package:
     runs-on: ubuntu-latest

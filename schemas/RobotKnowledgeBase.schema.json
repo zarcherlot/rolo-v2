@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "robot-knowledge-base/v1",
+  "title": "RobotKnowledgeBase",
+  "type": "object",
+  "required": ["schema_version", "envelopes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "robot-knowledge-base/v1"},
+    "envelopes": {"type": "array", "items": {"$ref": "RobotEvidenceEnvelope.schema.json"}}
+  }
+}
