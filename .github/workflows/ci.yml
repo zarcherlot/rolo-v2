@@ -42,6 +42,7 @@ jobs:
           src/rolo/rkb/read_models.py
           src/rolo/mhs_hardware.py
           src/rolo/mhs_sensor.py
+          src/rolo/mhs_linux.py
           src/rolo/core/models.py
           src/rolo/stages/probe/target_evidence.py
           src/rolo/release_check.py
@@ -55,6 +56,10 @@ jobs:
           scripts/rkb2_landerpi_smoke.py
           scripts/rkb2_capacity_baseline.py
           scripts/rkb2_canary.py
+          scripts/mhs_rkb_canary.py
+          scripts/mhs_linux_canary.py
+          tests/test_rkb_mhs_readonly.py
+          tests/test_mhs_linux.py
       - name: Run the v2 Probe chain tests
         run: >-
           uv run --python ${{ matrix.python-version }} pytest -q
@@ -76,9 +81,11 @@ jobs:
           tests/test_rkb_storage.py
           tests/test_rkb_schema_roundtrip.py
           tests/test_mhs_hardware.py
+          tests/test_rkb_mhs_readonly.py
+          tests/test_mhs_linux.py
           examples/mhs-sensor/test_mhs_sensor.py
       - name: Compile the v2 source and test tree
-        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py
+        run: python -m compileall -q src tests examples scripts
 
   package:
     runs-on: ubuntu-latest

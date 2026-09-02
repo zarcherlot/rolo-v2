@@ -257,12 +257,22 @@ class ReadOnlyKnowledgeBase:
         facts = self._layer_facts(envelope, {"hw", "hardware", "hardware_inventory"})
         data = self._merge_data(facts)
         merge_limitations = self._take_merge_limitations(data)
-        raw_resources = self._items_from_facts(
-            facts, ("resources", "devices", "inventory")
-        )
+        raw_resources = self._items_from_facts(facts, ("resources", "devices", "inventory", "mhs"))
         resources: list[HardwareResourceModel] = []
         for index, raw in enumerate(raw_resources):
             item = dict(raw) if isinstance(raw, Mapping) else {"name": str(raw)}
+            if "capability_id" in item and "resource_id" not in item:
+                item = {
+                    "resource_id": f"mhs:{item.get('device_id', index)}",
+                    "kind": item.get("device_class", "mhs_device"),
+                    "name": item.get("device_id"),
+                    "serial": item.get("serial"),
+                    "provider_id": item.get("driver_provider_id"),
+                    "transport": item.get("route"),
+                    "path": item.get("route"),
+                    "stability": Stability.STABLE if item.get("serial") else Stability.UNKNOWN,
+                    "limitations": item.get("limitations", []),
+                }
             resource_id = str(
                 item.get("resource_id")
                 or item.get("id")
@@ -335,15 +345,9 @@ class ReadOnlyKnowledgeBase:
                 )
             )
             endpoints = [
-                item
-                for item in endpoints
-                if token in {item.endpoint, item.node, item.route_id}
+                item for item in endpoints if token in {item.endpoint, item.node, item.route_id}
             ]
-            relationships = [
-                item
-                for item in relationships
-                if token in {item.source, item.target}
-            ]
+            relationships = [item for item in relationships if token in {item.source, item.target}]
         ordered_endpoints = sorted(endpoints, key=lambda item: item.route_id)
         ordered_relationships = sorted(relationships, key=lambda item: item.relationship_id)
         endpoint_page, endpoint_total, endpoint_next = self._paginate(
@@ -433,23 +437,42 @@ class ReadOnlyKnowledgeBase:
         now: datetime | None = None,
     ) -> TypedQueryResult[CapabilityRecord]:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
-        facts = self._layer_facts(envelope, {"capability", "capabilities", "application"})
+        facts = self._layer_facts(
+            envelope, {"capability", "capabilities", "application", "hardware"}
+        )
         data = self._merge_data(facts)
         merge_limitations = self._take_merge_limitations(data)
-        items = self._items_from_facts(facts, ("capabilities", "operations"))
+        items = self._items_from_facts(facts, ("capabilities", "operations", "mhs"))
         for candidate in items:
             item = (
                 dict(candidate)
                 if isinstance(candidate, Mapping)
                 else {"operation_id": str(candidate)}
             )
-            item.setdefault("operation_id", item.get("id") or item.get("operation") or operation_id)
+            item.setdefault(
+                "operation_id",
+                item.get("id")
+                or item.get("operation")
+                or (
+                    f"mhs.{item.get('device_id')}.{item.get('capability_id')}"
+                    if item.get("capability_id")
+                    else operation_id
+                ),
+            )
+            if item.get("capability_id") and operation_id not in {
+                item.get("operation_id"),
+                f"mhs.{item.get('device_id')}.{item.get('capability_id')}",
+                str(item.get("route", "")),
+            }:
+                continue
             if item["operation_id"] != operation_id:
                 continue
             source = str(
                 item.get("source_kind") or (facts[0].source_kind.value if facts else "OBSERVED")
             )
             requested = str(item.get("state") or item.get("status") or "UNAVAILABLE").upper()
+            if item.get("capability_id") and requested == "AVAILABLE":
+                requested = "ELIGIBLE"
             try:
                 state = CapabilityState(requested)
             except ValueError:
@@ -634,7 +657,10 @@ class ReadOnlyKnowledgeBase:
             for key in keys:
                 raw = data.get(key)
                 if isinstance(raw, Mapping):
-                    items.extend(raw.values())
+                    if key == "mhs" and "capability_id" in raw:
+                        items.append(raw)
+                    else:
+                        items.extend(raw.values())
                     break
                 if isinstance(raw, list):
                     items.extend(raw)
@@ -709,13 +735,9 @@ class ReadOnlyKnowledgeBase:
     @staticmethod
     def _runtime_value(data: Mapping[str, Any]) -> dict[str, Any]:
         host = data.get("host") if isinstance(data.get("host"), Mapping) else {}
-        os_release = (
-            host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
-        )
+        os_release = host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
         environment = (
-            data.get("environment")
-            if isinstance(data.get("environment"), Mapping)
-            else {}
+            data.get("environment") if isinstance(data.get("environment"), Mapping) else {}
         )
         value = {
             "os_name": host.get("system") or data.get("os_name") or data.get("os"),
