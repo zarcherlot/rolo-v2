@@ -1,14 +1,14 @@
 <!-- status: canary; authority: implementation note; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
 
-# landerpi 的 MHS 接入 Rolo 设计
+# Linux MHS 接入 Rolo 设计（含 landerpi 观测）
 
 ## 边界
 
-`examples/mhs-landerpi/mhs_landerpi.py` 是 landerpi（Raspberry Pi 5）的只读 Linux
-硬件 driver。它读取 procfs/sysfs 的 CPU 温度、内存占用、负载、设备型号/serial 和
-transport presence；不执行 shell，不写 GPIO/I²C/SPI，不做 reset、setpoint、power-cycle
-或固件更新。官方 MHS wire schema 尚未公开，因此发布标识为 **Rolo MHS-compatible
-profile**，不是官方 conformance。
+`src/rolo/mhs_linux.py` 是目标无关的只读 Linux MHS backend。它通过可配置 procfs/sysfs
+根目录读取 CPU 温度、内存占用、负载、设备型号/serial 和 transport presence；不执行
+shell，不写 GPIO/I²C/SPI，不做 reset、setpoint、power-cycle 或固件更新。landerpi 只作为
+一次性观测样本保存，不构成专用实现。官方 MHS wire schema 尚未公开，因此发布标识为
+**Rolo MHS-compatible profile**，不是官方 conformance。
 
 ## 调用链
 
@@ -16,9 +16,9 @@ profile**，不是官方 conformance。
 Agent
   -> RKB typed query / MCP adapter
   -> Rolo session + capability gate
-  -> MhsDeviceProvider (mhs://landerpi/{inspect,status,read})
-  -> LanderPiBackend (bounded procfs/sysfs reads)
-  -> landerpi hardware
+  -> MhsDeviceProvider (mhs://<device_id>/{inspect,status,read})
+  -> LinuxHardwareBackend (bounded procfs/sysfs reads)
+  -> target Linux hardware
 ```
 
 `MhsDeviceManifest` 是 DECLARED/PROVIDER 证据；`status` 和 `read` 是目标 OBSERVED 证据。
@@ -27,7 +27,7 @@ Provider 注册成功只能得到 `DISCOVERED_UNVERIFIED`，不能直接得到 `
 
 - `robot_id`、target fingerprint、collector、deployment mode 和 request nonce；
 - manifest canonical SHA-256、driver id/version/SHA-256；
-- canonical route `mhs://landerpi/read`（以及 inspect/status）；
+- canonical route `mhs://<device_id>/read`（以及 inspect/status）；
 - `observed_at`、`fresh_until`、fact IDs 和 limitations；
 - transport 与实际设备 identity（serial 优先于路径）。
 

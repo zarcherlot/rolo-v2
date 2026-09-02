@@ -55,7 +55,7 @@ python_files = [
   "test_application_bundles.py",
   "test_rkb_envelope.py",
   "test_mhs_hardware.py",
-  "test_mhs_landerpi.py",
+  "test_mhs_linux.py",
   "test_mhs_sensor.py",
   "test_target_credentials.py",
   "test_target_executors.py",
