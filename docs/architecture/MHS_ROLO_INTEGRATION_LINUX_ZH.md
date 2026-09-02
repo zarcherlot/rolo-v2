@@ -52,6 +52,19 @@ Provider 的每个 `MhsResult` 已返回 manifest/driver 摘要、transport、ro
 因此硬件类型（sensor/controller/actuator 等）和软件环境是两个独立维度；更换任意
 adapter 不会复制一套 RKB identity，也不会绕过同一个 provider safety gate。
 
+## 结构化接口与 ROS 2 抽象
+
+MHS 核心接口是 middleware-neutral 的 `MhsInterfaceDescriptor`：它描述
+`image`、`laser_scan`、`joint_state`、`point_cloud` 等数据语义、编码、形状、坐标系和
+时间戳；`transport_ref` 只保存如何到达数据的适配器引用。ROS 2 topic 只是 LanderPi
+当前的一个 transport binding，不是 MHS 的设备模型。
+
+之所以在 LanderPi 采样中明确 ROS 2，是因为目标机的相机、LiDAR、关节状态和控制器
+都通过 ROS 2 节点/话题暴露；没有这个 binding，就无法把实际采样数据关联到具体驱动。
+但把 ROS 2 类型直接写入核心 MHS 会使后续 USB、CAN、native SDK 或仿真采样无法复用
+同一 manifest。因此只把 `sensor_msgs/Image`、`sensor_msgs/LaserScan` 等写入
+`payload_schema` 作为当前适配器的具体映射，MHS 语义仍保持独立。
+
 ## 真机验证记录
 
 2026-09-02 在局域网 `192.168.10.0/24` 扫描到目标 `192.168.10.167`（网关

@@ -1,12 +1,12 @@
 {
   "schema_version": "rolo-mhs-bundle/v1",
   "robot_id": "landerpi",
-  "generated_at": "2026-09-02T14:30:51.806842Z",
+  "generated_at": "2026-09-02T14:39:52.780625Z",
   "source_discovery": "artifact://mhs-landerpi/discovery-20260902.json",
   "devices": [
     {
       "manifest": {
-        "schema_version": "rolo-mhs-device/v1",
+        "schema_version": "rolo-mhs-device/v1.1",
         "device_id": "landerpi-vision-aurora930",
         "device_class": "sensor",
         "name": "Aurora 930 depth camera",
@@ -76,7 +76,106 @@
         ],
         "driver_id": "rolo.mhs.landerpi-observation",
         "driver_version": "0.1.0",
-        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247"
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": "HY400516001016421G00082",
+          "sources": [
+            {
+              "kind": "serial",
+              "value": "HY400516001016421G00082",
+              "observed": true,
+              "evidence_ids": [
+                "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2"
+              ]
+            },
+            {
+              "kind": "path",
+              "value": "usb:1-2",
+              "observed": true,
+              "evidence_ids": [
+                "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2"
+              ]
+            }
+          ],
+          "confidence": "high",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2",
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "device_id": "observed",
+            "vendor": "inferred",
+            "model": "observed",
+            "serial": "observed",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "driven_by",
+            "target": "process:aurora930_node",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "rgb",
+            "kind": "image",
+            "access": "stream",
+            "transport_ref": "ros2://aurora930_node/rgb/image_raw",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/Image",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          },
+          {
+            "id": "ir",
+            "kind": "image",
+            "access": "stream",
+            "transport_ref": "ros2://aurora930_node/ir/image_raw",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/Image",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          },
+          {
+            "id": "depth",
+            "kind": "image",
+            "access": "stream",
+            "transport_ref": "ros2://aurora930_node/depth/image_raw",
+            "payload_schema": {},
+            "encoding": "16UC1|32FC1",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
       },
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "high",
@@ -108,7 +207,7 @@
     },
     {
       "manifest": {
-        "schema_version": "rolo-mhs-device/v1",
+        "schema_version": "rolo-mhs-device/v1.1",
         "device_id": "landerpi-lidar",
         "device_class": "sensor",
         "name": "LanderPi LiDAR",
@@ -175,7 +274,66 @@
         ],
         "driver_id": "rolo.mhs.landerpi-observation",
         "driver_version": "0.1.0",
-        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247"
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": null,
+          "sources": [],
+          "confidence": "low",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "model": "unknown",
+            "serial": "unknown",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "publishes_to",
+            "target": "ros_topic:/scan",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "scan",
+            "kind": "laser_scan",
+            "access": "stream",
+            "transport_ref": "ros2://ldlidar_stl_ros/scan",
+            "payload_schema": {
+              "ranges": "float32[]",
+              "intensities": "float32[]",
+              "angle_min": "rad",
+              "angle_max": "rad",
+              "angle_increment": "rad"
+            },
+            "encoding": "sensor_msgs/LaserScan",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
       },
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "medium",
@@ -197,7 +355,7 @@
     },
     {
       "manifest": {
-        "schema_version": "rolo-mhs-device/v1",
+        "schema_version": "rolo-mhs-device/v1.1",
         "device_id": "landerpi-ros-robot-controller",
         "device_class": "controller",
         "name": "ROS robot controller",
@@ -265,7 +423,66 @@
         ],
         "driver_id": "rolo.mhs.landerpi-observation",
         "driver_version": "0.1.0",
-        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247"
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": null,
+          "sources": [],
+          "confidence": "low",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "model": "observed",
+            "resources": "inferred",
+            "safety": "unknown",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "controls",
+            "target": "landerpi-servo-actuator",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "joint_state",
+            "kind": "joint_state",
+            "access": "stream",
+            "transport_ref": "ros2://joint_state_pub/joint_states",
+            "payload_schema": {
+              "name": "string[]",
+              "position": "float64[]",
+              "velocity": "float64[]",
+              "effort": "float64[]"
+            },
+            "encoding": "sensor_msgs/JointState",
+            "shape": [],
+            "unit": null,
+            "frame_id": null,
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
       },
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "medium",
@@ -287,7 +504,7 @@
     },
     {
       "manifest": {
-        "schema_version": "rolo-mhs-device/v1",
+        "schema_version": "rolo-mhs-device/v1.1",
         "device_id": "landerpi-servo-actuator",
         "device_class": "actuator",
         "name": "Servo actuator group",
@@ -356,7 +573,62 @@
         ],
         "driver_id": "rolo.mhs.landerpi-observation",
         "driver_version": "0.1.0",
-        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247"
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": null,
+          "sources": [],
+          "confidence": "low",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "model": "unknown",
+            "serial": "unknown",
+            "resource_mapping": "unknown",
+            "safety": "unknown",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "driven_by",
+            "target": "landerpi-ros-robot-controller",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "feedback",
+            "kind": "joint_state",
+            "access": "stream",
+            "transport_ref": "ros2://servo_controller/feedback",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/JointState",
+            "shape": [],
+            "unit": null,
+            "frame_id": null,
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
       },
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "low",

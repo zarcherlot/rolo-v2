@@ -16,7 +16,17 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .mhs_hardware import MhsChannel, MhsDeviceClass, MhsDeviceManifest
+from .mhs_hardware import (
+    MhsChannel,
+    MhsDeviceClass,
+    MhsDeviceManifest,
+    MhsIdentity,
+    MhsIdentitySource,
+    MhsInterfaceDescriptor,
+    MhsProvenance,
+    MhsRelation,
+    MhsSafetyContract,
+)
 
 LANDERPI_DRIVER_ID = "rolo.mhs.landerpi-observation"
 LANDERPI_DRIVER_VERSION = "0.1.0"
@@ -98,6 +108,11 @@ def _manifest(
     transport: dict[str, Any],
     limits: list[str],
     serial: str | None = None,
+    identity: MhsIdentity | None = None,
+    provenance: MhsProvenance | None = None,
+    relations: list[MhsRelation] | None = None,
+    interfaces: list[MhsInterfaceDescriptor] | None = None,
+    safety: MhsSafetyContract | None = None,
 ) -> MhsDeviceManifest:
     return MhsDeviceManifest(
         device_id=device_id,
@@ -114,6 +129,19 @@ def _manifest(
         driver_id=LANDERPI_DRIVER_ID,
         driver_version=LANDERPI_DRIVER_VERSION,
         driver_sha256=LANDERPI_DRIVER_SHA256,
+        identity=identity or MhsIdentity(),
+        provenance=provenance or MhsProvenance(status="DISCOVERED_UNVERIFIED"),
+        relations=relations or [],
+        interfaces=interfaces or [],
+        safety=safety or MhsSafetyContract(),
+    )
+
+
+def _provenance(*evidence_ids: str, **field_status: str) -> MhsProvenance:
+    return MhsProvenance(
+        status="DISCOVERED_UNVERIFIED",
+        evidence_ids=list(evidence_ids),
+        field_status=field_status,
     )
 
 
@@ -172,6 +200,66 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     "exact VID/PID vendor mapping pending"
                 ],
                 serial="HY400516001016421G00082",
+                identity=MhsIdentity(
+                    stable_id="HY400516001016421G00082",
+                    confidence="high",
+                    sources=[
+                        MhsIdentitySource(
+                            kind="serial",
+                            value="HY400516001016421G00082",
+                            evidence_ids=[f"{common}#usb_devices/1-2"],
+                        ),
+                        MhsIdentitySource(
+                            kind="path", value="usb:1-2", evidence_ids=[f"{common}#usb_devices/1-2"]
+                        ),
+                    ],
+                ),
+                provenance=_provenance(
+                    f"{common}#usb_devices/1-2",
+                    f"{common}#software_stack/processes_of_interest",
+                    device_id="observed",
+                    vendor="inferred",
+                    model="observed",
+                    serial="observed",
+                    interfaces="declared",
+                ),
+                relations=[
+                    MhsRelation(
+                        kind="driven_by",
+                        target="process:aurora930_node",
+                        evidence_ids=[f"{common}#software_stack/processes_of_interest"],
+                    )
+                ],
+                interfaces=[
+                    MhsInterfaceDescriptor(
+                        id="rgb",
+                        kind="image",
+                        access="stream",
+                        transport_ref="ros2://aurora930_node/rgb/image_raw",
+                        encoding="sensor_msgs/Image",
+                        frame_id="pending",
+                        timestamp="source",
+                    ),
+                    MhsInterfaceDescriptor(
+                        id="ir",
+                        kind="image",
+                        access="stream",
+                        transport_ref="ros2://aurora930_node/ir/image_raw",
+                        encoding="sensor_msgs/Image",
+                        frame_id="pending",
+                        timestamp="source",
+                    ),
+                    MhsInterfaceDescriptor(
+                        id="depth",
+                        kind="image",
+                        access="stream",
+                        transport_ref="ros2://aurora930_node/depth/image_raw",
+                        encoding="16UC1|32FC1",
+                        frame_id="pending",
+                        timestamp="source",
+                    ),
+                ],
+                safety=MhsSafetyContract(read_only=True),
             ),
             confidence=MhsConfidence.HIGH,
             evidence=[
@@ -230,6 +318,38 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     "driver presence only; model, serial, protocol and physical "
                     "attachment are unknown"
                 ],
+                provenance=_provenance(
+                    f"{common}#software_stack/processes_of_interest",
+                    model="unknown",
+                    serial="unknown",
+                    interfaces="declared",
+                ),
+                relations=[
+                    MhsRelation(
+                        kind="publishes_to",
+                        target="ros_topic:/scan",
+                        evidence_ids=[f"{common}#software_stack/processes_of_interest"],
+                    )
+                ],
+                interfaces=[
+                    MhsInterfaceDescriptor(
+                        id="scan",
+                        kind="laser_scan",
+                        access="stream",
+                        transport_ref="ros2://ldlidar_stl_ros/scan",
+                        encoding="sensor_msgs/LaserScan",
+                        frame_id="pending",
+                        timestamp="source",
+                        payload_schema={
+                            "ranges": "float32[]",
+                            "intensities": "float32[]",
+                            "angle_min": "rad",
+                            "angle_max": "rad",
+                            "angle_increment": "rad",
+                        },
+                    )
+                ],
+                safety=MhsSafetyContract(read_only=True),
             ),
             confidence=MhsConfidence.MEDIUM,
             evidence=[
@@ -284,6 +404,37 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 limits=[
                     "controller model, resource claims, limits and interlocks are not yet observed"
                 ],
+                provenance=_provenance(
+                    f"{common}#software_stack/processes_of_interest",
+                    model="observed",
+                    resources="inferred",
+                    safety="unknown",
+                    interfaces="declared",
+                ),
+                relations=[
+                    MhsRelation(
+                        kind="controls",
+                        target="landerpi-servo-actuator",
+                        evidence_ids=[f"{common}#software_stack/processes_of_interest"],
+                    )
+                ],
+                interfaces=[
+                    MhsInterfaceDescriptor(
+                        id="joint_state",
+                        kind="joint_state",
+                        access="stream",
+                        transport_ref="ros2://joint_state_pub/joint_states",
+                        encoding="sensor_msgs/JointState",
+                        timestamp="source",
+                        payload_schema={
+                            "name": "string[]",
+                            "position": "float64[]",
+                            "velocity": "float64[]",
+                            "effort": "float64[]",
+                        },
+                    )
+                ],
+                safety=MhsSafetyContract(read_only=True, estop_required=None),
             ),
             confidence=MhsConfidence.MEDIUM,
             evidence=[
@@ -338,6 +489,32 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     "serial bridges are present but motor/servo protocol and "
                     "physical mapping are unknown"
                 ],
+                provenance=_provenance(
+                    f"{common}#software_stack/processes_of_interest",
+                    model="unknown",
+                    serial="unknown",
+                    resource_mapping="unknown",
+                    safety="unknown",
+                    interfaces="declared",
+                ),
+                relations=[
+                    MhsRelation(
+                        kind="driven_by",
+                        target="landerpi-ros-robot-controller",
+                        evidence_ids=[f"{common}#software_stack/processes_of_interest"],
+                    )
+                ],
+                interfaces=[
+                    MhsInterfaceDescriptor(
+                        id="feedback",
+                        kind="joint_state",
+                        access="stream",
+                        transport_ref="ros2://servo_controller/feedback",
+                        encoding="sensor_msgs/JointState",
+                        timestamp="source",
+                    )
+                ],
+                safety=MhsSafetyContract(read_only=True, estop_required=None),
             ),
             confidence=MhsConfidence.LOW,
             evidence=[
