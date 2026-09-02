@@ -70,6 +70,8 @@ jobs:
           tests/test_rkb_typed_queries.py
           tests/test_mhs_hardware.py
           examples/mhs-sensor/test_mhs_sensor.py
+      - name: Compile the v2 source and test tree
+        run: python -m compileall -q src tests examples
 
   package:
     runs-on: ubuntu-latest
