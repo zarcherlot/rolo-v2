@@ -46,3 +46,10 @@ I²C、1 个 SPI、5 个 GPIO、1 个 thermal zone 和 10 个 USB sysfs 节点�
 `/odom` 和 battery topic 是只读观测候选；`/cmd_vel`、motor/servo topic 以及 arm/gripper
 trajectory action 仅记录为 `write-candidate/DISCOVERED_UNVERIFIED`。没有调用任何写 topic、
 service 或 action，也没有由此生成可执行的 R1 MHS command。
+
+## 已确认 manifest
+
+[`mhs_manifests.py`](mhs_manifests.py) 生成 5 条带证据的记录：`landerpi-rrc` 为
+`CONFIRMED_READ_ONLY`，其余 `landerpi-ld19`、`landerpi-base-drive`、`landerpi-arm` 和
+`landerpi-gripper` 为 `DISCOVERED_UNVERIFIED`。确认记录要求稳定 serial、来源证据且不含
+写 command；因此“有 manifest”与“允许写入”仍是两个独立条件。

@@ -93,3 +93,12 @@ W4 实现 `MhsCanaryGate` admission preflight 和 `MhsCanaryRunner`：前者验�
 命令、目标指纹、人工批准、急停/stop/rollback 证据和有限次数 lease；后者默认关闭，只有部署方
 显式启用并配置 controller 环境白名单后才执行，且把 lease ID 绑定到审计结果。两者都不会自行
 发起网络或硬件 I/O。
+
+## Manifest confirmation
+
+`MhsDeviceManifest` 本身只描述设备；是否在目标上被确认由
+`MhsManifestRecord` 记录。当前 LanderPi 已确认一个**只读**控制器 manifest：
+`landerpi-rrc`，通过 `/dev/rrc -> /dev/ttyACM0`、USB serial
+`1a86_USB_Single_Serial_5B22016029`、`/ros_robot_controller` 节点和驱动源摘要交叉验证。
+底盘、机械臂、夹爪和 LD19 目前只是 ROS logical candidates，保持
+`DISCOVERED_UNVERIFIED`，不生成可执行写 command。
