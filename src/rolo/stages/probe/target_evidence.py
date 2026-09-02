@@ -1357,6 +1357,38 @@ def verify_evidence_bundle(
     return bound
 
 
+def build_rkb_envelope(
+    bundle: TargetEvidenceBundle,
+    *,
+    deployment: EvidenceDeploymentConfig,
+    request: TargetEvidenceRequest | None = None,
+    secret_path: Path | None = None,
+    now: datetime | None = None,
+) -> Any:
+    """Verify a target bundle, then project it into the canonical RKB envelope.
+
+    Callers cannot accidentally publish an unverified bundle through this helper:
+    the existing identity, replay, payload and signature checks run first, and
+    the bound probe data—not the free-form input payload—is placed in each fact.
+    """
+
+    verified = verify_evidence_bundle(
+        bundle,
+        deployment=deployment,
+        request=request,
+        secret_path=secret_path,
+        now=now,
+    )
+    from rolo.rkb import snapshot_from_target_bundle
+
+    verified_bundle = bundle.model_copy(update={"probes": verified})
+    return snapshot_from_target_bundle(
+        verified_bundle,
+        deployment_mode=deployment.mode.value,
+        source_ref=f"artifact://target-evidence/{bundle.payload_sha256}",
+    )
+
+
 def _ssh_transport_command(
     deployment: EvidenceDeploymentConfig,
     *,
