@@ -18,6 +18,7 @@ from rolo.agent_tools import (
     ToolPlan,
     reduced_agent_native_catalog,
 )
+from rolo.rkb import EvidenceEnvelope
 from rolo.stages.probe.application import (
     ApplicationAdapterBundle,
     ApplicationCandidate,
@@ -51,6 +52,7 @@ def run_release_check(
         "rolo.agent_tools.session_factory",
         "rolo.stages.probe.application",
         "rolo.stages.probe.target_evidence",
+        "rolo.rkb",
     ):
         try:
             importlib.import_module(module)
@@ -86,6 +88,7 @@ def run_release_check(
             (ApplicationOperationCandidate, "application-operation-candidate"),
             (ApplicationOperationAdapterBundle, "application-operation-adapter-bundle"),
             (ApplicationOperationConformanceReport, "application-operation-conformance"),
+            (EvidenceEnvelope, "robot-evidence-envelope"),
         ):
             model.model_json_schema()
             checks.append(f"schema:{label}")

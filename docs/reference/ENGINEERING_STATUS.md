@@ -16,6 +16,8 @@
 | FEAT-PROBE-CONFORMANCE | STABLE | E4 | Tool Surface / ToolPlan conformance artifacts | `src/rolo/agent_tools/conformance.py`; `src/rolo/product_cli.py` | `tests/test_tool_conformance.py`; `tests/test_native_tool_session.py`; `tests/test_product_cli_v2.py` | Conformance 只固化当前 Tool Surface；不声明 Trace/Certify 或 release authority |
 | FEAT-APPLICATION-GAP-BUNDLE | STABLE | E4 | `rolo target application-bundle --profile --application` | `src/rolo/stages/probe/application.py`; `src/rolo/product_cli.py` | `tests/test_application_bundles.py` | MVP 只覆盖 startup/navigation/mapping/manipulation；当前目标未观测到 map route；route presence 不证明应用行为正确；无证据时 Conformance 明确失败 |
 | FEAT-APPLICATION-OPERATION-SLICE | STABLE | E4 | `rolo target application-operation --profile --operation` | `src/rolo/stages/probe/application.py`; `src/rolo/product_cli.py` | `tests/test_application_bundles.py` | v1 137 项中先实现 32 个只读 route-binding rules；当前 bundle 是 route-level candidate，不等同于行为/结果验证；R2/R3 明确 DEFERRED |
+| FEAT-RKB-EVIDENCE-ENVELOPE | PARTIAL | E1 | typed read-only envelope API | `src/rolo/rkb/`; `src/rolo/stages/probe/target_evidence.py` | `tests/test_rkb_envelope.py` | RKB-1 已覆盖 identity/digest/freshness 拒绝；尚无真机 Episode 持久化 |
+| FEAT-MHS-READONLY-PROVIDER | PARTIAL | E1 | MHS inspect/status/read SPI | `src/rolo/mhs_hardware.py`; `examples/mhs-sensor/` | `tests/test_mhs_hardware.py`; `examples/mhs-sensor/test_mhs_sensor.py` | 仅 fake backend；写能力（reset/calibrate/setpoint/power）不属于当前 v2 |
 
 ## 可信度边界
 

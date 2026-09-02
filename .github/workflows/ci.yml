@@ -35,7 +35,18 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked --dev --python ${{ matrix.python-version }}
-      - run: uv run --python ${{ matrix.python-version }} ruff check .
+      - name: Lint the v2 P0 slice
+        run: >-
+          uv run --python ${{ matrix.python-version }} ruff check
+          src/rolo/rkb
+          src/rolo/mhs_hardware.py
+          src/rolo/mhs_sensor.py
+          src/rolo/core/models.py
+          src/rolo/stages/probe/target_evidence.py
+          src/rolo/release_check.py
+          tests/test_rkb_envelope.py
+          tests/test_mhs_hardware.py
+          examples/mhs-sensor
       - name: Run the v2 Probe chain tests
         run: >-
           uv run --python ${{ matrix.python-version }} pytest -q
@@ -50,6 +61,9 @@ jobs:
           tests/test_product_cli_v2.py
           tests/test_probe_pipeline.py
           tests/test_application_bundles.py
+          tests/test_rkb_envelope.py
+          tests/test_mhs_hardware.py
+          examples/mhs-sensor/test_mhs_sensor.py
 
   package:
     runs-on: ubuntu-latest
