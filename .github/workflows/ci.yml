@@ -39,6 +39,7 @@ jobs:
         run: >-
           uv run --python ${{ matrix.python-version }} ruff check
           src/rolo/rkb
+          src/rolo/rkb/read_models.py
           src/rolo/mhs_hardware.py
           src/rolo/mhs_sensor.py
           src/rolo/core/models.py
@@ -46,6 +47,7 @@ jobs:
           src/rolo/release_check.py
           tests/test_rkb_envelope.py
           tests/test_rkb_contract_baseline.py
+          tests/test_rkb_typed_queries.py
           tests/test_mhs_hardware.py
           examples/mhs-sensor
       - name: Run the v2 Probe chain tests
@@ -64,6 +66,8 @@ jobs:
           tests/test_application_bundles.py
           tests/test_rkb_envelope.py
           tests/test_rkb_contract_baseline.py
+          tests/test_rkb_compatibility.py
+          tests/test_rkb_typed_queries.py
           tests/test_mhs_hardware.py
           examples/mhs-sensor/test_mhs_sensor.py
 
