@@ -7,6 +7,15 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .episodes import (
+    EpisodeArtifactRef,
+    EpisodeEvent,
+    EpisodeEventKind,
+    EpisodeMetadata,
+    EpisodeState,
+    EpisodeStore,
+    build_episode_from_snapshot,
+)
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -104,4 +113,11 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "EpisodeArtifactRef",
+    "EpisodeEvent",
+    "EpisodeEventKind",
+    "EpisodeMetadata",
+    "EpisodeState",
+    "EpisodeStore",
+    "build_episode_from_snapshot",
 ]

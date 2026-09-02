@@ -58,8 +58,10 @@ jobs:
           scripts/rkb2_canary.py
           scripts/mhs_rkb_canary.py
           scripts/mhs_linux_canary.py
+          scripts/rkb4_episode_canary.py
           tests/test_rkb_mhs_readonly.py
           tests/test_mhs_linux.py
+          tests/test_rkb_episode.py
       - name: Run the v2 Probe chain tests
         run: >-
           uv run --python ${{ matrix.python-version }} pytest -q
@@ -83,6 +85,7 @@ jobs:
           tests/test_mhs_hardware.py
           tests/test_rkb_mhs_readonly.py
           tests/test_mhs_linux.py
+          tests/test_rkb_episode.py
           examples/mhs-sensor/test_mhs_sensor.py
       - name: Compile the v2 source and test tree
         run: python -m compileall -q src tests examples scripts

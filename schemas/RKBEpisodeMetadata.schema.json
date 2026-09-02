@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rkb-episode-metadata-v1.json",
+  "title": "RKB-4 metadata-only Episode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "episode_id", "probe_run_id", "identity", "state", "started_at", "revision", "events", "created_at", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "rkb-episode-metadata/v1"},
+    "episode_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
+    "probe_run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "identity": {"$ref": "RobotEvidenceEnvelope.schema.json#/$defs/SnapshotIdentity"},
+    "state": {"enum": ["RUNNING", "COMPLETED", "FAILED", "CANCELLED", "PARTIAL"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": ["string", "null"], "format": "date-time"},
+    "revision": {"type": "integer", "minimum": 1},
+    "parent_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "bundle": {"$ref": "#/$defs/ArtifactRef"},
+    "report": {"$ref": "#/$defs/ArtifactRef"},
+    "snapshot": {"$ref": "#/$defs/ArtifactRef"},
+    "events": {"type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/Event"}},
+    "limitations": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
+    "created_at": {"type": "string", "format": "date-time"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "ArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "role", "ref"],
+      "properties": {
+        "schema_version": {"const": "rkb-episode-artifact-ref/v1"},
+        "role": {"enum": ["bundle", "report", "snapshot", "evidence", "rollback"]},
+        "ref": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "event_id", "sequence", "kind", "occurred_at", "summary", "evidence_refs", "metadata"],
+      "properties": {
+        "schema_version": {"const": "rkb-episode-event/v1"},
+        "event_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "kind": {"enum": ["baseline", "observation", "hypothesis", "change", "smoke_test", "decision", "rollback"]},
+        "occurred_at": {"type": "string", "format": "date-time"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "evidence_refs": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 1024}},
+        "metadata": {"type": "object", "maxProperties": 64}
+      }
+    }
+  }
+}

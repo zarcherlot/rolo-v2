@@ -37,3 +37,17 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 
 每项待办都必须同时具备：版本化契约、拒绝路径测试、至少一个可复现的离线或真机证据，
 并在 `docs/reference/ENGINEERING_STATUS.md` 中同步证据等级后，才可从本文件移除。
+
+## RKB-3 后续工程项（不阻塞 RKB-4）
+
+- [ ] 为常见厂商 MHS 设备补充只读 provider manifest/driver，并为每类目标机补充 canary artifact。
+- [ ] 将 Linux observer 的热度、I2C、SPI、GPIO 和 USB 发现结果与厂商 serial/topology 做稳定绑定。
+- [ ] 在真实目标机调度中周期采集 MHS freshness/断线指标；保持 reset、calibrate、setpoint、stop、power-cycle、firmware 未开放。
+- [ ] wheel 安装后导入验证属于发布工程，单独建立发布 artifact 和回归矩阵，不回写本阶段 gate。
+
+## RKB-4 工程项
+
+- [ ] 将每次 Probe run 的 Episode metadata 接入正式 Probe orchestration，并保留旧 bundle/report 双读路径。
+- [ ] 为 Episode latest 指针接入跨进程故障恢复、损坏隔离和审计指标。
+- [ ] 在固定目标机完成 identity → runtime → graph → app 的只读 smoke 后，记录灰度放量决策。
+- [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐真机重启、跨进程和迁移回滚证据。
