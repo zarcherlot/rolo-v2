@@ -57,3 +57,6 @@ PYTHONPATH=src python examples/mhs-landerpi/generate_mhs.py
 这四个条目全部保持 `DISCOVERED_UNVERIFIED`，且没有写命令。另一个工程可以直接
 校验 bundle 后按采样契约补充 ROS topic、设备序列号、量程、故障/限位和急停证据；
 只有证据充分时才应将条目提升为 `VERIFIED`，并另行提交经过安全评审的写适配器。
+每个条目还带有 `owner`、`target_host`、`dependencies`、`stage`、`next_action` 和
+machine-readable `sampling_plan`；采样动作仅允许 `inspect/status/read/read_structured`
+等只读操作，后续项目可以据此调度采样，而不需要从自然语言重新推断权限。

@@ -1,7 +1,7 @@
 {
   "schema_version": "rolo-mhs-bundle/v1",
   "robot_id": "landerpi",
-  "generated_at": "2026-09-02T14:39:52.780625Z",
+  "generated_at": "2026-09-02T15:06:04.596993Z",
   "source_discovery": "artifact://mhs-landerpi/discovery-20260902.json",
   "devices": [
     {
@@ -177,6 +177,15 @@
           "estop_required": null
         }
       },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "USB sysfs",
+        "aurora930_node",
+        "ROS 2 adapter"
+      ],
+      "stage": "D3",
+      "next_action": "sample RGB/IR/depth topics and bind them to the USB serial",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "high",
       "evidence": [
@@ -200,6 +209,44 @@
         "read ROS node/topic graph",
         "observe one RGB/IR/depth frame without commanding hardware",
         "bind topic stream to USB serial"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-vision-aurora930-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-vision-aurora930/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-vision-aurora930-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-vision-aurora930/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-vision-aurora930-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-vision-aurora930/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-vision-aurora930-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-vision-aurora930/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
       ],
       "limitations": [
         "No frame payload or calibration was observed during discovery."
@@ -335,6 +382,15 @@
           "estop_required": null
         }
       },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "ldlidar_stl_ros",
+        "ROS 2 adapter",
+        "serial identity"
+      ],
+      "stage": "D3",
+      "next_action": "sample one LaserScan and resolve transport serial/model",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "medium",
       "evidence": [
@@ -348,6 +404,44 @@
         "read ROS topic types and QoS",
         "observe one bounded LaserScan message",
         "identify transport device and serial"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-lidar-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-lidar/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-lidar-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-lidar/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-lidar-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-lidar/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-lidar-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-lidar/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
       ],
       "limitations": [
         "No ROS payload was read; this remains a sensor candidate."
@@ -484,6 +578,15 @@
           "estop_required": null
         }
       },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "ros_robot_controller",
+        "joint_state_pub",
+        "controller manager"
+      ],
+      "stage": "D3",
+      "next_action": "read controller resources, limits, faults and estop state",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "medium",
       "evidence": [
@@ -497,6 +600,44 @@
         "read controller manager state",
         "read joint_states topic metadata",
         "enumerate resource IDs, limits, faults and estop state"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-ros-robot-controller-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-ros-robot-controller/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-ros-robot-controller-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-ros-robot-controller/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-ros-robot-controller-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-ros-robot-controller/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-ros-robot-controller-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-ros-robot-controller/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
       ],
       "limitations": [
         "No command or service call is enabled by this bundle."
@@ -630,6 +771,15 @@
           "estop_required": null
         }
       },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "servo_controller",
+        "serial bridge",
+        "robot controller"
+      ],
+      "stage": "D3",
+      "next_action": "map serial bridge to actuator resources and read feedback/interlocks",
       "status": "DISCOVERED_UNVERIFIED",
       "confidence": "low",
       "evidence": [
@@ -644,6 +794,44 @@
         "map serial by-id to controller resource",
         "observe feedback/fault/interlock state",
         "require human approval before any future write adapter"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-servo-actuator-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-servo-actuator/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-servo-actuator-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-servo-actuator/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-servo-actuator-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-servo-actuator/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-servo-actuator-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-servo-actuator/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
       ],
       "limitations": [
         "This is an actuator candidate, not an authorization to move hardware."

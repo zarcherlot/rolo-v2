@@ -166,6 +166,18 @@ class MhsSafetyContract(BaseModel):
     estop_required: bool | None = None
 
 
+class MhsInterfaceSample(BaseModel):
+    """One structured sample emitted by a transport adapter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    interface_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    value: Any
+    observed_at: datetime
+    source_timestamp: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class MhsCommandDescriptor(BaseModel):
     """One bounded write command declared by a device manifest."""
 
@@ -241,10 +253,34 @@ class MhsDeviceManifest(BaseModel):
         ).hexdigest()
 
 
+def migrate_mhs_manifest_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Upgrade a v1 payload with v1.1 defaults without mutating the input."""
+
+    migrated = dict(payload)
+    version = str(migrated.get("schema_version", "rolo-mhs-device/v1"))
+    if version == "rolo-mhs-device/v1":
+        migrated["schema_version"] = "rolo-mhs-device/v1.1"
+    for field, default in (
+        ("identity", {}),
+        ("provenance", {}),
+        ("relations", []),
+        ("interfaces", []),
+        ("safety", {}),
+    ):
+        migrated.setdefault(field, default)
+    return migrated
+
+
 class MhsBackend(Protocol):
     def read(self) -> Mapping[str, int | float | bool | str]: ...
 
     def status(self) -> Mapping[str, Any]: ...
+
+
+class MhsStructuredBackend(Protocol):
+    """Optional adapter surface for non-scalar interfaces."""
+
+    def read_structured(self) -> list[MhsInterfaceSample]: ...
 
 
 class MhsResult(BaseModel):
@@ -266,6 +302,7 @@ class MhsResult(BaseModel):
     reason: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    samples: list[MhsInterfaceSample] = Field(default_factory=list)
 
 
 class MhsDeviceProvider:
@@ -308,6 +345,16 @@ class MhsDeviceProvider:
             }
             for command in sorted(self.manifest.commands, key=lambda item: item.id)
         ]
+        if callable(getattr(self.backend, "read_structured", None)):
+            readable.append(
+                {
+                    "capability_id": "read_structured",
+                    "access": "read",
+                    "route": self.route("read_structured"),
+                    "status": "DISCOVERED_UNVERIFIED",
+                    "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
+                }
+            )
         return [*readable, *writable]
 
     def inspect(self) -> MhsResult:
@@ -357,6 +404,37 @@ class MhsDeviceProvider:
         except Exception as exc:
             return self._error(capability, f"backend read failed: {type(exc).__name__}")
 
+    def read_structured(self) -> MhsResult:
+        """Read structured samples through an optional environment adapter."""
+
+        capability = "read_structured"
+        observed_at = datetime.now(timezone.utc)
+        reader = getattr(self.backend, "read_structured", None)
+        if not callable(reader):
+            return self._error(capability, "structured interface backend is unavailable")
+        try:
+            samples = list(reader())
+            declared = {interface.id: interface for interface in self.manifest.interfaces}
+            for sample in samples:
+                interface = declared.get(sample.interface_id)
+                if interface is None:
+                    raise ValueError(f"undeclared interface: {sample.interface_id}")
+                if interface.access == "write":
+                    raise ValueError(f"write interface cannot be sampled: {sample.interface_id}")
+            return self._ok(
+                capability,
+                {
+                    "device_id": self.manifest.device_id,
+                    "samples": [sample.model_dump(mode="json") for sample in samples],
+                },
+                observed_at,
+                samples=samples,
+            )
+        except ValueError as exc:
+            return self._error(capability, f"structured read rejected: {exc}")
+        except Exception as exc:
+            return self._error(capability, f"structured read failed: {type(exc).__name__}")
+
     def invoke(self, capability_id: str, arguments: Mapping[str, Any] | None = None) -> MhsResult:
         """Invoke only read capabilities; all write-like requests fail closed."""
 
@@ -368,10 +446,17 @@ class MhsDeviceProvider:
             return self.status()
         if capability == "read":
             return self.read()
+        if capability == "read_structured":
+            return self.read_structured()
         return self._error(capability, "write or unknown capability is not available in v2")
 
     def _ok(
-        self, capability: str, value: dict[str, Any], observed_at: datetime | None = None
+        self,
+        capability: str,
+        value: dict[str, Any],
+        observed_at: datetime | None = None,
+        *,
+        samples: list[MhsInterfaceSample] | None = None,
     ) -> MhsResult:
         point = observed_at or datetime.now(timezone.utc)
         return MhsResult(
@@ -388,6 +473,7 @@ class MhsDeviceProvider:
             driver_sha256=self.manifest.driver_sha256,
             provider_version=self.provider_version,
             transport=self.manifest.transport,
+            samples=list(samples or []),
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
                 f"mhs-driver:{self.manifest.driver_sha256}",

@@ -55,16 +55,36 @@ class MhsEvidenceRef(BaseModel):
     statement: str = Field(min_length=1)
 
 
+class MhsSamplingAction(BaseModel):
+    """Machine-readable, bounded action for a future sampler."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    operation: Literal["inspect", "status", "read", "read_structured", "approved_identity_probe"]
+    source_ref: str = Field(min_length=1)
+    query: str = Field(min_length=1)
+    side_effect: Literal["none"] = "none"
+    timeout_s: float = Field(default=5.0, gt=0, le=60)
+    requires_approval: bool = False
+
+
 class MhsBundleDevice(BaseModel):
     """One proposed device surface plus its sampling contract."""
 
     model_config = ConfigDict(extra="forbid")
 
     manifest: MhsDeviceManifest
+    owner: str = Field(default="rolo-maintainers", min_length=1)
+    target_host: str = Field(default="raspberrypi", min_length=1)
+    dependencies: list[str] = Field(default_factory=list)
+    stage: str = Field(default="D3", pattern=r"^D[0-5]$")
+    next_action: str = Field(default="collect read-only runtime evidence", min_length=1)
     status: MhsBindingStatus = MhsBindingStatus.DISCOVERED_UNVERIFIED
     confidence: MhsConfidence = MhsConfidence.LOW
     evidence: list[MhsEvidenceRef] = Field(default_factory=list)
     sampling_contract: list[str] = Field(default_factory=list)
+    sampling_plan: list[MhsSamplingAction] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -73,6 +93,9 @@ class MhsBundleDevice(BaseModel):
             raise ValueError("verified device requires evidence")
         if self.manifest.commands:
             raise ValueError("LanderPi sampling bundle must not enable write commands")
+        ids = [action.id for action in self.sampling_plan]
+        if len(ids) != len(set(ids)):
+            raise ValueError("bundle contains duplicate sampling action ids")
         return self
 
 
@@ -143,6 +166,27 @@ def _provenance(*evidence_ids: str, **field_status: str) -> MhsProvenance:
         evidence_ids=list(evidence_ids),
         field_status=field_status,
     )
+
+
+def _sampling_plan(
+    common: str, device_id: str, *, structured: bool = False
+) -> list[MhsSamplingAction]:
+    operations: list[tuple[str, str]] = [
+        ("inspect", "read manifest and interface declarations"),
+        ("status", "read health and connection state"),
+        ("read", "read declared scalar channels"),
+    ]
+    if structured:
+        operations.append(("read_structured", "read one bounded structured sample"))
+    return [
+        MhsSamplingAction(
+            id=f"{device_id}-{operation}",
+            operation=operation,
+            source_ref=f"mhs://{device_id}/{operation}",
+            query=query,
+        )
+        for operation, query in operations
+    ]
 
 
 def landerpi_mhs_bundle() -> MhsBundle:
@@ -261,6 +305,9 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 ],
                 safety=MhsSafetyContract(read_only=True),
             ),
+            dependencies=["USB sysfs", "aurora930_node", "ROS 2 adapter"],
+            next_action="sample RGB/IR/depth topics and bind them to the USB serial",
+            sampling_plan=_sampling_plan(common, "landerpi-vision-aurora930", structured=True),
             confidence=MhsConfidence.HIGH,
             evidence=[
                 MhsEvidenceRef(
@@ -351,6 +398,9 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 ],
                 safety=MhsSafetyContract(read_only=True),
             ),
+            dependencies=["ldlidar_stl_ros", "ROS 2 adapter", "serial identity"],
+            next_action="sample one LaserScan and resolve transport serial/model",
+            sampling_plan=_sampling_plan(common, "landerpi-lidar", structured=True),
             confidence=MhsConfidence.MEDIUM,
             evidence=[
                 MhsEvidenceRef(
@@ -436,6 +486,9 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 ],
                 safety=MhsSafetyContract(read_only=True, estop_required=None),
             ),
+            dependencies=["ros_robot_controller", "joint_state_pub", "controller manager"],
+            next_action="read controller resources, limits, faults and estop state",
+            sampling_plan=_sampling_plan(common, "landerpi-ros-robot-controller", structured=True),
             confidence=MhsConfidence.MEDIUM,
             evidence=[
                 MhsEvidenceRef(
@@ -516,6 +569,9 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 ],
                 safety=MhsSafetyContract(read_only=True, estop_required=None),
             ),
+            dependencies=["servo_controller", "serial bridge", "robot controller"],
+            next_action="map serial bridge to actuator resources and read feedback/interlocks",
+            sampling_plan=_sampling_plan(common, "landerpi-servo-actuator", structured=True),
             confidence=MhsConfidence.LOW,
             evidence=[
                 MhsEvidenceRef(
@@ -543,6 +599,7 @@ __all__ = [
     "MhsBindingStatus",
     "MhsConfidence",
     "MhsEvidenceRef",
+    "MhsSamplingAction",
     "MhsBundleDevice",
     "MhsBundle",
     "landerpi_mhs_bundle",

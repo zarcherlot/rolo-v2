@@ -12,7 +12,12 @@ from rolo.mhs_bundle import (
     MhsConfidence,
     landerpi_mhs_bundle,
 )
-from rolo.mhs_hardware import MhsCommandDescriptor
+from rolo.mhs_hardware import (
+    MhsCommandDescriptor,
+    MhsDeviceManifest,
+    MhsInterfaceSample,
+    migrate_mhs_manifest_payload,
+)
 
 
 def test_landerpi_bundle_covers_sensor_controller_and_actuator() -> None:
@@ -23,6 +28,9 @@ def test_landerpi_bundle_covers_sensor_controller_and_actuator() -> None:
     assert all(not item.manifest.commands for item in bundle.devices)
     assert bundle.devices[0].manifest.serial == "HY400516001016421G00082"
     assert bundle.devices[0].manifest.driver_sha256 != "0" * 64
+    assert bundle.devices[0].owner == "rolo-maintainers"
+    assert bundle.devices[0].stage == "D3"
+    assert bundle.devices[0].next_action
     aurora = bundle.devices[0].manifest
     assert aurora.identity.stable_id == "HY400516001016421G00082"
     assert {interface.kind for interface in aurora.interfaces} == {"image"}
@@ -68,3 +76,24 @@ def test_verified_requires_evidence_and_writes_are_rejected() -> None:
             }
         )
         MhsBundleDevice(manifest=manifest)
+
+
+def test_v1_manifest_migration_and_structured_sample() -> None:
+    payload = {
+        "schema_version": "rolo-mhs-device/v1",
+        "device_id": "legacy-sensor",
+        "device_class": "sensor",
+        "name": "legacy",
+        "vendor": "example",
+        "model": "x",
+    }
+    migrated = migrate_mhs_manifest_payload(payload)
+    manifest = MhsDeviceManifest.model_validate(migrated)
+    assert manifest.schema_version == "rolo-mhs-device/v1.1"
+    assert manifest.interfaces == []
+    sample = MhsInterfaceSample(
+        interface_id="depth",
+        value={"width": 640, "height": 480, "data": [1, 2]},
+        observed_at=landerpi_mhs_bundle().generated_at,
+    )
+    assert sample.value["width"] == 640
