@@ -9,7 +9,6 @@ import tomllib
 from rolo.core.models import ProbeResult
 from rolo.rkb import SnapshotIdentity, canonical_json
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
