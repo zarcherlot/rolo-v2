@@ -1309,12 +1309,44 @@ def verify_evidence_bundle(
             raise ValueError("evidence bundle executable help is outside the pinned allowlist")
         if hashlib.sha256(item.output_text.encode("utf-8")).hexdigest() != (item.output_sha256):
             raise ValueError("evidence bundle executable help output hash mismatch")
+    # Collector v2 computes the digest from the JSON model with null fields
+    # preserved, except that ``source_snapshot`` was introduced in v3 and is
+    # omitted entirely by v2 collectors.  Keep this canonicalization aligned
+    # with the target-side implementation so live bundles remain verifiable
+    # across the deployment boundary.
     base = bundle.model_dump(
         mode="json",
         exclude={"payload_sha256", "signature_hmac_sha256"},
-        exclude_none=True,
     )
+    if bundle.schema_version in {
+        "robot-target-evidence-bundle/v1",
+        "robot-target-evidence-bundle/v2",
+    } and bundle.source_snapshot is None:
+        base.pop("source_snapshot", None)
+    # Older collectors serialized ProbeResult without the v2 metadata fields.
+    # Pydantic fills those fields with compatibility defaults during parsing;
+    # remove only fields that were not present in the input so the signed
+    # payload remains byte-for-byte compatible while explicit metadata stays
+    # covered by the digest.
+    for layer, probe in bundle.probes.items():
+        serialized = base.get("probes", {}).get(layer)
+        if not isinstance(serialized, dict):
+            continue
+        for field in ("identity", "access", "fresh_until"):
+            if field not in probe.model_fields_set:
+                serialized.pop(field, None)
     actual_payload_sha256 = hashlib.sha256(_canonical_json(base)).hexdigest()
+    # RKB-1 local fixtures and early collectors used recursive ``exclude_none``
+    # canonicalization.  Accept that historical form only as an exact second
+    # candidate; all other payload mutations remain rejected fail-closed.
+    if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
+        legacy_base = bundle.model_dump(
+            mode="json",
+            exclude={"payload_sha256", "signature_hmac_sha256"},
+            exclude_none=True,
+        )
+        legacy_base.pop("source_snapshot", None)
+        actual_payload_sha256 = hashlib.sha256(_canonical_json(legacy_base)).hexdigest()
     if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
         raise ValueError("evidence bundle payload hash mismatch")
     verification_secret = _load_secret(secret_path or Path(deployment.verification_secret_path))

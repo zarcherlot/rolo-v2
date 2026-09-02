@@ -10,7 +10,7 @@
 | `ProbeResult` v2 metadata | `src/rolo/core/models.py` | Probe 采集器 | 只读 `identity/access/fresh_until` 元数据，不改变现有 `data` |
 | Target identity / bundle verification | `src/rolo/stages/probe/target_evidence.py` | `TargetEvidenceBundle`、deployment、request | 校验 fingerprint、collector、nonce、digest、签名和 replay；输出 verified probes |
 | `SnapshotIdentity`、`Fact`、`EvidenceEnvelope` | `src/rolo/rkb/models.py` | verified probe/bundle | canonical envelope、fact provenance、freshness 和 digest |
-| typed read-only query | `src/rolo/rkb/query.py` | verified envelope reference | `identity()`、facts 查询；不得读取未校验原始 bundle |
+| typed read-only query | `src/rolo/rkb/query.py`; `src/rolo/rkb/read_models.py` | verified snapshot reference | 分层 identity/runtime/hardware/middleware/application/capability/state_safety 查询；不得读取未校验原始 bundle |
 | MHS device manifest/provider | `src/rolo/mhs_hardware.py` | manifest + bounded backend | canonical `mhs://<device>/<capability>`，仅 inspect/status/read |
 | MHS example | `examples/mhs-sensor/` | fake backend | 兼容示例，不进入生产 release authority |
 | JSON schema | `schemas/RobotEvidenceEnvelope.schema.json`、`schemas/RobotKnowledgeBase.schema.json` | Pydantic/契约冻结 | 版本化 artifact shape；schema 不授予 capability |

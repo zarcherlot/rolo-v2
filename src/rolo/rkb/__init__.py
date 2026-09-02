@@ -26,7 +26,25 @@ from .models import (
     envelope_from_probe,
     snapshot_from_target_bundle,
 )
-from .query import QueryResult, ReadOnlyKnowledgeBase
+from .query import QueryRejectedError, QueryResult, ReadOnlyKnowledgeBase, SnapshotReference
+from .read_models import (
+    CapabilityRecord,
+    CapabilityState,
+    ExecutableModel,
+    HardwareInventoryModel,
+    HardwareResourceModel,
+    MiddlewareEndpointModel,
+    MiddlewareGraphModel,
+    MiddlewareRelationshipModel,
+    ReadModelMetadata,
+    RobotIdentityModel,
+    RuntimeStatusModel,
+    Stability,
+    StateSafetyModel,
+    TypedQueryResult,
+    UnknownValue,
+)
+from .storage import RKBMetrics, RKBStore
 from .validation import (
     EvidenceValidationError,
     freshness_status,
@@ -50,7 +68,24 @@ __all__ = [
     "envelope_from_probe",
     "snapshot_from_target_bundle",
     "QueryResult",
+    "TypedQueryResult",
+    "UnknownValue",
+    "SnapshotReference",
+    "QueryRejectedError",
     "ReadOnlyKnowledgeBase",
+    "ReadModelMetadata",
+    "RobotIdentityModel",
+    "RuntimeStatusModel",
+    "HardwareResourceModel",
+    "HardwareInventoryModel",
+    "MiddlewareEndpointModel",
+    "MiddlewareRelationshipModel",
+    "MiddlewareGraphModel",
+    "ExecutableModel",
+    "CapabilityRecord",
+    "CapabilityState",
+    "StateSafetyModel",
+    "Stability",
     "payload_digest",
     "json_pointer",
     "resolve_json_pointer",
@@ -67,4 +102,6 @@ __all__ = [
     "validate_snapshot",
     "validate_bundle_hmac",
     "freshness_status",
+    "RKBMetrics",
+    "RKBStore",
 ]
