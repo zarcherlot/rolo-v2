@@ -327,14 +327,12 @@ class ReadOnlyKnowledgeBase:
             endpoints = [
                 item
                 for item in endpoints
-                if token in (item.endpoint or "")
-                or token in (item.node or "")
-                or token == item.route_id
+                if token in {item.endpoint, item.node, item.route_id}
             ]
             relationships = [
                 item
                 for item in relationships
-                if token in (item.source or "") or token in (item.target or "")
+                if token in {item.source, item.target}
             ]
         value = MiddlewareGraphModel(
             endpoints=sorted(endpoints, key=lambda item: item.route_id),

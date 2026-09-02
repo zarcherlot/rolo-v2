@@ -38,7 +38,7 @@ target-evidence collect --robot-id mentorpi --deployment-config .../mentorpi.jso
   status=VERIFIED, access=READ_ONLY, mode=local
 python scripts/rkb2_landerpi_smoke.py bundle.json --deployment-config .../mentorpi.json --live
   deployment/HMAC verification + typed query; fresh live canary
-pytest (RKB-1 envelope/compatibility + RKB-2 typed queries): 24 passed
+pytest (RKB-1 envelope/compatibility + RKB-2 typed queries): 26 passed
 pytest (full suite) + compileall src tests: passed, 1 skipped
 rkb2_landerpi_smoke.py (历史兼容 smoke): exit 0; snapshot digest=d4fae183a64839b9...
 ```
@@ -57,7 +57,8 @@ state safety 没有观察证据，状态为 `UNKNOWN`。这些是目标机证据
 - snapshot 完整性与 identity freshness 分开校验，事实 freshness 按查询层处理；过期层返回
   `STALE` 且不暴露 value，无关层过期不会污染当前查询；
 - 多个同层 fact 的列表型资源按事实合并，不再静默覆盖或在合并过程中修改输入事实；
-- typed result 与主要 read model 带独立 schema version，runtime projection 只输出显式字段。
+- typed result 与主要 read model 带独立 schema version，runtime projection 只输出显式字段；
+- middleware selector 使用 route/node/endpoint 的精确 token 匹配，避免模糊 substring 命中。
 
 ## 回滚
 

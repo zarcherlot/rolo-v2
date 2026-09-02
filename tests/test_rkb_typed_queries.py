@@ -164,3 +164,45 @@ def test_multiple_layer_facts_are_merged_without_dropping_resources():
     )
     result = ReadOnlyKnowledgeBase([snapshot]).hw.inventory_scan(now=NOW)
     assert [item.resource_id for item in result.value.resources] == ["/dev/ttyUSB0", "S1"]
+
+
+def test_middleware_selector_matches_exact_route_tokens():
+    snapshot = snapshot_for(
+        fact(
+            "ros",
+            {
+                "endpoints": [
+                    {"route_id": "scan", "endpoint": "/scan"},
+                    {"route_id": "scan-raw", "endpoint": "/scan/raw"},
+                ]
+            },
+        )
+    )
+    result = ReadOnlyKnowledgeBase([snapshot]).middleware.graph_snapshot(
+        selector="/scan", now=NOW
+    )
+    assert [item.route_id for item in result.value.endpoints] == ["scan"]
+
+
+def test_runtime_projection_is_explicit_and_does_not_leak_probe_payload():
+    snapshot = snapshot_for(
+        fact(
+            "linux",
+            {
+                "host": {
+                    "system": "Linux",
+                    "release": "6.1",
+                    "version": "#1",
+                    "architecture": "aarch64",
+                    "hostname": "mentorpi",
+                },
+                "environment": {"ROS_DISTRO": "humble", "ROS_DOMAIN_ID": "7"},
+                "processes": ["secret-process-detail"],
+            },
+        )
+    )
+    value = ReadOnlyKnowledgeBase([snapshot]).os.runtime_status(now=NOW).value
+    assert value.os_name == "Linux"
+    assert value.ros_domain_id == 7
+    assert value.ros_distro == "humble"
+    assert "processes" not in value.model_dump()
