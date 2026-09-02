@@ -1336,6 +1336,23 @@ def verify_evidence_bundle(
             if field not in probe.model_fields_set:
                 serialized.pop(field, None)
     actual_payload_sha256 = hashlib.sha256(_canonical_json(base)).hexdigest()
+    # RKB-1 local fixtures and early collectors used recursive ``exclude_none``
+    # canonicalization.  Accept that historical form only as an exact second
+    # candidate; all other payload mutations remain rejected fail-closed.
+    if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
+        legacy_base = bundle.model_dump(
+            mode="json",
+            exclude={"payload_sha256", "signature_hmac_sha256"},
+            exclude_none=True,
+        )
+        legacy_base.pop("source_snapshot", None)
+        for layer, probe in bundle.probes.items():
+            serialized = legacy_base.get("probes", {}).get(layer)
+            if isinstance(serialized, dict):
+                for field in ("identity", "access", "fresh_until"):
+                    if field not in probe.model_fields_set:
+                        serialized.pop(field, None)
+        actual_payload_sha256 = hashlib.sha256(_canonical_json(legacy_base)).hexdigest()
     if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
         raise ValueError("evidence bundle payload hash mismatch")
     verification_secret = _load_secret(secret_path or Path(deployment.verification_secret_path))
