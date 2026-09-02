@@ -197,6 +197,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
     """
 
     common = "artifact://mhs-landerpi/discovery-20260902.json"
+    ros_graph = "artifact://mhs-landerpi/ros-graph-20260902.json"
     devices = [
         MhsBundleDevice(
             manifest=_manifest(
@@ -228,7 +229,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="frame_timestamp_ns", name="Frame timestamp", unit="ns", min_value=0
                     ),
                 ],
-                resources=["usb:1-2", "process:aurora930_node"],
+                resources=["usb:1-2", "process:/aurora/aurora"],
                 state={"read": ["health", "serial", "ros_topics", "frame_encoding", "resolution"]},
                 transport={
                     "kind": "usb-ros2",
@@ -270,7 +271,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 relations=[
                     MhsRelation(
                         kind="driven_by",
-                        target="process:aurora930_node",
+                        target="process:/aurora/aurora",
                         evidence_ids=[f"{common}#software_stack/processes_of_interest"],
                     )
                 ],
@@ -279,7 +280,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="rgb",
                         kind="image",
                         access="stream",
-                        transport_ref="ros2://aurora930_node/rgb/image_raw",
+                        transport_ref="ros2:///ascamera/camera_publisher/rgb0/image",
                         encoding="sensor_msgs/Image",
                         frame_id="pending",
                         timestamp="source",
@@ -288,7 +289,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="ir",
                         kind="image",
                         access="stream",
-                        transport_ref="ros2://aurora930_node/ir/image_raw",
+                        transport_ref="ros2:///ascamera/camera_publisher/ir0/image",
                         encoding="sensor_msgs/Image",
                         frame_id="pending",
                         timestamp="source",
@@ -297,15 +298,24 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="depth",
                         kind="image",
                         access="stream",
-                        transport_ref="ros2://aurora930_node/depth/image_raw",
+                        transport_ref="ros2:///ascamera/camera_publisher/depth0/image_raw",
                         encoding="16UC1|32FC1",
+                        frame_id="pending",
+                        timestamp="source",
+                    ),
+                    MhsInterfaceDescriptor(
+                        id="points",
+                        kind="point_cloud",
+                        access="stream",
+                        transport_ref="ros2:///ascamera/camera_publisher/depth0/points",
+                        encoding="sensor_msgs/PointCloud2",
                         frame_id="pending",
                         timestamp="source",
                     ),
                 ],
                 safety=MhsSafetyContract(read_only=True),
             ),
-            dependencies=["USB sysfs", "aurora930_node", "ROS 2 adapter"],
+            dependencies=["USB sysfs", "/aurora/aurora", "ROS 2 adapter"],
             next_action="sample RGB/IR/depth topics and bind them to the USB serial",
             sampling_plan=_sampling_plan(common, "landerpi-vision-aurora930", structured=True),
             confidence=MhsConfidence.HIGH,
@@ -320,7 +330,15 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=f"{common}#software_stack/processes_of_interest",
-                    statement="aurora930_node is running on the target.",
+                    statement="The target exposes an /aurora/aurora node for the camera.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=f"{ros_graph}#/bindings/0",
+                    statement=(
+                        "The /aurora/aurora node publishes RGB, IR, depth and "
+                        "point-cloud topics."
+                    ),
                 ),
                 MhsEvidenceRef(
                     kind="documentation",
@@ -341,7 +359,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 device_class=MhsDeviceClass.SENSOR,
                 name="LanderPi LiDAR",
                 vendor="unknown",
-                model="unknown (ldlidar_stl_ros)",
+                model="unknown (filtered /scan)",
                 channels=[
                     MhsChannel(
                         id="scan_available",
@@ -355,7 +373,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     MhsChannel(id="range_min_m", name="Minimum range", unit="m", min_value=0),
                     MhsChannel(id="range_max_m", name="Maximum range", unit="m", min_value=0),
                 ],
-                resources=["process:ldlidar_stl_ros", "ros_topic:/scan"],
+                resources=["process:/scan_to_scan_filter_chain", "ros_topic:/scan"],
                 state={"read": ["health", "ros_topics", "frame_id", "scan_rate_hz"]},
                 transport={
                     "kind": "ros2-laserscan",
@@ -383,7 +401,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="scan",
                         kind="laser_scan",
                         access="stream",
-                        transport_ref="ros2://ldlidar_stl_ros/scan",
+                        transport_ref="ros2:///scan",
                         encoding="sensor_msgs/LaserScan",
                         frame_id="pending",
                         timestamp="source",
@@ -398,7 +416,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 ],
                 safety=MhsSafetyContract(read_only=True),
             ),
-            dependencies=["ldlidar_stl_ros", "ROS 2 adapter", "serial identity"],
+            dependencies=["/scan_to_scan_filter_chain", "ROS 2 adapter", "serial identity"],
             next_action="sample one LaserScan and resolve transport serial/model",
             sampling_plan=_sampling_plan(common, "landerpi-lidar", structured=True),
             confidence=MhsConfidence.MEDIUM,
@@ -406,8 +424,16 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=f"{common}#software_stack/processes_of_interest",
-                    statement="ldlidar_stl_ros is running on the target.",
-                )
+                    statement="The target publishes /scan from scan_to_scan_filter_chain.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=f"{ros_graph}#/topic_info/~1scan",
+                    statement=(
+                        "/scan is a sensor_msgs/msg/LaserScan topic with a "
+                        "RELIABLE publisher."
+                    ),
+                ),
             ],
             sampling_contract=[
                 "read ROS topic types and QoS",
@@ -442,9 +468,9 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     MhsChannel(id="joint_count", name="Joint count", unit="count", min_value=0),
                 ],
                 resources=[
-                    "process:ros_robot_controller",
-                    "process:joint_state_pub",
-                    "ros_topic:/joint_states",
+                    "process:/ros_robot_controller",
+                    "process:/joint_state_publisher",
+                    "ros_topic:/controller_manager/joint_states",
                 ],
                 state={"read": ["health", "controller_state", "resources", "faults", "limits"]},
                 transport={
@@ -473,7 +499,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="joint_state",
                         kind="joint_state",
                         access="stream",
-                        transport_ref="ros2://joint_state_pub/joint_states",
+                        transport_ref="ros2:///controller_manager/joint_states",
                         encoding="sensor_msgs/JointState",
                         timestamp="source",
                         payload_schema={
@@ -495,7 +521,15 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     kind="software",
                     ref=f"{common}#software_stack/processes_of_interest",
                     statement="ros_robot_controller and joint_state_pub are running.",
-                )
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=f"{ros_graph}#/bindings/2",
+                    statement=(
+                        "/ros_robot_controller exposes battery state and "
+                        "servo/motor command subscriptions."
+                    ),
+                ),
             ],
             sampling_contract=[
                 "read controller manager state",
@@ -529,7 +563,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     ),
                 ],
                 resources=[
-                    "process:servo_controller",
+                    "process:/servo_manager",
                     "serial:/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B22016029-if00",
                     "serial:/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0",
                 ],
@@ -562,14 +596,14 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         id="feedback",
                         kind="joint_state",
                         access="stream",
-                        transport_ref="ros2://servo_controller/feedback",
+                        transport_ref="ros2:///controller_manager/servo_states",
                         encoding="sensor_msgs/JointState",
                         timestamp="source",
                     )
                 ],
                 safety=MhsSafetyContract(read_only=True, estop_required=None),
             ),
-            dependencies=["servo_controller", "serial bridge", "robot controller"],
+            dependencies=["/servo_manager", "serial bridge", "robot controller"],
             next_action="map serial bridge to actuator resources and read feedback/interlocks",
             sampling_plan=_sampling_plan(common, "landerpi-servo-actuator", structured=True),
             confidence=MhsConfidence.LOW,
@@ -577,8 +611,16 @@ def landerpi_mhs_bundle() -> MhsBundle:
                 MhsEvidenceRef(
                     kind="software",
                     ref=f"{common}#software_stack/processes_of_interest",
-                    statement="servo_controller is running on the target.",
-                )
+                    statement="The target exposes servo state through the ROS controller stack.",
+                ),
+                MhsEvidenceRef(
+                    kind="software",
+                    ref=f"{ros_graph}#/topics/~1controller_manager~1servo_states",
+                    statement=(
+                        "The controller graph exposes a servo state topic for "
+                        "feedback sampling."
+                    ),
+                ),
             ],
             sampling_contract=[
                 "read controller/resource metadata only",

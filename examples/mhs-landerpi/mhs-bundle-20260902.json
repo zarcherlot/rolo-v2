@@ -1,7 +1,7 @@
 {
   "schema_version": "rolo-mhs-bundle/v1",
   "robot_id": "landerpi",
-  "generated_at": "2026-09-02T15:06:04.596993Z",
+  "generated_at": "2026-09-02T15:39:53.734154Z",
   "source_discovery": "artifact://mhs-landerpi/discovery-20260902.json",
   "devices": [
     {
@@ -49,7 +49,7 @@
         ],
         "resources": [
           "usb:1-2",
-          "process:aurora930_node"
+          "process:/aurora/aurora"
         ],
         "state": {
           "read": [
@@ -119,7 +119,7 @@
         "relations": [
           {
             "kind": "driven_by",
-            "target": "process:aurora930_node",
+            "target": "process:/aurora/aurora",
             "interface_id": null,
             "evidence_ids": [
               "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
@@ -131,7 +131,7 @@
             "id": "rgb",
             "kind": "image",
             "access": "stream",
-            "transport_ref": "ros2://aurora930_node/rgb/image_raw",
+            "transport_ref": "ros2:///ascamera/camera_publisher/rgb0/image",
             "payload_schema": {},
             "encoding": "sensor_msgs/Image",
             "shape": [],
@@ -144,7 +144,7 @@
             "id": "ir",
             "kind": "image",
             "access": "stream",
-            "transport_ref": "ros2://aurora930_node/ir/image_raw",
+            "transport_ref": "ros2:///ascamera/camera_publisher/ir0/image",
             "payload_schema": {},
             "encoding": "sensor_msgs/Image",
             "shape": [],
@@ -157,9 +157,22 @@
             "id": "depth",
             "kind": "image",
             "access": "stream",
-            "transport_ref": "ros2://aurora930_node/depth/image_raw",
+            "transport_ref": "ros2:///ascamera/camera_publisher/depth0/image_raw",
             "payload_schema": {},
             "encoding": "16UC1|32FC1",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          },
+          {
+            "id": "points",
+            "kind": "point_cloud",
+            "access": "stream",
+            "transport_ref": "ros2:///ascamera/camera_publisher/depth0/points",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/PointCloud2",
             "shape": [],
             "unit": null,
             "frame_id": "pending",
@@ -181,7 +194,7 @@
       "target_host": "raspberrypi",
       "dependencies": [
         "USB sysfs",
-        "aurora930_node",
+        "/aurora/aurora",
         "ROS 2 adapter"
       ],
       "stage": "D3",
@@ -197,7 +210,12 @@
         {
           "kind": "software",
           "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
-          "statement": "aurora930_node is running on the target."
+          "statement": "The target exposes an /aurora/aurora node for the camera."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/bindings/0",
+          "statement": "The /aurora/aurora node publishes RGB, IR, depth and point-cloud topics."
         },
         {
           "kind": "documentation",
@@ -259,7 +277,7 @@
         "device_class": "sensor",
         "name": "LanderPi LiDAR",
         "vendor": "unknown",
-        "model": "unknown (ldlidar_stl_ros)",
+        "model": "unknown (filtered /scan)",
         "serial": null,
         "channels": [
           {
@@ -296,7 +314,7 @@
           }
         ],
         "resources": [
-          "process:ldlidar_stl_ros",
+          "process:/scan_to_scan_filter_chain",
           "ros_topic:/scan"
         ],
         "state": {
@@ -356,7 +374,7 @@
             "id": "scan",
             "kind": "laser_scan",
             "access": "stream",
-            "transport_ref": "ros2://ldlidar_stl_ros/scan",
+            "transport_ref": "ros2:///scan",
             "payload_schema": {
               "ranges": "float32[]",
               "intensities": "float32[]",
@@ -385,7 +403,7 @@
       "owner": "rolo-maintainers",
       "target_host": "raspberrypi",
       "dependencies": [
-        "ldlidar_stl_ros",
+        "/scan_to_scan_filter_chain",
         "ROS 2 adapter",
         "serial identity"
       ],
@@ -397,7 +415,12 @@
         {
           "kind": "software",
           "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
-          "statement": "ldlidar_stl_ros is running on the target."
+          "statement": "The target publishes /scan from scan_to_scan_filter_chain."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/topic_info/~1scan",
+          "statement": "/scan is a sensor_msgs/msg/LaserScan topic with a RELIABLE publisher."
         }
       ],
       "sampling_contract": [
@@ -491,9 +514,9 @@
           }
         ],
         "resources": [
-          "process:ros_robot_controller",
-          "process:joint_state_pub",
-          "ros_topic:/joint_states"
+          "process:/ros_robot_controller",
+          "process:/joint_state_publisher",
+          "ros_topic:/controller_manager/joint_states"
         ],
         "state": {
           "read": [
@@ -553,7 +576,7 @@
             "id": "joint_state",
             "kind": "joint_state",
             "access": "stream",
-            "transport_ref": "ros2://joint_state_pub/joint_states",
+            "transport_ref": "ros2:///controller_manager/joint_states",
             "payload_schema": {
               "name": "string[]",
               "position": "float64[]",
@@ -594,6 +617,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
           "statement": "ros_robot_controller and joint_state_pub are running."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/bindings/2",
+          "statement": "/ros_robot_controller exposes battery state and servo/motor command subscriptions."
         }
       ],
       "sampling_contract": [
@@ -687,7 +715,7 @@
           }
         ],
         "resources": [
-          "process:servo_controller",
+          "process:/servo_manager",
           "serial:/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B22016029-if00",
           "serial:/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0"
         ],
@@ -751,7 +779,7 @@
             "id": "feedback",
             "kind": "joint_state",
             "access": "stream",
-            "transport_ref": "ros2://servo_controller/feedback",
+            "transport_ref": "ros2:///controller_manager/servo_states",
             "payload_schema": {},
             "encoding": "sensor_msgs/JointState",
             "shape": [],
@@ -774,7 +802,7 @@
       "owner": "rolo-maintainers",
       "target_host": "raspberrypi",
       "dependencies": [
-        "servo_controller",
+        "/servo_manager",
         "serial bridge",
         "robot controller"
       ],
@@ -786,7 +814,12 @@
         {
           "kind": "software",
           "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
-          "statement": "servo_controller is running on the target."
+          "statement": "The target exposes servo state through the ROS controller stack."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/topics/~1controller_manager~1servo_states",
+          "statement": "The controller graph exposes a servo state topic for feedback sampling."
         }
       ],
       "sampling_contract": [

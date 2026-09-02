@@ -36,3 +36,17 @@ def test_ros_sampler_rejects_non_absolute_topic_hint_without_running_it():
     snapshot = MhsRosSampler(runner).sample(topic_hints=["scan"])
     assert any("topic hint rejected" in item for item in snapshot.limitations)
     assert not any(call[1:3] == ["topic", "info"] for call in calls)
+
+
+def test_ros_sampler_topic_sample_is_explicit_and_bounded():
+    calls: list[list[str]] = []
+
+    def runner(argv, timeout_s):
+        del timeout_s
+        calls.append(list(argv))
+        return {"returncode": 0, "stdout": "ranges: [1.0, 2.0]\n", "stderr": ""}
+
+    observation, payload = MhsRosSampler(runner).sample_topic_once("/scan")
+    assert observation.operation == "topic_sample./scan"
+    assert payload == "ranges: [1.0, 2.0]\n"
+    assert calls == [["ros2", "topic", "echo", "--once", "/scan"]]

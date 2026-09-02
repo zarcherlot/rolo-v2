@@ -36,6 +36,7 @@ class RosGraphSnapshot(BaseModel):
     services: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     topic_info: dict[str, str] = Field(default_factory=dict)
+    topic_samples: dict[str, str] = Field(default_factory=dict)
     observations: list[RosObservation] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
 
@@ -95,7 +96,7 @@ class MhsRosSampler:
             if not topic.startswith("/"):
                 limitations.append(f"topic hint rejected: {topic}")
                 continue
-            argv = ["ros2", "topic", "info", "-v", topic, "--no-daemon"]
+            argv = ["ros2", "topic", "info", "-v", topic]
             observation, output = self._query(f"topic_info.{topic}", argv)
             observations.append(observation)
             if observation.returncode == 0:
@@ -113,6 +114,15 @@ class MhsRosSampler:
             observations=observations,
             limitations=limitations,
         )
+
+    def sample_topic_once(self, topic: str) -> tuple[RosObservation, str | None]:
+        """Read one bounded message from an explicitly named absolute topic."""
+
+        if not topic.startswith("/"):
+            raise ValueError("topic must be an absolute ROS name")
+        argv = ["ros2", "topic", "echo", "--once", topic]
+        observation, output = self._query(f"topic_sample.{topic}", argv)
+        return observation, output[:20_000] if observation.returncode == 0 else None
 
 
 __all__ = ["MhsRosSampler", "RosGraphSnapshot", "RosObservation"]
