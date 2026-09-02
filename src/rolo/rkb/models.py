@@ -9,6 +9,7 @@ same target identity and an explicit freshness deadline.  Consumers should call
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -40,6 +41,13 @@ class IdentityStatus(str, Enum):
 
 
 class FactSourceKind(str, Enum):
+    # Layer vocabulary used by the RKB contract.  The more specific values
+    # below remain accepted for compatibility with the initial P0 prototype.
+    DECLARED = "DECLARED"
+    OBSERVED = "OBSERVED"
+    VERIFIED = "VERIFIED"
+    INFERRED = "INFERRED"
+    DECISION = "DECISION"
     TARGET_PROBE = "TARGET_PROBE"
     DECLARED_STATIC = "DECLARED_STATIC"
     OBSERVED_RUNTIME = "OBSERVED_RUNTIME"
@@ -147,7 +155,35 @@ class EvidenceEnvelope(BaseModel):
     facts: list[Fact] = Field(default_factory=list)
     snapshot: dict[str, Any] = Field(default_factory=dict)
     digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    signature_hmac_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     created_at: datetime = Field(default_factory=_utc_now)
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_single_fact_shape(cls, value: Any) -> Any:
+        if not isinstance(value, dict) or "facts" in value or "fact_id" not in value:
+            return value
+        raw = dict(value)
+        identity = SnapshotIdentity.model_validate(raw["identity"])
+        raw["facts"] = [Fact(
+            fact_id=raw.pop("fact_id"),
+            robot_id=identity.robot_id,
+            target_host_fingerprint=identity.target_host_fingerprint,
+            collector_id=identity.collector_id,
+            deployment_mode=identity.deployment_mode,
+            access=identity.access,
+            request_nonce=identity.request_nonce,
+            source_kind=raw.pop("source_kind"),
+            source_ref=raw.pop("source_ref"),
+            observed_at=identity.observed_at,
+            fresh_until=identity.fresh_until,
+            value=raw.pop("value"),
+            sha256=raw.pop("sha256", None),
+            confidence=raw.pop("confidence", FactConfidence.HIGH),
+            limitations=raw.pop("limitations", []),
+        )]
+        raw.setdefault("snapshot", {})
+        return raw
 
     @classmethod
     def from_probe(
@@ -180,13 +216,49 @@ class EvidenceEnvelope(BaseModel):
     def payload(self) -> dict[str, Any]:
         # Optional envelope metadata is omitted at the artifact boundary;
         # explicit nulls inside ``value`` remain part of the observed fact.
-        return self.model_dump(mode="json", exclude={"digest"}, exclude_none=True)
+        return self.model_dump(
+            mode="json", exclude={"digest", "signature_hmac_sha256"}, exclude_none=True
+        )
 
     def computed_digest(self) -> str:
         return hashlib.sha256(canonical_json(self.payload())).hexdigest()
 
     def with_digest(self) -> EvidenceEnvelope:
         return self.model_copy(update={"digest": self.computed_digest()})
+
+    def with_hmac(self, secret: bytes) -> EvidenceEnvelope:
+        if not self.digest:
+            raise ValueError("envelope digest is required before signing")
+        signature = hmac.new(secret, self.digest.encode("ascii"), hashlib.sha256).hexdigest()
+        return self.model_copy(update={"signature_hmac_sha256": signature})
+
+    @property
+    def fact_id(self) -> str | None:
+        return self.facts[0].fact_id if len(self.facts) == 1 else None
+
+    @property
+    def source_kind(self) -> FactSourceKind | None:
+        return self.facts[0].source_kind if len(self.facts) == 1 else None
+
+    @property
+    def source_ref(self) -> str | None:
+        return self.facts[0].source_ref if len(self.facts) == 1 else None
+
+    @property
+    def value(self) -> Any:
+        return self.facts[0].value if len(self.facts) == 1 else None
+
+    @property
+    def sha256(self) -> str | None:
+        return self.facts[0].sha256 if len(self.facts) == 1 else None
+
+    @property
+    def confidence(self) -> FactConfidence | None:
+        return self.facts[0].confidence if len(self.facts) == 1 else None
+
+    @property
+    def limitations(self) -> list[str]:
+        return self.facts[0].limitations if len(self.facts) == 1 else []
 
     def verify(
         self, *, now: datetime | None = None, require_fresh: bool = True
@@ -202,6 +274,77 @@ class EvidenceEnvelope(BaseModel):
             if require_fresh and fact.freshness(now=now) != FreshnessStatus.FRESH:
                 raise ValueError(f"fact {fact.fact_id} is stale")
         return self
+
+
+class Snapshot(BaseModel):
+    """Standalone RKB snapshot artifact.
+
+    A snapshot is intentionally self-describing: it contains the target
+    identity, all facts and the digest of exactly the serialized payload being
+    read.  ``EvidenceEnvelope`` remains the compatibility name used by the
+    first RKB prototype and can be converted with :meth:`from_envelope`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "robot-snapshot/v1"
+    identity: SnapshotIdentity
+    facts: list[Fact] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    signature_hmac_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    created_at: datetime = Field(default_factory=_utc_now)
+
+    @model_validator(mode="after")
+    def validate_fact_identity(self) -> Snapshot:
+        identity = self.identity.tuple()
+        for fact in self.facts:
+            if (
+                fact.robot_id,
+                fact.target_host_fingerprint,
+                fact.collector_id,
+                fact.deployment_mode,
+                fact.access,
+                fact.request_nonce or "",
+            ) != identity:
+                raise ValueError("fact identity tuple does not match snapshot identity")
+        return self
+
+    def payload(self) -> dict[str, Any]:
+        return self.model_dump(
+            mode="json", exclude={"digest", "signature_hmac_sha256"}, exclude_none=True
+        )
+
+    def computed_digest(self) -> str:
+        return hashlib.sha256(canonical_json(self.payload())).hexdigest()
+
+    def with_digest(self) -> Snapshot:
+        return self.model_copy(update={"digest": self.computed_digest()})
+
+    @classmethod
+    def from_envelope(cls, envelope: EvidenceEnvelope) -> Snapshot:
+        return cls(
+            identity=envelope.identity,
+            facts=envelope.facts,
+            metadata=envelope.snapshot,
+            created_at=envelope.created_at,
+        ).with_digest()
+
+    def to_envelope(self) -> EvidenceEnvelope:
+        return EvidenceEnvelope(
+            identity=self.identity,
+            facts=self.facts,
+            snapshot=self.metadata,
+            digest=self.digest,
+            signature_hmac_sha256=self.signature_hmac_sha256,
+            created_at=self.created_at,
+        )
+
+    def with_hmac(self, secret: bytes) -> Snapshot:
+        if not self.digest:
+            raise ValueError("snapshot digest is required before signing")
+        signature = hmac.new(secret, self.digest.encode("ascii"), hashlib.sha256).hexdigest()
+        return self.model_copy(update={"signature_hmac_sha256": signature})
 
 
 def envelope_from_probe(
