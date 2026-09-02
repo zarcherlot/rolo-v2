@@ -1346,12 +1346,6 @@ def verify_evidence_bundle(
             exclude_none=True,
         )
         legacy_base.pop("source_snapshot", None)
-        for layer, probe in bundle.probes.items():
-            serialized = legacy_base.get("probes", {}).get(layer)
-            if isinstance(serialized, dict):
-                for field in ("identity", "access", "fresh_until"):
-                    if field not in probe.model_fields_set:
-                        serialized.pop(field, None)
         actual_payload_sha256 = hashlib.sha256(_canonical_json(legacy_base)).hexdigest()
     if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
         raise ValueError("evidence bundle payload hash mismatch")
