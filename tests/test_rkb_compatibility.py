@@ -145,6 +145,9 @@ def test_verified_bundle_projection_requires_pinned_deployment(tmp_path):
     secret = b"s" * 32
     secret_path = tmp_path / "collector.key"
     secret_path.write_bytes(secret)
+    # Linux CI enforces the collector's private-key mode at load time;
+    # Windows does not expose POSIX mode bits, so make the fixture explicit.
+    secret_path.chmod(0o600)
     descriptor = CollectorDescriptor(
         robot_id="robot-1",
         collector_id="collector-1",
