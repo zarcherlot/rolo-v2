@@ -1,5 +1,19 @@
 """Typed, read-only Robot Knowledge Base evidence models."""
 
+from .canonical import (
+    canonical_json,
+    json_pointer,
+    payload_digest,
+    pointer_for_fact,
+    resolve_json_pointer,
+)
+from .migration import (
+    bundle_to_snapshot,
+    probe_to_snapshot,
+    snapshot_to_discovery_report,
+    snapshot_to_legacy_probes,
+    verified_bundle_to_snapshot,
+)
 from .models import (
     EvidenceEnvelope,
     Fact,
@@ -7,12 +21,21 @@ from .models import (
     FactSourceKind,
     FreshnessStatus,
     IdentityStatus,
+    Snapshot,
     SnapshotIdentity,
-    canonical_json,
     envelope_from_probe,
     snapshot_from_target_bundle,
 )
 from .query import QueryResult, ReadOnlyKnowledgeBase
+from .validation import (
+    EvidenceValidationError,
+    freshness_status,
+    validate_bundle_hmac,
+    validate_envelope,
+    validate_fact,
+    validate_identity,
+    validate_snapshot,
+)
 
 __all__ = [
     "EvidenceEnvelope",
@@ -22,9 +45,26 @@ __all__ = [
     "FreshnessStatus",
     "IdentityStatus",
     "SnapshotIdentity",
+    "Snapshot",
     "canonical_json",
     "envelope_from_probe",
     "snapshot_from_target_bundle",
     "QueryResult",
     "ReadOnlyKnowledgeBase",
+    "payload_digest",
+    "json_pointer",
+    "resolve_json_pointer",
+    "pointer_for_fact",
+    "bundle_to_snapshot",
+    "probe_to_snapshot",
+    "snapshot_to_legacy_probes",
+    "snapshot_to_discovery_report",
+    "verified_bundle_to_snapshot",
+    "EvidenceValidationError",
+    "validate_identity",
+    "validate_fact",
+    "validate_envelope",
+    "validate_snapshot",
+    "validate_bundle_hmac",
+    "freshness_status",
 ]

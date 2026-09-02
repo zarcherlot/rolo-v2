@@ -21,6 +21,7 @@ ROOT_ALLOWLIST = {
     "EPISODE_OBSERVATION_BUNDLE_CONTRACT_DESIGN.md",
     "EPISODE_READ_MODEL_CONTRACT_DESIGN.md",
     "EPISODE_REVISION_HISTORY_CONTRACT.md",
+    "TODO.md",
 }
 STATUS_RE = re.compile(r"\bstatus:\s*(active|frozen|draft|archived|generated)\b", re.I)
 AUTHORITY_RE = re.compile(

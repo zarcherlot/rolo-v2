@@ -148,6 +148,32 @@ class ProbeResult(BaseModel):
             raise ValueError("fresh_until must be after observed_at")
         return self
 
+    def to_rkb_snapshot(
+        self,
+        *,
+        identity: dict[str, Any] | Any | None = None,
+        source_ref: str = "artifact://probe",
+    ) -> Any:
+        """Read-only compatibility entry point for the RKB migration.
+
+        Importing lazily keeps the canonical Probe path independent from the
+        RKB package and preserves all legacy ``data`` callers.
+        """
+
+        from rolo.rkb.migration import probe_to_snapshot
+
+        return probe_to_snapshot(self, identity=identity, source_ref=source_ref)
+
+    def to_evidence_envelope(
+        self,
+        *,
+        identity: dict[str, Any] | Any | None = None,
+        source_ref: str = "artifact://probe",
+    ) -> Any:
+        """Alias for consumers migrating one ProbeResult at a time."""
+
+        return self.to_rkb_snapshot(identity=identity, source_ref=source_ref).to_envelope()
+
 
 class ToolDescriptor(BaseModel):
     schema_version: str = "robot-tool/v1"

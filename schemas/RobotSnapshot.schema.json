@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "robot-snapshot/v1",
+  "title": "RobotSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "identity", "facts", "snapshot", "freshness_policy"],
+  "properties": {
+    "schema_version": {"const": "robot-snapshot/v1"},
+    "identity": {"$ref": "RobotEvidenceEnvelope.schema.json#/$defs/SnapshotIdentity"},
+    "facts": {"type": "array", "items": {"$ref": "RobotEvidenceEnvelope.schema.json#/$defs/Fact"}},
+    "snapshot": {"type": "object"},
+    "freshness_policy": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature_hmac_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}
