@@ -282,6 +282,9 @@ class EpisodeStore:
             raise ValueError("retention_limit must be positive")
         self.retention_limit = retention_limit
         self.metrics = metrics or self._load_metrics()
+        # Keep a per-store baseline so _flush_metrics can merge only this
+        # instance's increments while another process is publishing.
+        self._metrics_baseline = self.metrics.as_dict()
 
     def _load_metrics(self) -> EpisodeMetrics:
         try:
@@ -390,6 +393,10 @@ class EpisodeStore:
             self._flush_metrics()
             return episode
         except EvidenceValidationError:
+            # A digest mismatch is just as unsafe as malformed JSON.  Move the
+            # record out of the active tree so query/recovery cannot repeatedly
+            # treat it as a candidate, while preserving it for audit.
+            self._isolate(path)
             self.metrics.corrupt_artifacts += 1
             self._flush_metrics()
             raise
@@ -500,23 +507,26 @@ class EpisodeStore:
         count = keep if keep is not None else self.retention_limit
         if count < 1:
             raise ValueError("retention keep must be positive")
-        latest = self.load_latest(robot_id, episode_id)
-        record_root = self._dir(robot_id, episode_id) / "records"
-        paths = sorted(
-            record_root.glob("*.json"),
-            key=lambda item: item.stat().st_mtime_ns,
-            reverse=True,
-        )
-        removed = 0
-        for path in paths[count:]:
-            if path.stem == latest.content_sha256:
-                continue
-            path.unlink(missing_ok=True)
-            removed += 1
-        if removed:
-            self.metrics.pruned_records += removed
-            self._flush_metrics()
-        return removed
+        latest_path = self._latest_path(robot_id, episode_id)
+        with interprocess_lock(latest_path):
+            index = self._read_index(latest_path)
+            latest = self.load(robot_id, episode_id, str(index["digest"]))
+            record_root = self._dir(robot_id, episode_id) / "records"
+            paths = sorted(
+                record_root.glob("*.json"),
+                key=lambda item: item.stat().st_mtime_ns,
+                reverse=True,
+            )
+            removed = 0
+            for path in paths[count:]:
+                if path.stem == latest.content_sha256:
+                    continue
+                path.unlink(missing_ok=True)
+                removed += 1
+            if removed:
+                self.metrics.pruned_records += removed
+                self._flush_metrics()
+            return removed
 
     def _recover_latest(self, robot_id: str, episode_id: str) -> EpisodeMetadata | None:
         record_root = self._dir(robot_id, episode_id) / "records"
@@ -543,6 +553,7 @@ class EpisodeStore:
                 self._latest_path(robot_id, episode_id),
                 json.dumps(replacement, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
                 + "\n",
+                acquire_lock=False,
             )
             self.metrics.latest_recoveries += 1
             self._flush_metrics()
@@ -561,13 +572,25 @@ class EpisodeStore:
         return any(token in value.casefold() for value in values)
 
     def _flush_metrics(self) -> None:
-        atomic_write_text(
-            self.metrics_path,
-            json.dumps(
-                self.metrics.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        # Merge deltas under a dedicated lock.  A process may have loaded the
+        # metrics file before another process published; writing its in-memory
+        # total directly would otherwise lose the other process's increments.
+        with interprocess_lock(self.metrics_path):
+            persisted = self._load_metrics()
+            current = self.metrics.as_dict()
+            baseline = self._metrics_baseline
+            merged = {
+                name: getattr(persisted, name) + max(0, current[name] - baseline[name])
+                for name in current
+            }
+            atomic_write_text(
+                self.metrics_path,
+                json.dumps(merged, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+                + "\n",
+                acquire_lock=False,
             )
-            + "\n",
-        )
+            self.metrics = EpisodeMetrics(**merged)
+            self._metrics_baseline = merged
 
     def read_legacy_json(self, ref: str | Path) -> dict[str, Any]:
         """Read an old bundle/report without ever writing or migrating it in place."""

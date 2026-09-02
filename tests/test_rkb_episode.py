@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -22,6 +24,14 @@ from rolo.rkb.validation import EvidenceValidationError
 from rolo.stages.probe.target_evidence import TargetEvidenceBundle
 
 NOW = datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc)
+
+
+def _publish_episode_in_child(root: str, probe_run_id: str) -> None:
+    store = EpisodeStore(Path(root))
+    episode = build_episode_from_snapshot(
+        make_snapshot(), probe_run_id=probe_run_id, episode_id="ep-process"
+    )
+    store.publish(episode)
 
 
 def make_snapshot() -> Snapshot:
@@ -109,6 +119,41 @@ def test_episode_store_recovers_corrupt_latest_and_persists_metrics(tmp_path) ->
     assert EpisodeStore(tmp_path).metrics.latest_recoveries == 1
     metrics = json.loads((tmp_path / "episode-metrics.json").read_text(encoding="utf-8"))
     assert metrics["latest_recoveries"] == 1
+
+
+def test_episode_store_isolates_record_with_digest_mismatch(tmp_path) -> None:
+    store = EpisodeStore(tmp_path)
+    episode = build_episode_from_snapshot(
+        make_snapshot(), probe_run_id="run-corrupt", episode_id="ep-1"
+    )
+    path = store.publish(episode)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["limitations"] = ["tampered"]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(EvidenceValidationError, match="digest mismatch"):
+        store.load("mentorpi", "ep-1", str(episode.content_sha256))
+
+    assert not path.exists()
+    assert list((tmp_path / "corrupt-episodes").glob("*.corrupt"))
+    assert store.metrics.corrupt_artifacts == 1
+
+
+def test_episode_store_serializes_process_publish_and_merges_metrics(tmp_path) -> None:
+    context = multiprocessing.get_context("spawn")
+    processes = [
+        context.Process(target=_publish_episode_in_child, args=(str(tmp_path), f"run-{index}"))
+        for index in (1, 2)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=30)
+        assert process.exitcode == 0
+
+    store = EpisodeStore(tmp_path)
+    assert store.query(robot_id="mentorpi", limit=10).total == 2
+    assert store.metrics.writes == 2
 
 
 def test_episode_query_filters_and_prune_are_bounded(tmp_path) -> None:
