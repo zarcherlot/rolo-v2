@@ -1,0 +1,60 @@
+{
+  "schema_version": "rolo-mhs-aurora-ir-analysis/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T13:30:14+08:00",
+  "access": "READ_ONLY",
+  "parameters": {
+    "ir_enable": true,
+    "ir_fps": 15,
+    "rgbd_enable": false,
+    "resolution_mode_index": 2,
+    "point_cloud_enable": true
+  },
+  "usb": {
+    "bus_device": "001:003",
+    "vid_pid": "3251:1930",
+    "product": "Aurora 930",
+    "speed": "480M",
+    "endpoint_in": {"address": "0x81", "transfer": "Bulk", "max_packet_bytes": 512},
+    "endpoint_out": {"address": "0x02", "transfer": "Bulk", "max_packet_bytes": 512},
+    "kernel_errors_last_hour": 0,
+    "resets_or_disconnects_last_hour": 0
+  },
+  "threads": {
+    "libusb_event_present": true,
+    "decode_ir_process_present": true,
+    "depth_fitting_present": true,
+    "highest_aurora_thread_cpu_percent_sample": 15.8,
+    "driver_process_cpu_percent_sample": 35.0
+  },
+  "ir_stream_observation": {
+    "window_s": 30.01,
+    "count": 404,
+    "source_rate_hz": 13.669,
+    "max_gap_ms": 211.0,
+    "gaps_gt_100ms": 28,
+    "stamp_monotonic": true,
+    "driver_timeout_or_disconnect_log_matches": 0
+  },
+  "isolated_ir_ab_test": {
+    "profile": "ephemeral rgb_enable=false, depth_enable=false, point_cloud_enable=false, ir_enable=true",
+    "window_s": 20.0,
+    "count": 264,
+    "receive_rate_hz": 14.728,
+    "source_rate_hz": 14.718,
+    "max_gap_ms": 76.0,
+    "gaps_gt_100ms": 0,
+    "stamp_monotonic": true,
+    "result": "PASS"
+  },
+  "assessment": {
+    "usb_transport_fault": "NOT_SUPPORTED_BY_EVIDENCE",
+    "ir_thread_present": true,
+    "ir_rate_continuity": "PARTIAL_IN_SHARED_PROFILE_PASS_ISOLATED",
+    "likely_domain": "IR decode/stream scheduling under shared RGB+Depth+point-cloud workload; isolated IR has no long gaps",
+    "next_action": "Keep the full three-stream profile for MHS compatibility, and profile/optimize shared workload scheduling before making any persistent point-cloud or FPS reduction.",
+    "safety": "No actuator writes; physical E-stop/limit proof-test remains out of scope by user request."
+  }
+}

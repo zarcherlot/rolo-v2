@@ -93,8 +93,10 @@ Aurora 930 的根因是组合 `kRgbdIr` 路径与设备返回的 `depth_mode=kIn
 [`fixture-repair-20260903.json`](fixture-repair-20260903.json)；单帧证据有效，长时间稳定性与
 CameraInfo 内参维度、畸变模型和非零内参已通过只读检查。生产近似多线程执行器下的 30 秒窗口
 内消息持续可达且时间戳单调；进一步发现 `joystick_control` 定时器无限循环占用约 97% CPU，
-已修正为单次事件处理。修复后 RGB/Depth 最大间隔降至 137–140 ms，IR 为 211 ms，稳定性结果
-为 `PARTIAL_IR_GAPS`。详见 [`joystick-scheduler-fix-20260903.json`](joystick-scheduler-fix-20260903.json)、
+已修正为单次事件处理。修复后 RGB/Depth 最大间隔降至 137–140 ms，IR 为 211 ms；临时 IR-only
+A/B 达到 14.72 Hz、最大间隔 76 ms 且无 >100 ms 间隔，确认是共享 RGB/Depth/PointCloud 负载调度
+造成的 IR 抖动，而非 USB 错误。完整三流配置已恢复，稳定性结果为 `PARTIAL_IN_SHARED_PROFILE`。
+详见 [`joystick-scheduler-fix-20260903.json`](joystick-scheduler-fix-20260903.json)、
 [`aurora-production-stability-post-joystick-fix-20260903.json`](aurora-production-stability-post-joystick-fix-20260903.json)
 及此前的 [`aurora-production-stability-20260903.json`](aurora-production-stability-20260903.json)。USB/进程/内核及修复验证见
 [`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)。

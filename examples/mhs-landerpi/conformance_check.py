@@ -128,6 +128,7 @@ def main() -> int:
             "aurora-production-stability-20260903.json",
             "joystick-scheduler-fix-20260903.json",
             "aurora-production-stability-post-joystick-fix-20260903.json",
+            "aurora-ir-analysis-20260903.json",
             "ros-reacquisition-20260903-success.json",
         ],
         "limitations": [

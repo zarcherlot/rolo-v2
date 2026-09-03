@@ -96,7 +96,9 @@ payload 并独立计算 SHA-256；当前报告 `PASS_READ_ONLY`，单帧证据�
 内参维度、畸变模型和非零内参已通过只读检查。生产近似多线程执行器下的 30 秒窗口内消息持续
 可达且时间戳单调；排查发现 `joystick_control` 定时器的无限循环占用约 97% CPU，已在设备源/构建
 副本修正为单次事件处理并重启。修复后 RGB/Depth 最大间隔降至 137–140 ms，IR 为 211 ms，
-驱动错误扫描仍为 0；稳定性保持 `PARTIAL_IR_GAPS`，详细对比见
+驱动错误扫描仍为 0；进一步的临时 IR-only A/B（关闭 RGB/Depth/PointCloud）达到 14.72 Hz、
+最大间隔 76 ms 且无 >100 ms 间隔，确认问题来自共享负载调度而非 USB 枚举/内核错误。完整三流
+配置已恢复并保持 `rgbd_enable=false`；稳定性保持 `PARTIAL_IN_SHARED_PROFILE`，详细对比见
 `examples/mhs-landerpi/joystick-scheduler-fix-20260903.json` 和
 `examples/mhs-landerpi/aurora-production-stability-post-joystick-fix-20260903.json`。
 基础标定窗口见 `examples/mhs-landerpi/aurora-stability-calibration-20260903.json`。USB、进程、内核和 ROS 日志及修复验证见
