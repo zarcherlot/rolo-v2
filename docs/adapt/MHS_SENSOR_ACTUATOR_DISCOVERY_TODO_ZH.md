@@ -92,13 +92,15 @@ commands、binding 引用和负测。Aurora 驱动根因已确认：设备支持
 模式下报告 `depth_mode=kInvalid`，默认组合流 `rgbd_enable=True` 因而无法取得首帧；已将
 源启动文件和安装树持久化为 `rgbd_enable=False` 并重启传感器节点，修复记录见
 `examples/mhs-landerpi/aurora-fix-20260903.json`。随后从同一 ROS 时间戳重新取得 RGB/IR/Depth
-payload 并独立计算 SHA-256；当前报告 `PASS_READ_ONLY`，单帧证据有效，但长时间稳定性和
-相机标定仍待验证。USB、进程、内核和 ROS 日志及修复验证见
+payload 并独立计算 SHA-256；当前报告 `PASS_READ_ONLY`，单帧证据有效。CameraInfo 的
+内参维度、畸变模型和非零内参已通过只读检查；30 秒流稳定性窗口保持 `PARTIAL`（消息可达且
+时间戳单调，但回调速率低于名义 15 Hz），详见 `examples/mhs-landerpi/aurora-stability-calibration-20260903.json`。
+USB、进程、内核和 ROS 日志及修复验证见
 `examples/mhs-landerpi/aurora-diagnostic-20260903.json`。
-急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：用户已声明
-存在物理急停键和机械限位块，但尚未完成回路、复位、行程边界的独立 proof-test，因此保持
-`DECLARED_PRESENT_NOT_TESTED` / `DECLARED_MECHANICAL_BLOCKS_NOT_TESTED`。watchdog 明确
-作为未来客户交付项，不纳入本轮 gate。
+急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`。按用户现场约束，
+本轮不执行急停/限位 proof-test；现场人员通过远程控制保障运行安全，该项作为操作前置条件记录，
+不改变执行器写入仍需人工安全 owner 批准的 fail-closed gate。watchdog 明确作为未来客户交付项，
+不纳入本轮 gate。
 
 ## 交付物
 

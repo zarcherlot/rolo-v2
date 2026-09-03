@@ -76,12 +76,13 @@ USB serial 与 ROS 进程的关联、LiDAR 的 `/dev/ldlidar -> /dev/ttyUSB0` �
 `init_finish=false` 等限制；它是安全评审和 conformance 的输入，不是移动执行器的授权。
 
 安全门清单见 [`safety-review-20260903.json`](safety-review-20260903.json)，当前控制器与
-舵机保持 `BLOCKED_FOR_WRITE_AND_VERIFIED`，急停、限位、watchdog 和 fault-clear 均未验证。
+舵机保持 `BLOCKED_FOR_WRITE_AND_VERIFIED`；急停/限位 proof-test 按现场约束不纳入本轮，
+由现场人员通过远程控制保障运行安全，watchdog 和 fault-clear 仍不在本轮范围。
 急停/限位的只读搜索结果见
 [`estop-limits-evidence-20260903.json`](estop-limits-evidence-20260903.json)；发现的
 `/enable`、`/hand_trajectory/stop` 等名称不具备安全权威性，未调用任何服务。
-用户补充确认设备存在物理急停键和机械限位块；当前仅记录为声明，尚未完成回路、复位和
-行程边界 proof-test。watchdog 延后为未来客户交付项，不作为本轮实现目标。
+用户补充确认设备存在物理急停键和机械限位块；本轮不执行回路、复位和行程边界 proof-test，
+现场人员远程控制作为运行前置条件。watchdog 延后为未来客户交付项，不作为本轮实现目标。
 可重复的只读 conformance 检查由 `conformance_check.py` 执行，结果见
 [`conformance-20260903.json`](conformance-20260903.json)；当前报告为 `PASS_READ_ONLY`。
 Aurora 930 的根因是组合 `kRgbdIr` 路径与设备返回的 `depth_mode=kInvalid` 不兼容；已将目标端
@@ -90,7 +91,8 @@ Aurora 930 的根因是组合 `kRgbdIr` 路径与设备返回的 `depth_mode=kIn
 真实 payload，新的 SHA-256 记录见
 [`ros-reacquisition-20260903-success.json`](ros-reacquisition-20260903-success.json) 和
 [`fixture-repair-20260903.json`](fixture-repair-20260903.json)；单帧证据有效，长时间稳定性与
-相机标定仍未宣称完成。USB/进程/内核及修复验证见
+CameraInfo 内参维度、畸变模型和非零内参已通过只读检查；30 秒稳定性窗口结果为 `PARTIAL`，
+详见 [`aurora-stability-calibration-20260903.json`](aurora-stability-calibration-20260903.json)。USB/进程/内核及修复验证见
 [`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)。
 
 生成命令：

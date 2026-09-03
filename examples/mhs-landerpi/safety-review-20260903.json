@@ -4,6 +4,7 @@
   "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
   "reviewed_at": "2026-09-03T08:30:00+08:00",
   "scope": "read-only MHS discovery and feedback surfaces",
+  "operational_safety_assumption": "Physical E-stop/limit proof-tests are out of scope for this release; on-site personnel provide safety coverage during remote control.",
   "decision": "BLOCKED_FOR_WRITE_AND_VERIFIED",
   "reviewer": "pending-human-safety-owner",
   "evidence": [
