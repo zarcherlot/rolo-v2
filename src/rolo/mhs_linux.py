@@ -257,6 +257,11 @@ class LinuxMhsInventory:
         found.extend(self._presence_candidates("dev/i2c-*", "bus", "i2c"))
         found.extend(self._presence_candidates("dev/spidev*", "bus", "spi"))
         found.extend(self._presence_candidates("dev/gpiochip*", "bus", "gpio"))
+        found.extend(
+            self._presence_candidates(
+                "dev/video*", "camera", "camera", device_class=MhsDeviceClass.SENSOR
+            )
+        )
         found.extend(self._usb_candidates())
         return found
 
@@ -275,14 +280,21 @@ class LinuxMhsInventory:
             providers.append((candidate, MhsDeviceProvider(candidate.manifest, backend)))
         return providers
 
-    def _presence_candidates(self, pattern: str, kind: str, label: str) -> list[LinuxMhsCandidate]:
+    def _presence_candidates(
+        self,
+        pattern: str,
+        kind: str,
+        label: str,
+        *,
+        device_class: MhsDeviceClass = MhsDeviceClass.BUS,
+    ) -> list[LinuxMhsCandidate]:
         records: list[LinuxMhsCandidate] = []
         for path in sorted(self.root.glob(pattern)):
             node = "/" + path.relative_to(self.root).as_posix()
             safe = node.strip("/").replace("/", "-").replace(".", "-")
             manifest = MhsDeviceManifest(
                 device_id=f"{self.device_prefix}-{safe}",
-                device_class=MhsDeviceClass.BUS,
+                device_class=device_class,
                 name=f"Linux {label} node {safe}",
                 vendor="linux-kernel",
                 model=label,
@@ -290,7 +302,8 @@ class LinuxMhsInventory:
                 resources=[safe],
                 state={"read": ["health", "kind", "node"]},
                 transport={"kind": "linux-device-node", "properties": {"path": node}},
-                limits=["read-only", "presence only", "path identity; serial not observed"],
+                limits=["read-only", "presence only", "path identity; serial not observed"]
+                + (["camera frames require modality-specific provider and format probe"] if device_class == MhsDeviceClass.SENSOR else []),
                 driver_id=DRIVER_ID,
                 driver_version=DRIVER_VERSION,
                 driver_sha256=DRIVER_SHA256,

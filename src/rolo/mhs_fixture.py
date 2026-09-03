@@ -1,93 +1,68 @@
-"""Load sanitized structured MHS fixtures into the read-only replay backend."""
+"""No-load safety test-fixture evidence for MHS W3/W4.
+
+This module records observations; it does not operate GPIO, serial, ROS, or
+any actuator.  A deployment-specific fixture adapter can feed the same record
+format after an operator has performed the physical test.
+"""
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
 
-from .mhs_hardware import MhsDeviceManifest, MhsInterfaceSample
+from .mhs_manifest_records import MhsSafetyEvidence, MhsSafetyEvidenceBundle
 
 
-def _source_timestamp(value: Any) -> datetime | None:
-    if value is None:
-        return None
-    if not isinstance(value, dict):
-        raise ValueError("source_timestamp must be an object")
-    try:
-        sec = int(value["sec"])
-        nanosec = int(value["nanosec"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError("source_timestamp requires integer sec/nanosec") from exc
-    if nanosec < 0 or nanosec >= 1_000_000_000:
-        raise ValueError("source_timestamp nanosec is out of range")
-    return datetime.fromtimestamp(sec + nanosec / 1_000_000_000, tz=timezone.utc)
+_TESTS = ("external_estop", "stop", "rollback", "watchdog", "no_load")
 
 
-def load_fixture_for_manifest(
-    path: str | Path, manifest: MhsDeviceManifest
-) -> list[MhsInterfaceSample]:
-    """Load only the topic samples declared by ``manifest``.
+class MhsBenchFixture:
+    """Evidence recorder with fail-closed defaults for an isolated bench."""
 
-    A fixture may contain samples for several devices.  Matching is performed
-    by the manifest interface's ``ros2:///`` transport reference and the
-    fixture's topic key; unrelated records are ignored.  Payload bytes are
-    expected to be sanitized summaries, not live transport handles.
-    """
-
-    raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or not isinstance(raw.get("samples"), dict):
-        raise ValueError("fixture must contain an object-valued samples field")
-    observed_at_raw = raw.get("observed_at")
-    if not isinstance(observed_at_raw, str):
-        raise ValueError("fixture observed_at is required")
-    try:
-        observed_at = datetime.fromisoformat(observed_at_raw.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ValueError("fixture observed_at must be ISO-8601") from exc
-    if observed_at.tzinfo is None:
-        raise ValueError("fixture observed_at must include a timezone")
-
-    by_transport = {
-        interface.transport_ref: interface
-        for interface in manifest.interfaces
-        if interface.transport_ref
-    }
-    samples: list[MhsInterfaceSample] = []
-    for topic, record in raw["samples"].items():
-        if not isinstance(topic, str) or not isinstance(record, dict):
-            raise ValueError("fixture samples must map string topics to objects")
-        interface = by_transport.get(f"ros2://{topic}")
-        if interface is None:
-            continue
-        interface_id = record.get("interface_id")
-        if interface_id != interface.id:
-            raise ValueError(
-                f"fixture interface mismatch for {topic}: {interface_id!r} != {interface.id!r}"
+    def __init__(self, fixture_id: str, *, resource_id: str) -> None:
+        self.fixture_id = fixture_id
+        self.resource_id = resource_id
+        self._evidence = {
+            key: MhsSafetyEvidence(
+                status="NOT_OBSERVED",
+                notes="test has not been performed",
             )
-        source_timestamp = _source_timestamp(record.get("source_timestamp"))
-        value = {
-            key: item
-            for key, item in record.items()
-            if key not in {"interface_id", "type", "frame_id", "source_timestamp"}
+            for key in _TESTS
         }
-        metadata = {
-            "topic": topic,
-            "type": record.get("type"),
-            "frame_id": record.get("frame_id"),
-            "fixture": str(path),
-        }
-        samples.append(
-            MhsInterfaceSample(
-                interface_id=interface.id,
-                value=value,
-                observed_at=observed_at,
-                source_timestamp=source_timestamp,
-                metadata=metadata,
-            )
+
+    def record(
+        self,
+        test: str,
+        *,
+        status: str,
+        source_refs: list[str] | None = None,
+        notes: str = "",
+    ) -> MhsSafetyEvidence:
+        if test not in _TESTS:
+            raise ValueError(f"unknown fixture test: {test}")
+        evidence = MhsSafetyEvidence(
+            status=status,  # type: ignore[arg-type]
+            source_refs=list(source_refs or []),
+            notes=notes,
         )
-    return samples
+        self._evidence[test] = evidence
+        return evidence
+
+    def bundle(self) -> MhsSafetyEvidenceBundle:
+        return MhsSafetyEvidenceBundle(**self._evidence)
+
+    def evidence_id(self, test: str) -> str:
+        if test not in _TESTS:
+            raise ValueError(f"unknown fixture test: {test}")
+        return f"fixture:{self.fixture_id}:{self.resource_id}:{test}"
+
+    def snapshot(self) -> dict[str, object]:
+        return {
+            "fixture_id": self.fixture_id,
+            "resource_id": self.resource_id,
+            "observed_at": datetime.now(timezone.utc).isoformat(),
+            "evidence": {key: value.model_dump(mode="json") for key, value in self._evidence.items()},
+            "write_ready": self.bundle().is_write_ready(),
+        }
 
 
-__all__ = ["load_fixture_for_manifest"]
+__all__ = ["MhsBenchFixture"]

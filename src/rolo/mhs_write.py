@@ -17,10 +17,12 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Protocol
 from uuid import uuid4
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .mhs_adapters import MhsEnvironmentDescriptor
+from .core.persistence import interprocess_lock
 from .mhs_hardware import MhsCommandDescriptor, MhsDeviceManifest
 
 
@@ -66,6 +68,7 @@ class MhsWriteContext(BaseModel):
     safety_fresh_until: datetime
     verified_preconditions: list[str] = Field(default_factory=list)
     safety_evidence_ids: list[str] = Field(default_factory=list)
+    canary_lease_id: str | None = None
     external_estop_clear: bool = False
     watchdog_ok: bool = False
     quiescent: bool = False
@@ -87,6 +90,7 @@ class MhsWriteResult(BaseModel):
     reason: str | None = None
     manifest_sha256: str
     driver_sha256: str
+    canary_lease_id: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
 
@@ -211,6 +215,61 @@ class MhsWriteEventStore:
             if expected != event.digest:
                 raise ValueError(f"MHS write event digest mismatch: {event.event_id}")
             previous_digest = event.digest
+
+
+class PersistentMhsWriteEventStore(MhsWriteEventStore):
+    """Durable JSONL event store for the RKB audit boundary.
+
+    The file is append-only from the store's point of view.  Existing records
+    are loaded and verified before the store can be used; a digest mismatch or
+    malformed record therefore fails closed instead of silently starting a new
+    chain.  Cross-process appends use the same bounded lock primitive as other
+    Rolo artifacts.
+    """
+
+    def __init__(self, path: str | Path) -> None:
+        super().__init__()
+        self.path = Path(path).resolve()
+        if not self.path.exists():
+            return
+        with self.path.open("r", encoding="utf-8") as stream:
+            for line_number, line in enumerate(stream, start=1):
+                if not line.strip():
+                    raise ValueError(f"blank MHS event record at line {line_number}")
+                try:
+                    self._events.append(MhsWriteEvent.model_validate_json(line))
+                except Exception as exc:
+                    raise ValueError(
+                        f"invalid MHS event record at line {line_number}"
+                    ) from exc
+        self.verify()
+
+    def append(self, result: MhsWriteResult) -> MhsWriteEvent:
+        # Serialize the load/verify/append sequence so two Rolo processes cannot
+        # fork the hash chain from the same previous digest.
+        with interprocess_lock(self.path):
+            disk_events: list[MhsWriteEvent] = []
+            if self.path.exists():
+                disk_events = [
+                    MhsWriteEvent.model_validate_json(line)
+                    for line in self.path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+            self._events = disk_events
+            self.verify()
+            event = super().append(result)
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                with self.path.open("a", encoding="utf-8", newline="") as stream:
+                    stream.write(event.model_dump_json() + "\n")
+                    stream.flush()
+                    import os
+
+                    os.fsync(stream.fileno())
+            except Exception:
+                self._events.pop()
+                raise
+            return event
 
 
 class MhsWriteController:
@@ -460,6 +519,7 @@ class MhsWriteController:
             observed_at=observed_at,
             manifest_sha256=manifest.manifest_sha256,
             driver_sha256=manifest.driver_sha256,
+            canary_lease_id=context.canary_lease_id,
             evidence_ids=[
                 *context.safety_evidence_ids,
                 f"authorization:{context.authorization_ref}",
@@ -476,6 +536,7 @@ __all__ = [
     "MhsWriteResult",
     "MhsWriteEvent",
     "MhsWriteEventStore",
+    "PersistentMhsWriteEventStore",
     "MhsWriteBackend",
     "MhsStopCapableBackend",
     "MhsWriteAuthorizer",

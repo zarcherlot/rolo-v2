@@ -52,19 +52,6 @@ Provider 的每个 `MhsResult` 已返回 manifest/driver 摘要、transport、ro
 因此硬件类型（sensor/controller/actuator 等）和软件环境是两个独立维度；更换任意
 adapter 不会复制一套 RKB identity，也不会绕过同一个 provider safety gate。
 
-## 结构化接口与 ROS 2 抽象
-
-MHS 核心接口是 middleware-neutral 的 `MhsInterfaceDescriptor`：它描述
-`image`、`laser_scan`、`joint_state`、`point_cloud` 等数据语义、编码、形状、坐标系和
-时间戳；`transport_ref` 只保存如何到达数据的适配器引用。ROS 2 topic 只是 LanderPi
-当前的一个 transport binding，不是 MHS 的设备模型。
-
-之所以在 LanderPi 采样中明确 ROS 2，是因为目标机的相机、LiDAR、关节状态和控制器
-都通过 ROS 2 节点/话题暴露；没有这个 binding，就无法把实际采样数据关联到具体驱动。
-但把 ROS 2 类型直接写入核心 MHS 会使后续 USB、CAN、native SDK 或仿真采样无法复用
-同一 manifest。因此只把 `sensor_msgs/Image`、`sensor_msgs/LaserScan` 等写入
-`payload_schema` 作为当前适配器的具体映射，MHS 语义仍保持独立。
-
 ## 真机验证记录
 
 2026-09-02 在局域网 `192.168.10.0/24` 扫描到目标 `192.168.10.167`（网关
@@ -102,6 +89,38 @@ MhsWriteRequest + verified MhsWriteContext
 resource quiescent，并支持短时人工授权引用。首轮实现和后续台架/真机门槛见
 [`MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md`](../adapt/MHS_WRITE_CAPABILITY_DEVELOPMENT_PLAN_ZH.md)。
 
-W4 只实现 `MhsCanaryGate` admission preflight：它验证独立安全评审、R1 命令、目标指纹、
-人工批准、急停/stop/rollback 证据和有限次数 lease；`enabled=false` 时 fail-closed，且不会
-自行发起网络或硬件 I/O。
+W4 实现 `MhsCanaryGate` admission preflight 和 `MhsCanaryRunner`：前者验证独立安全评审、R1
+命令、目标指纹、人工批准、急停/stop/rollback 证据和有限次数 lease；后者默认关闭，只有部署方
+显式启用并配置 controller 环境白名单后才执行，且把 lease ID 绑定到审计结果。两者都不会自行
+发起网络或硬件 I/O。
+
+## Manifest confirmation
+
+`MhsDeviceManifest` 本身只描述设备；是否在目标上被确认由
+`MhsManifestRecord` 记录。当前 LanderPi 已确认一个**只读**控制器 manifest：
+`landerpi-rrc`，通过 `/dev/rrc -> /dev/ttyACM0`、USB serial
+`1a86_USB_Single_Serial_5B22016029`、`/ros_robot_controller` 节点和驱动源摘要交叉验证。
+底盘和 LD19 仍是 ROS logical candidates，保持 `DISCOVERED_UNVERIFIED`；夹爪已经完成
+控制板/servo ID/反馈链的绑定，但保持 `CONFIRMED_BOUND_WRITE_BLOCKED`。LanderPi 当前还
+观察到 Aurora 930 相机的 USB/视频节点和 RGB/depth/IR 话题，但因缺少 USB serial，仍为
+路径身份的 `DISCOVERED_UNVERIFIED` 只读候选。
+
+机械臂和夹爪现在已有受证据约束的写 manifest 记录，但状态是
+`CONFIRMED_BOUND_WRITE_BLOCKED`：`joint1..joint5` 由
+`servo_controller.yaml` 绑定到 bus-servo ID `1..5`，R1 `stop_arm` 使用稳定资源
+`landerpi-rrc:5b22016029:bus-servo:arm`/`...:bus-servo:gripper`，反馈来自
+`/joint_states` 和 `/controller_manager/servo_states`，限位来自 servo YAML 与 arm URDF。
+外部急停由设备侧提供但尚未接入 Rolo 可观测门禁；stop 实测、rollback、独立 watchdog 和
+no-load 现场证据仍未验证，所以不能进入 canary write。
+
+## Watchdog discovery 与无负载 fixture
+
+`rolo.mhs_watchdog.MhsWatchdogRegistry` 会主动调用环境/厂商 adapter 的只读 `inspect()`，
+仅注册显式声明 `independent_of_rolo=true` 的 watchdog capability；应用层 ROS heartbeat、
+`/diagnostics` 和 systemd restart 不会被自动升级。`MhsWatchdogStatus.is_eligible()` 要求
+armed、healthy、heartbeat 未过期、独立来源和已验证的 safe-state capability 同时成立；
+`safe_state_confirmed` 仍表示本次观测中执行器当前是否已处于安全态。
+
+`rolo.mhs_fixture.MhsBenchFixture` 记录 external-estop、stop、rollback、watchdog 和 no-load
+证据，默认全部为 `NOT_OBSERVED`。结合 `WatchdogTestFixture` 可在无 I/O 台架中注入心跳丢失，
+验证 timeout/trip/readback；它不能替代 LanderPi 的物理安全控制器。

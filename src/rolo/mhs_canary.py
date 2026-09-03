@@ -17,7 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .mhs_adapters import MhsEnvironmentDescriptor
 from .mhs_hardware import MhsDeviceManifest
-from .mhs_write import MhsWriteContext
+from .mhs_write import (
+    MhsWriteAuthorizer,
+    MhsWriteBackend,
+    MhsWriteContext,
+    MhsWriteController,
+    MhsWriteRequest,
+    MhsWriteResult,
+)
 
 
 def _now() -> datetime:
@@ -137,9 +144,61 @@ class MhsCanaryGate:
         )
 
 
+class MhsCanaryRunner:
+    """Bind a canary lease to the existing Rolo write controller.
+
+    The runner is disabled by default.  A deployment must explicitly enable
+    it and configure the controller's environment allowlist; this class does
+    not discover, connect to, or select a physical adapter.
+    """
+
+    def __init__(
+        self,
+        gate: MhsCanaryGate,
+        controller: MhsWriteController,
+        *,
+        real_execution_enabled: bool = False,
+    ) -> None:
+        self.gate = gate
+        self.controller = controller
+        self.real_execution_enabled = real_execution_enabled
+
+    def execute(
+        self,
+        *,
+        manifest: MhsDeviceManifest,
+        environment: MhsEnvironmentDescriptor,
+        backend: MhsWriteBackend,
+        request: MhsWriteRequest,
+        context: MhsWriteContext,
+        authorizer: MhsWriteAuthorizer,
+        now: datetime | None = None,
+    ) -> MhsWriteResult:
+        if not self.real_execution_enabled:
+            raise MhsCanaryRejected("canary execution is disabled")
+        lease = self.gate.admit(
+            manifest=manifest,
+            environment=environment,
+            command_id=request.command_id,
+            context=context,
+            now=now,
+        )
+        bound_context = context.model_copy(update={"canary_lease_id": lease.lease_id})
+        return self.controller.execute(
+            manifest=manifest,
+            environment=environment,
+            backend=backend,
+            request=request,
+            context=bound_context,
+            authorizer=authorizer,
+            now=now,
+        )
+
+
 __all__ = [
     "MhsCanaryRejected",
     "MhsCanaryApproval",
     "MhsCanaryLease",
     "MhsCanaryGate",
+    "MhsCanaryRunner",
 ]
