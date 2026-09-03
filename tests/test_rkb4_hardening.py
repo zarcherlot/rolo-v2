@@ -13,6 +13,8 @@ from rolo.rkb import (
     Snapshot,
     build_episode_from_snapshot,
     evaluate_alerts,
+    keyring_from_vault,
+    run_alert_cycle,
 )
 from rolo.rkb.episodes import EpisodeMetrics
 from rolo.rkb.validation import EvidenceValidationError
@@ -48,6 +50,14 @@ def test_schema_registry_exposes_compatibility_window() -> None:
     assert not registry.is_readable("TargetEvidenceBundle/v2", on=date(2028, 1, 1))
     with pytest.raises(ValueError):
         registry.policy("unknown/v9")
+
+
+def test_scheduler_reads_counters_and_vault_never_persists_secret(tmp_path: Path) -> None:
+    (tmp_path / "metrics.json").write_text('{"corrupt_artifacts": 1}', encoding="utf-8")
+    emitted = run_alert_cycle(tmp_path / "metrics.json")
+    assert emitted[0].code == "digest_mismatch"
+    ring = keyring_from_vault(lambda key_id: b"v" * 32, ["active"])
+    assert ring.sign("active", "a" * 64)
 
 
 def _crash_publisher(snapshot_json: str, root: str) -> None:

@@ -61,6 +61,8 @@ from .storage import RKBMetrics, RKBStore
 from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
 from .keyring import HMACKey, HMACKeyring
 from .schema_registry import SchemaPolicy, SchemaRegistry
+from .scheduler import AlertSchedule, run_alert_cycle
+from .vault import keyring_from_vault
 from .validation import (
     EvidenceValidationError,
     freshness_status,
@@ -127,6 +129,9 @@ __all__ = [
     "HMACKeyring",
     "SchemaPolicy",
     "SchemaRegistry",
+    "AlertSchedule",
+    "run_alert_cycle",
+    "keyring_from_vault",
     "EpisodeArtifactRef",
     "EpisodeEvent",
     "EpisodeEventKind",

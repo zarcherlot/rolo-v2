@@ -42,6 +42,9 @@ Episode 进程 `kill -9` 后的持久化恢复仍需最后维护窗口，不能�
 结构化告警策略、HMAC keyring 和 schema registry 的离线 hardening 证据记录在
 `docs/validation/RKB4_HARDENING_CANARY_20260903.json`；它们不包含密钥材料，且生产
 通知 transport、受控 vault 持久化和旧格式删除公告仍需部署侧接线。
+`src/rolo/rkb/scheduler.py` 提供单周期读取 Episode metrics 并发出结构化事件的调度适配器，
+`src/rolo/rkb/vault.py` 以 resolver 接入外部受控密钥库；部署系统需自行提供实际 cadence、
+通知 transport 和 secret manager。
 
 ## 验收命令
 
