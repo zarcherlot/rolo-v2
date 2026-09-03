@@ -55,6 +55,8 @@ class MhsDeviceClass(str, Enum):
     COMPUTE = "compute"
     BUS = "bus"
     TOOL = "tool"
+    # Compatibility class for bounded end-effector write manifests.
+    END_EFFECTOR = "end-effector"
 
 
 class MhsChannel(BaseModel):
@@ -86,6 +88,33 @@ class MhsDriver(BaseModel):
     sha256: str = Field(default="0" * 64, pattern=r"^[0-9a-f]{64}$")
 
 
+class MhsCommandDescriptor(BaseModel):
+    """Bounded write command descriptor consumed by the MHS safety gate."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    access: str = Field(default="write", pattern=r"^write$")
+    hardware_resource_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.:/-]*$")
+    risk: str = Field(pattern=r"^R[1-3]$")
+    input_schema: dict[str, Any]
+    timeout_s: float = Field(gt=0, le=300)
+    idempotent: bool = False
+    requires: list[str] = Field(default_factory=list)
+    cancel_capability: str | None = None
+    compensation_capability: str | None = None
+
+    @model_validator(mode="after")
+    def validate_input_schema(self) -> MhsCommandDescriptor:
+        if self.input_schema.get("type", "object") != "object":
+            raise ValueError("MHS command input_schema must describe an object")
+        if self.input_schema.get("additionalProperties") is not False:
+            raise ValueError("MHS command input_schema must reject additional properties")
+        if not isinstance(self.input_schema.get("properties"), dict):
+            raise ValueError("MHS command input_schema must declare properties")
+        return self
+
+
 class MhsDeviceManifest(BaseModel):
     """Unified MHS device reference for sensors and other device classes."""
 
@@ -103,7 +132,7 @@ class MhsDeviceManifest(BaseModel):
     state: dict[str, Any] = Field(default_factory=dict)
     transport: dict[str, Any] = Field(default_factory=dict)
     limits: dict[str, Any] | list[str] = Field(default_factory=dict)
-    commands: list[dict[str, Any]] = Field(default_factory=list)
+    commands: list[MhsCommandDescriptor] = Field(default_factory=list)
     driver: MhsDriver | None = None
     # v0 compatibility aliases retained for old manifests.
     driver_id: str = Field(default="unknown-driver", min_length=1)
@@ -470,6 +499,7 @@ def mhs_results_to_snapshot(identity: Any, results: list[MhsResult]) -> Any:
 __all__ = [
     "MhsBackend",
     "MhsChannel",
+    "MhsCommandDescriptor",
     "MhsDeviceClass",
     "MhsDeviceManifest",
     "MhsDeviceProvider",
