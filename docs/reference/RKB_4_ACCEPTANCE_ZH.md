@@ -34,7 +34,10 @@ EpisodeStore 同时持久化跨进程指标，支持 latest 损坏后的记录�
 目标机 storage canary 记录在 `docs/validation/RKB4_LANDERPI_STORAGE_CANARY_20260903.json`；
 该 canary 使用目标 fingerprint 绑定的合成 snapshot，不替代真实 MHS provider 采集。
 迁移 rollback canary 记录在 `docs/validation/RKB4_LANDERPI_MIGRATION_CANARY_20260903.json`，
-已验证新旧 digest 父子绑定、latest 指针回退和只读边界；真机 reboot/kill-9 仍需维护窗口。
+已验证新旧 digest 父子绑定、latest 指针回退和只读边界。操作员完成重启后，已重新执行
+真实 MHS → snapshot → Episode canary，并记录在 `docs/validation/RKB4_LANDERPI_POSTREBOOT_20260903.json`；
+同时在 MentorPi 容器内观察到 ROS2 graph、service、topic 及 `/robot_api` 等应用 route presence。
+Episode 进程 `kill -9` 后的持久化恢复仍需最后维护窗口，不能据此提升为 `STABLE`。
 
 ## 验收命令
 
@@ -72,4 +75,6 @@ LanderPi 的 identity → runtime → graph → app 只读 smoke 必须使用当
 并在发布前记录 artifact；任何 MHS 观察结果仍只代表 generic observer 的 `OBSERVED` 事实，
 不升级为物理安全、行为正确或写授权。
 
-工程状态在完成本地拒绝路径和真机 smoke 前保持 `PARTIAL/E2`；本次 LanderPi smoke 已完成后提升为 `PARTIAL/E3`，但因 graph/app 为 `UNKNOWN` 仍不得改成 `STABLE`。
+工程状态在完成本地拒绝路径和真机 smoke 前保持 `PARTIAL/E2`；本次 LanderPi smoke 与操作员
+重启后复验已达到 `PARTIAL/E3`。ROS2/app 目前有 route presence 证据，但 typed graph/state-safety
+仍未由 MHS snapshot 提供，且 kill-9 持久化恢复未闭环，因此不得改成 `STABLE`。

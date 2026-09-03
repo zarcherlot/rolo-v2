@@ -50,11 +50,12 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 - [x] 将每次 Probe run 的 Episode metadata 接入正式 Probe orchestration，并保留旧 bundle/report 双读路径。
 - [x] 为 Episode latest 指针接入跨进程故障恢复、损坏隔离和审计指标。
 - [x] 为 Episode 增加按 identity、source、freshness、status 的只读分页查询、幂等 Probe run 和 retention。
-- [x] 在固定目标机完成 identity → runtime → graph → app 的只读 smoke 后，记录灰度放量决策；LanderPi 当前 graph/app 为 `UNKNOWN`，灰度仅限 metadata-only 只读。
+- [x] 在固定目标机完成 identity → runtime → graph → app 的只读 smoke 后，记录灰度放量决策；LanderPi graph/app 已补充 Docker 内 ROS2 route presence 观察，灰度仍仅限 metadata-only 只读。
 - [x] 增加跨进程并发发布、指标增量合并、digest 损坏 record 隔离和 latest 恢复 fault canary。
 - [x] 在 LanderPi 上执行跨进程并发、latest 恢复和损坏 record 隔离 canary，并记录目标机 artifact；使用合成 snapshot，不替代 MHS provider 证据。
 - [x] 增加并在 LanderPi 执行迁移式新旧 Episode 发布、父 digest 绑定和 rollback 指针切换 canary；使用合成 snapshot，不替代真实 MHS 迁移证据。
-- [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐真机 reboot、kill-9 后重启恢复证据。
+- [x] 在操作员重启后的 LanderPi 上重跑 MHS → snapshot → Episode 只读 smoke，并记录 boot id、启动时间、ROS2 graph/service/topic 计数。
+- [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐 Episode 进程 `kill -9` 后的重启恢复与持久化证据（本项待最后维护窗口执行）。
 - [ ] 为 freshness/断线/digest mismatch/容量水位接入结构化告警和周期调度。
 - [ ] 固化 Episode schema 迁移注册表、旧 bundle/report 兼容窗口和发布弃用流程。
 - [ ] 将 HMAC/签名接入受控密钥存储，并补充轮换、吊销、时钟漂移和重放拒绝证据。
