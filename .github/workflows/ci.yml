@@ -51,6 +51,8 @@ jobs:
           tests/test_rkb_storage.py
           tests/test_rkb_schema_roundtrip.py
           tests/test_mhs_hardware.py
+          tests/test_mhs_association.py
+          tests/test_mhs_linux_inventory.py
           examples/mhs-sensor
           scripts/rkb2_landerpi_smoke.py
           scripts/rkb2_capacity_baseline.py
@@ -76,9 +78,11 @@ jobs:
           tests/test_rkb_storage.py
           tests/test_rkb_schema_roundtrip.py
           tests/test_mhs_hardware.py
+          tests/test_mhs_association.py
+          tests/test_mhs_linux_inventory.py
           examples/mhs-sensor/test_mhs_sensor.py
       - name: Compile the v2 source and test tree
-        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py
+        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py scripts/mhs_readonly_canary.py
 
   package:
     runs-on: ubuntu-latest
