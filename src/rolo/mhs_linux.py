@@ -276,7 +276,72 @@ class LinuxMhsInventory:
                         manifest=node_manifest, source=node, identity_stability="path"
                     )
                 )
+        # Device nodes are presence-only until a modality-specific provider
+        # proves protocol, identity and safe read semantics.
+        found.extend(self._presence_candidates("dev/video*", "camera", "camera", device_class=MhsDeviceClass.SENSOR))
+        found.extend(self._usb_candidates())
         return found
+
+    def _presence_candidates(
+        self,
+        pattern: str,
+        kind: str,
+        label: str,
+        *,
+        device_class: MhsDeviceClass = MhsDeviceClass.BUS,
+    ) -> list[LinuxMhsCandidate]:
+        records: list[LinuxMhsCandidate] = []
+        for path in sorted(self.root.glob(pattern)):
+            node = "/" + path.relative_to(self.root).as_posix()
+            safe = node.strip("/").replace("/", "-").replace(".", "-")
+            manifest = MhsDeviceManifest(
+                device_id=f"{self.device_prefix}-{safe}",
+                device_class=device_class,
+                name=f"Linux {label} node {safe}",
+                vendor="linux-kernel",
+                model=label,
+                channels=[MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")],
+                resources=[safe],
+                state={"read": ["health", "kind", "node"]},
+                transport={"kind": "linux-device-node", "properties": {"path": node}},
+                limits=["read-only", "presence only", "path identity; serial not observed"]
+                + (["camera frames require modality-specific provider and format probe"] if device_class == MhsDeviceClass.SENSOR else []),
+                driver_id=DRIVER_ID,
+                driver_version=DRIVER_VERSION,
+                driver_sha256=DRIVER_SHA256,
+            )
+            records.append(LinuxMhsCandidate(manifest=manifest, source=node, identity_stability="path"))
+        return records
+
+    def _usb_candidates(self) -> list[LinuxMhsCandidate]:
+        records: list[LinuxMhsCandidate] = []
+        usb_root = self.root / "sys/bus/usb/devices"
+        for path in sorted(usb_root.glob("*")):
+            if not path.is_dir() or not (path / "idVendor").exists():
+                continue
+            safe = path.name.replace(".", "-")
+            vendor = (path / "idVendor").read_text(encoding="utf-8", errors="ignore").strip()
+            product = (path / "idProduct").read_text(encoding="utf-8", errors="ignore").strip()
+            serial_path = path / "serial"
+            serial = serial_path.read_text(encoding="utf-8", errors="ignore").strip() if serial_path.exists() else None
+            manifest = MhsDeviceManifest(
+                device_id=f"{self.device_prefix}-usb-{safe}",
+                device_class=MhsDeviceClass.BUS,
+                name=f"USB device {safe}",
+                vendor=vendor or "unknown-usb-vendor",
+                model=product or "unknown-usb-product",
+                serial=serial,
+                channels=[MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")],
+                resources=[safe],
+                state={"read": ["health", "kind", "node"]},
+                transport={"kind": "sysfs-usb", "properties": {"path": f"/sys/bus/usb/devices/{path.name}"}},
+                limits=["read-only", "presence only", "USB identity requires serial when available"],
+                driver_id=DRIVER_ID,
+                driver_version=DRIVER_VERSION,
+                driver_sha256=DRIVER_SHA256,
+            )
+            records.append(LinuxMhsCandidate(manifest=manifest, source=f"/sys/bus/usb/devices/{path.name}", identity_stability="stable" if serial else "path"))
+        return records
 
     def providers(self) -> list[tuple[LinuxMhsCandidate, MhsDeviceProvider]]:
         return [
