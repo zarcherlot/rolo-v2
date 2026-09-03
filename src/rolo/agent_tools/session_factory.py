@@ -36,6 +36,7 @@ def create_profile_native_tool_session(
     runner: object | None = None,
     session_nonce: str | None = None,
     native_executor: object | None = None,
+    target_host_fingerprint: str | None = None,
 ) -> NativeToolSession:
     """Create the smallest trusted Tool Surface for one enrolled profile.
 
@@ -70,6 +71,7 @@ def create_profile_native_tool_session(
         session_id=session_id or f"native-{uuid4().hex}",
         nonce=session_nonce or uuid4().hex,
         robot_id=profile_id,
+        target_host_fingerprint=target_host_fingerprint,
         stage="probe",
         native_catalog_sha256=_catalog_digest(catalog),
         allowed_tools=[item.tool_id for item in catalog],

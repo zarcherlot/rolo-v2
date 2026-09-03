@@ -8,6 +8,7 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .collector import SnapshotCollector, collect_snapshot
 from .episodes import (
     EpisodeArtifactRef,
     EpisodeEvent,
@@ -122,6 +123,8 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "SnapshotCollector",
+    "collect_snapshot",
     "AlertSeverity",
     "RKBAlert",
     "evaluate_alerts",

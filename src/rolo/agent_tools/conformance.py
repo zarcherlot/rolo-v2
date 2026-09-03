@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,11 +29,27 @@ class ToolConformanceReport(BaseModel):
 
     schema_version: Literal["rolo-tool-conformance/v1"] = "rolo-tool-conformance/v1"
     target_id: str = Field(min_length=1, max_length=128)
+    target_host_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     session_id: str = Field(min_length=1, max_length=128)
+    session_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     surface_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     status: Literal["PASS", "FAIL"]
     checks: list[ToolConformanceCheck] = Field(min_length=1, max_length=512)
     checked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+def persist_conformance_artifact(report: ToolConformanceReport, path: Path) -> str:
+    """Atomically persist a formal, target-bound conformance artifact."""
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        raise ValueError("conformance artifact path must be a regular file")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (
+        json.dumps(report.model_dump(mode="json"), sort_keys=True, separators=(",", ":")) + "\n"
+    )
+    from rolo.core.persistence import atomic_write_text
+
+    atomic_write_text(path, payload)
+    return str(path)
 
 
 def conform_tool_surface(
@@ -90,7 +109,13 @@ def conform_tool_surface(
     status = "PASS" if all(item.status == "PASS" for item in checks) else "FAIL"
     return ToolConformanceReport(
         target_id=session.robot_id,
+        target_host_fingerprint=session.target_host_fingerprint,
         session_id=session.session_id,
+        session_digest=hashlib.sha256(
+            json.dumps(
+                session.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest(),
         surface_digest=session.native_catalog_sha256,
         status=status,
         checks=checks,
