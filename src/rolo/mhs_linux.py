@@ -16,8 +16,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .mhs_hardware import MhsBackend, MhsChannel, MhsDeviceClass, MhsDeviceManifest
-from .mhs_hardware import MhsDeviceProvider
+from .mhs_hardware import MhsBackend, MhsChannel, MhsDeviceClass, MhsDeviceManifest, MhsDeviceProvider
 
 DRIVER_ID = "rolo.mhs.linux-observer"
 DRIVER_VERSION = "0.1.0"

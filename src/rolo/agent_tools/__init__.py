@@ -32,6 +32,11 @@ from rolo.agent_tools.session import (
     native_catalog_sha256,
 )
 from rolo.agent_tools.session_factory import create_profile_native_tool_session
+from rolo.agent_tools.verification_projection import (
+    ToolVerificationProjection,
+    ToolVerificationState,
+    project_tool_verification,
+)
 
 __all__ = [
     "AgentNativeRunner",
@@ -59,4 +64,7 @@ __all__ = [
     "ToolConformanceCheck",
     "ToolConformanceReport",
     "conform_tool_surface",
+    "ToolVerificationProjection",
+    "ToolVerificationState",
+    "project_tool_verification",
 ]

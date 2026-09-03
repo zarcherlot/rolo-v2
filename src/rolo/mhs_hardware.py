@@ -23,6 +23,19 @@ class MhsStatus(str, Enum):
     STALE = "STALE"
 
 
+class MhsSourceKind(str, Enum):
+    OBSERVED = "OBSERVED"
+    DECLARED = "DECLARED"
+    INFERRED = "INFERRED"
+
+
+class MhsDriver(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider_id: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
 class MhsDeviceClass(str, Enum):
     SENSOR = "sensor"
     CONTROLLER = "controller"
@@ -224,6 +237,7 @@ class MhsDeviceManifest(BaseModel):
     driver_id: str = Field(default="unknown-driver", min_length=1)
     driver_version: str = Field(default="unknown", min_length=1)
     driver_sha256: str = Field(default="0" * 64, pattern=r"^[0-9a-f]{64}$")
+    driver: MhsDriver | None = None
     identity: MhsIdentity = Field(default_factory=MhsIdentity)
     provenance: MhsProvenance = Field(default_factory=MhsProvenance)
     relations: list[MhsRelation] = Field(default_factory=list)
@@ -232,6 +246,10 @@ class MhsDeviceManifest(BaseModel):
 
     @model_validator(mode="after")
     def unique_channels(self) -> MhsDeviceManifest:
+        if self.driver is not None:
+            object.__setattr__(self, "driver_id", self.driver.provider_id)
+            object.__setattr__(self, "driver_version", self.driver.version)
+            object.__setattr__(self, "driver_sha256", self.driver.sha256)
         ids = [item.id for item in self.channels]
         if len(ids) != len(set(ids)):
             raise ValueError("manifest contains duplicate channel ids")
@@ -303,6 +321,8 @@ class MhsResult(BaseModel):
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     samples: list[MhsInterfaceSample] = Field(default_factory=list)
+    target_host_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    source_kind: MhsSourceKind = MhsSourceKind.OBSERVED
 
 
 class MhsDeviceProvider:
@@ -312,13 +332,30 @@ class MhsDeviceProvider:
     freshness_seconds = 300
     READ_CAPABILITIES = frozenset({"inspect", "status", "read"})
 
-    def __init__(self, manifest: MhsDeviceManifest, backend: MhsBackend) -> None:
+    def __init__(
+        self,
+        manifest: MhsDeviceManifest,
+        backend: MhsBackend,
+        *,
+        target_host_fingerprint: str | None = None,
+        freshness: dict[str, timedelta] | None = None,
+        timeout_s: float | None = None,
+    ) -> None:
         self.manifest = manifest
         self.backend = backend
         self.provider_id = f"mhs.{manifest.device_id}"
+        self.target_host_fingerprint = target_host_fingerprint
+        self.freshness_seconds = int((freshness or {}).get("read", timedelta(seconds=self.freshness_seconds)).total_seconds())
+        self.timeout_s = timeout_s
+        self._manifest_digest = manifest.manifest_sha256
+        self._driver_digest = manifest.driver_sha256
 
     def route(self, capability_id: str) -> str:
         capability = capability_id.removeprefix("mhs.")
+        if capability not in self.READ_CAPABILITIES and not (
+            capability == "read_structured" and self.manifest.interfaces
+        ):
+            raise ValueError(f"capability is not available in v2: {capability}")
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
@@ -361,16 +398,30 @@ class MhsDeviceProvider:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
 
     def status(self) -> MhsResult:
+        if self.manifest.driver_sha256 != self._driver_digest or (
+            self.manifest.driver is not None and self.manifest.driver.sha256 != self._driver_digest
+        ):
+            return self._error("status", "driver digest changed since registration")
         try:
             return self._ok("status", dict(self.backend.status()))
         except Exception as exc:
             return self._error("status", f"backend status failed: {type(exc).__name__}")
 
     def read(self) -> MhsResult:
+        if self.manifest.manifest_sha256 != self._manifest_digest:
+            return self._error("read", "manifest digest changed since registration")
+        if self.manifest.driver_sha256 != self._driver_digest:
+            return self._error("read", "driver digest changed since registration")
         capability = "read"
         observed_at = datetime.now(timezone.utc)
         try:
-            values = dict(self.backend.read())
+            if self.timeout_s is not None:
+                from concurrent.futures import ThreadPoolExecutor
+
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    values = dict(executor.submit(self.backend.read).result(timeout=self.timeout_s))
+            else:
+                values = dict(self.backend.read())
             channels = {channel.id: channel for channel in self.manifest.channels}
             unknown = sorted(set(values) - set(channels))
             if unknown:
@@ -402,7 +453,8 @@ class MhsDeviceProvider:
         except ValueError as exc:
             return self._error(capability, f"read rejected: {exc}")
         except Exception as exc:
-            return self._error(capability, f"backend read failed: {type(exc).__name__}")
+            reason = "backend read timed out" if type(exc).__name__ == "TimeoutError" else f"backend read failed: {type(exc).__name__}"
+            return self._error(capability, reason)
 
     def read_structured(self) -> MhsResult:
         """Read structured samples through an optional environment adapter."""
@@ -435,10 +487,10 @@ class MhsDeviceProvider:
         except Exception as exc:
             return self._error(capability, f"structured read failed: {type(exc).__name__}")
 
-    def invoke(self, capability_id: str, arguments: Mapping[str, Any] | None = None) -> MhsResult:
+    def invoke(self, capability_id: str, arguments: Mapping[str, Any] | None = None, *, route_ref: str | None = None) -> MhsResult:
         """Invoke only read capabilities; all write-like requests fail closed."""
 
-        del arguments
+        del arguments, route_ref
         capability = capability_id.removeprefix("mhs.")
         if capability == "inspect":
             return self.inspect()
@@ -463,7 +515,7 @@ class MhsDeviceProvider:
             status=MhsStatus.AVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
-            route=self.route(capability),
+            route=f"mhs://{self.manifest.device_id}/{capability}",
             value=value,
             observed_at=point,
             fresh_until=point + timedelta(seconds=self.freshness_seconds),
@@ -478,6 +530,7 @@ class MhsDeviceProvider:
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
                 f"mhs-driver:{self.manifest.driver_sha256}",
             ],
+            target_host_fingerprint=self.target_host_fingerprint,
         )
 
     def _error(self, capability: str, reason: str) -> MhsResult:
@@ -486,7 +539,7 @@ class MhsDeviceProvider:
             status=MhsStatus.UNAVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
-            route=self.route(capability),
+            route=f"mhs://{self.manifest.device_id}/{capability}",
             reason=reason,
             observed_at=point,
             fresh_until=point + timedelta(seconds=self.freshness_seconds),
@@ -501,4 +554,62 @@ class MhsDeviceProvider:
                 f"mhs-driver:{self.manifest.driver_sha256}",
             ],
             limitations=["read-only provider; no write operations"],
+            target_host_fingerprint=self.target_host_fingerprint,
         )
+
+
+class MhsProviderRegistry:
+    """Process-local compatibility registry for provider discovery tests."""
+
+    def __init__(self) -> None:
+        self._providers: dict[str, MhsDeviceProvider] = {}
+
+    def register(self, provider: MhsDeviceProvider) -> MhsDeviceProvider:
+        if provider.manifest.device_id in self._providers:
+            raise ValueError("duplicate MHS device id")
+        self._providers[provider.manifest.device_id] = provider
+        return provider
+
+    def list(self) -> list[MhsDeviceProvider]:
+        return list(self._providers.values())
+
+
+def mhs_results_to_snapshot(identity, results: list[MhsResult]):
+    from rolo.rkb.models import Fact, FactSourceKind, Snapshot
+
+    facts = []
+    for result in results:
+        kind = FactSourceKind.DECLARED if result.capability_id == "inspect" else FactSourceKind.OBSERVED
+        facts.append(Fact(robot_id=identity.robot_id,
+            target_host_fingerprint=identity.target_host_fingerprint,
+            collector_id=identity.collector_id, deployment_mode=identity.deployment_mode,
+            access=identity.access, request_nonce=identity.request_nonce,
+            source_kind=kind, source_ref=result.route,
+            observed_at=result.observed_at or identity.observed_at,
+            fresh_until=result.fresh_until or identity.fresh_until,
+            value={
+                "layer": "hardware",
+                "data": {
+                    "resources": [{
+                        "resource_id": f"mhs:{result.device_id}",
+                        "kind": "mhs_device",
+                        "name": result.device_id,
+                        "provider_id": f"mhs.{result.device_id}",
+                        "transport": result.route,
+                        "path": result.route,
+                        "limitations": result.limitations,
+                    }]
+                    ,
+                    "mhs": [{
+                        "device_id": result.device_id,
+                        "capability_id": result.capability_id,
+                        "operation_id": f"mhs.{result.device_id}.{result.capability_id}",
+                        "status": result.status.value,
+                        "route": result.route,
+                        "source_kind": result.source_kind.value,
+                    }]
+                },
+                "mhs_result": result.value or {"status": result.status.value},
+            },
+            limitations=result.limitations + ([result.reason] if result.reason else [])))
+    return Snapshot(identity=identity, facts=facts, snapshot={"layer": "mhs"}).with_digest()
