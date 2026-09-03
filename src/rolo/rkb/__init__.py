@@ -18,6 +18,7 @@ from .mhs_read_models import (
     project_mhs_read_result,
     project_probe_evidence_view,
 )
+from .mhs_vis import render_probe_evidence_cards
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -94,6 +95,7 @@ __all__ = [
     "project_probe_evidence_view",
     "MhsEvidenceReadApi",
     "create_mhs_app",
+    "render_probe_evidence_cards",
     "RobotIdentityModel",
     "RuntimeStatusModel",
     "HardwareResourceModel",

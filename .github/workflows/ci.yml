@@ -54,6 +54,7 @@ jobs:
           tests/test_mhs_association.py
           tests/test_mhs_api.py
           tests/test_mhs_http.py
+          tests/test_mhs_vis.py
           tests/test_mhs_conformance.py
           tests/test_mhs_fixture.py
           tests/test_mhs_manifest_records.py
@@ -87,6 +88,7 @@ jobs:
           tests/test_mhs_association.py
           tests/test_mhs_api.py
           tests/test_mhs_http.py
+          tests/test_mhs_vis.py
           tests/test_mhs_conformance.py
           tests/test_mhs_fixture.py
           tests/test_mhs_manifest_records.py
