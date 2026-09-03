@@ -1,0 +1,929 @@
+{
+  "schema_version": "rolo-mhs-bundle/v1",
+  "robot_id": "landerpi",
+  "generated_at": "2026-09-02T15:52:01.645488Z",
+  "source_discovery": "artifact://mhs-landerpi/discovery-20260902.json",
+  "devices": [
+    {
+      "manifest": {
+        "schema_version": "rolo-mhs-device/v1.1",
+        "device_id": "landerpi-vision-aurora930",
+        "device_class": "sensor",
+        "name": "Aurora 930 depth camera",
+        "vendor": "deptrum (inferred)",
+        "model": "Aurora 930",
+        "serial": "HY400516001016421G00082",
+        "channels": [
+          {
+            "id": "depth_frame_available",
+            "name": "Depth frame available",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "rgb_frame_available",
+            "name": "RGB frame available",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "ir_frame_available",
+            "name": "IR frame available",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "frame_timestamp_ns",
+            "name": "Frame timestamp",
+            "unit": "ns",
+            "value_type": "number",
+            "min_value": 0.0,
+            "max_value": null
+          }
+        ],
+        "resources": [
+          "usb:1-2",
+          "process:/aurora/aurora"
+        ],
+        "state": {
+          "read": [
+            "health",
+            "serial",
+            "ros_topics",
+            "frame_encoding",
+            "resolution"
+          ]
+        },
+        "commands": [],
+        "transport": {
+          "kind": "usb-ros2",
+          "properties": {
+            "sysfs": "1-2",
+            "vid": "3251",
+            "pid": "1930",
+            "serial": "HY400516001016421G00082"
+          }
+        },
+        "limits": [
+          "product identity supported by USB descriptor and ROS process; exact VID/PID vendor mapping pending",
+          "read-only sampling profile; no write commands"
+        ],
+        "driver_id": "rolo.mhs.landerpi-observation",
+        "driver_version": "0.1.0",
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": "HY400516001016421G00082",
+          "sources": [
+            {
+              "kind": "serial",
+              "value": "HY400516001016421G00082",
+              "observed": true,
+              "evidence_ids": [
+                "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2"
+              ]
+            },
+            {
+              "kind": "path",
+              "value": "usb:1-2",
+              "observed": true,
+              "evidence_ids": [
+                "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2"
+              ]
+            }
+          ],
+          "confidence": "high",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2",
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "device_id": "observed",
+            "vendor": "inferred",
+            "model": "observed",
+            "serial": "observed",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "driven_by",
+            "target": "process:/aurora/aurora",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "rgb",
+            "kind": "image",
+            "access": "stream",
+            "transport_ref": "ros2:///ascamera/camera_publisher/rgb0/image",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/Image",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          },
+          {
+            "id": "ir",
+            "kind": "image",
+            "access": "stream",
+            "transport_ref": "ros2:///ascamera/camera_publisher/ir0/image",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/Image",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          },
+          {
+            "id": "depth",
+            "kind": "image",
+            "access": "stream",
+            "transport_ref": "ros2:///ascamera/camera_publisher/depth0/image_raw",
+            "payload_schema": {},
+            "encoding": "16UC1|32FC1",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          },
+          {
+            "id": "points",
+            "kind": "point_cloud",
+            "access": "stream",
+            "transport_ref": "ros2:///ascamera/camera_publisher/depth0/points",
+            "payload_schema": {},
+            "encoding": "sensor_msgs/PointCloud2",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
+      },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "USB sysfs",
+        "/aurora/aurora",
+        "ROS 2 adapter"
+      ],
+      "stage": "D3",
+      "next_action": "bind observed RGB/IR/depth streams to the USB serial and verify calibration/long-run health",
+      "status": "DISCOVERED_UNVERIFIED",
+      "confidence": "high",
+      "evidence": [
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/discovery-20260902.json#usb_devices/1-2",
+          "statement": "USB sysfs device 1-2 exposes Aurora 930 product string and stable serial."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
+          "statement": "The target exposes an /aurora/aurora node for the camera."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/bindings/0",
+          "statement": "The /aurora/aurora node publishes RGB, IR, depth and point-cloud topics."
+        },
+        {
+          "kind": "documentation",
+          "ref": "https://www.deptrum.com/en/site/product_details/318",
+          "statement": "Aurora 930 is documented as a Linux/ROS 3D depth camera."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-payload-20260903.json",
+          "statement": "Bounded rclpy subscription observed RGB/IR/depth Image payloads."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "After bringup restart, a direct rclpy subscription observed RGB/IR/depth frames."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/0",
+          "statement": "Read-only process/device correlation binds /aurora/aurora streams to USB serial HY400516001016421G00082."
+        }
+      ],
+      "sampling_contract": [
+        "read ROS node/topic graph",
+        "observe one RGB/IR/depth frame without commanding hardware",
+        "bind topic stream to USB serial"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-vision-aurora930-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-vision-aurora930/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-vision-aurora930-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-vision-aurora930/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-vision-aurora930-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-vision-aurora930/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-vision-aurora930-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-vision-aurora930/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
+      ],
+      "limitations": [
+        "Frame payload was observed; calibration and long-run stream health remain unverified."
+      ]
+    },
+    {
+      "manifest": {
+        "schema_version": "rolo-mhs-device/v1.1",
+        "device_id": "landerpi-lidar",
+        "device_class": "sensor",
+        "name": "LanderPi LiDAR",
+        "vendor": "unknown",
+        "model": "unknown (filtered /scan)",
+        "serial": null,
+        "channels": [
+          {
+            "id": "scan_available",
+            "name": "Laser scan available",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "ranges_count",
+            "name": "Range sample count",
+            "unit": "count",
+            "value_type": "number",
+            "min_value": 0.0,
+            "max_value": null
+          },
+          {
+            "id": "range_min_m",
+            "name": "Minimum range",
+            "unit": "m",
+            "value_type": "number",
+            "min_value": 0.0,
+            "max_value": null
+          },
+          {
+            "id": "range_max_m",
+            "name": "Maximum range",
+            "unit": "m",
+            "value_type": "number",
+            "min_value": 0.0,
+            "max_value": null
+          }
+        ],
+        "resources": [
+          "process:/scan_to_scan_filter_chain",
+          "ros_topic:/scan"
+        ],
+        "state": {
+          "read": [
+            "health",
+            "ros_topics",
+            "frame_id",
+            "scan_rate_hz"
+          ]
+        },
+        "commands": [],
+        "transport": {
+          "kind": "ros2-laserscan",
+          "properties": {
+            "node": "/scan_to_scan_filter_chain",
+            "topic_hint": "/scan"
+          }
+        },
+        "limits": [
+          "driver presence only; model, serial, protocol and physical attachment are unknown",
+          "read-only sampling profile; no write commands"
+        ],
+        "driver_id": "rolo.mhs.landerpi-observation",
+        "driver_version": "0.1.0",
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": null,
+          "sources": [],
+          "confidence": "low",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "model": "unknown",
+            "serial": "unknown",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "publishes_to",
+            "target": "ros_topic:/scan",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "scan",
+            "kind": "laser_scan",
+            "access": "stream",
+            "transport_ref": "ros2:///scan",
+            "payload_schema": {
+              "ranges": "float32[]",
+              "intensities": "float32[]",
+              "angle_min": "rad",
+              "angle_max": "rad",
+              "angle_increment": "rad"
+            },
+            "encoding": "sensor_msgs/LaserScan",
+            "shape": [],
+            "unit": null,
+            "frame_id": "pending",
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
+      },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "/scan_to_scan_filter_chain",
+        "ROS 2 adapter",
+        "serial identity"
+      ],
+      "stage": "D3",
+      "next_action": "resolve the observed LaserScan transport to a serial/model and run a stability sample",
+      "status": "DISCOVERED_UNVERIFIED",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
+          "statement": "The target publishes /scan from scan_to_scan_filter_chain."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/topic_info/~1scan",
+          "statement": "/scan is a sensor_msgs/msg/LaserScan topic with a RELIABLE publisher."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-payload-20260903.json",
+          "statement": "Bounded rclpy subscription observed a LaserScan payload on /scan."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "After bringup restart, a direct bounded subscription observed /scan and its /scan_raw upstream."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/1",
+          "statement": "Read-only binding resolves /dev/ldlidar to /dev/ttyUSB0 and records the LD19 launch configuration; model identity remains partial."
+        }
+      ],
+      "sampling_contract": [
+        "read ROS topic types and QoS",
+        "observe one bounded LaserScan message",
+        "identify transport device and serial"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-lidar-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-lidar/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-lidar-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-lidar/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-lidar-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-lidar/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-lidar-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-lidar/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
+      ],
+      "limitations": [
+        "Payload is observed; physical model/serial binding and long-run health remain unverified."
+      ]
+    },
+    {
+      "manifest": {
+        "schema_version": "rolo-mhs-device/v1.1",
+        "device_id": "landerpi-ros-robot-controller",
+        "device_class": "controller",
+        "name": "ROS robot controller",
+        "vendor": "unknown",
+        "model": "ros_robot_controller",
+        "serial": null,
+        "channels": [
+          {
+            "id": "controller_ready",
+            "name": "Controller ready",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "fault_active",
+            "name": "Fault active",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "joint_state_available",
+            "name": "Joint state available",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "joint_count",
+            "name": "Joint count",
+            "unit": "count",
+            "value_type": "number",
+            "min_value": 0.0,
+            "max_value": null
+          }
+        ],
+        "resources": [
+          "process:/ros_robot_controller",
+          "process:/joint_state_publisher",
+          "ros_topic:/controller_manager/joint_states"
+        ],
+        "state": {
+          "read": [
+            "health",
+            "controller_state",
+            "resources",
+            "faults",
+            "limits"
+          ]
+        },
+        "commands": [],
+        "transport": {
+          "kind": "ros2-controller",
+          "properties": {
+            "node": "ros_robot_controller"
+          }
+        },
+        "limits": [
+          "controller model, resource claims, limits and interlocks are not yet observed",
+          "read-only sampling profile; no write commands"
+        ],
+        "driver_id": "rolo.mhs.landerpi-observation",
+        "driver_version": "0.1.0",
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": null,
+          "sources": [],
+          "confidence": "low",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "model": "observed",
+            "resources": "inferred",
+            "safety": "unknown",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "controls",
+            "target": "landerpi-servo-actuator",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "joint_state",
+            "kind": "joint_state",
+            "access": "stream",
+            "transport_ref": "ros2:///controller_manager/joint_states",
+            "payload_schema": {
+              "name": "string[]",
+              "position": "float64[]",
+              "velocity": "float64[]",
+              "effort": "float64[]"
+            },
+            "encoding": "sensor_msgs/JointState",
+            "shape": [],
+            "unit": null,
+            "frame_id": null,
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
+      },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "ros_robot_controller",
+        "joint_state_pub",
+        "controller manager"
+      ],
+      "stage": "D3",
+      "next_action": "correlate observed joint states with controller resources, limits, faults and estop state",
+      "status": "DISCOVERED_UNVERIFIED",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
+          "statement": "ros_robot_controller and joint_state_pub are running."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/bindings/2",
+          "statement": "/ros_robot_controller exposes battery state and servo/motor command subscriptions."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-payload-20260903.json",
+          "statement": "Bounded rclpy subscription observed six joint-state entries."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "JointState payload was observed after bringup restart with the workspace overlay."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/2",
+          "statement": "Read-only binding resolves the controller default /dev/rrc to stable USB serial 5B22016029; init_finish remains false."
+        }
+      ],
+      "sampling_contract": [
+        "read controller manager state",
+        "read joint_states topic metadata",
+        "enumerate resource IDs, limits, faults and estop state"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-ros-robot-controller-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-ros-robot-controller/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-ros-robot-controller-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-ros-robot-controller/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-ros-robot-controller-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-ros-robot-controller/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-ros-robot-controller-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-ros-robot-controller/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
+      ],
+      "limitations": [
+        "No command or service call is enabled by this bundle."
+      ]
+    },
+    {
+      "manifest": {
+        "schema_version": "rolo-mhs-device/v1.1",
+        "device_id": "landerpi-servo-actuator",
+        "device_class": "actuator",
+        "name": "Servo actuator group",
+        "vendor": "unknown",
+        "model": "unknown (servo_controller)",
+        "serial": null,
+        "channels": [
+          {
+            "id": "enabled",
+            "name": "Actuator enabled",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "fault_active",
+            "name": "Actuator fault",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "position_feedback_available",
+            "name": "Position feedback available",
+            "unit": "bool",
+            "value_type": "boolean",
+            "min_value": null,
+            "max_value": null
+          },
+          {
+            "id": "channel_count",
+            "name": "Actuator channel count",
+            "unit": "count",
+            "value_type": "number",
+            "min_value": 0.0,
+            "max_value": null
+          }
+        ],
+        "resources": [
+          "process:/servo_manager",
+          "serial:/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B22016029-if00",
+          "serial:/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0"
+        ],
+        "state": {
+          "read": [
+            "health",
+            "faults",
+            "limits",
+            "feedback",
+            "interlocks"
+          ]
+        },
+        "commands": [],
+        "transport": {
+          "kind": "ros2-serial-controller",
+          "properties": {
+            "node": "servo_controller",
+            "device_identity": "pending"
+          }
+        },
+        "limits": [
+          "serial bridges are present but motor/servo protocol and physical mapping are unknown",
+          "read-only sampling profile; no write commands"
+        ],
+        "driver_id": "rolo.mhs.landerpi-observation",
+        "driver_version": "0.1.0",
+        "driver_sha256": "f36fece94399b7e9cd1ec1d4491fe4a227d08593155ff23d55f66b62a8955247",
+        "identity": {
+          "stable_id": null,
+          "sources": [],
+          "confidence": "low",
+          "conflicts": []
+        },
+        "provenance": {
+          "status": "DISCOVERED_UNVERIFIED",
+          "evidence_ids": [
+            "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+          ],
+          "observed_at": null,
+          "fresh_until": null,
+          "field_status": {
+            "model": "unknown",
+            "serial": "unknown",
+            "resource_mapping": "unknown",
+            "safety": "unknown",
+            "interfaces": "declared"
+          }
+        },
+        "relations": [
+          {
+            "kind": "driven_by",
+            "target": "landerpi-ros-robot-controller",
+            "interface_id": null,
+            "evidence_ids": [
+              "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest"
+            ]
+          }
+        ],
+        "interfaces": [
+          {
+            "id": "feedback",
+            "kind": "joint_state",
+            "access": "stream",
+            "transport_ref": "ros2:///controller_manager/servo_states",
+            "payload_schema": {},
+            "encoding": "servo_controller_msgs/ServoStateList",
+            "shape": [],
+            "unit": null,
+            "frame_id": null,
+            "timestamp": "source",
+            "qos": {}
+          }
+        ],
+        "safety": {
+          "read_only": true,
+          "resource_claims": [],
+          "modes": [],
+          "limits": [],
+          "faults": [],
+          "interlocks": [],
+          "estop_required": null
+        }
+      },
+      "owner": "rolo-maintainers",
+      "target_host": "raspberrypi",
+      "dependencies": [
+        "/servo_manager",
+        "serial bridge",
+        "robot controller"
+      ],
+      "stage": "D3",
+      "next_action": "map serial bridge to actuator resources and read feedback/interlocks",
+      "status": "DISCOVERED_UNVERIFIED",
+      "confidence": "low",
+      "evidence": [
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/discovery-20260902.json#software_stack/processes_of_interest",
+          "statement": "The target exposes servo state through the ROS controller stack."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-graph-20260902.json#/topics/~1controller_manager~1servo_states",
+          "statement": "The controller graph exposes a servo state topic for feedback sampling."
+        },
+        {
+          "kind": "software",
+          "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
+          "statement": "ServoStateList type resolves after sourcing the ROS workspace overlay; a six-servo feedback payload was observed."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3",
+          "statement": "Read-only binding correlates ServoStateList IDs with configured logical joints; physical harness and limit-switch mapping remain unverified."
+        }
+      ],
+      "sampling_contract": [
+        "read controller/resource metadata only",
+        "map serial by-id to controller resource",
+        "observe feedback/fault/interlock state",
+        "require human approval before any future write adapter"
+      ],
+      "sampling_plan": [
+        {
+          "id": "landerpi-servo-actuator-inspect",
+          "operation": "inspect",
+          "source_ref": "mhs://landerpi-servo-actuator/inspect",
+          "query": "read manifest and interface declarations",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-servo-actuator-status",
+          "operation": "status",
+          "source_ref": "mhs://landerpi-servo-actuator/status",
+          "query": "read health and connection state",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-servo-actuator-read",
+          "operation": "read",
+          "source_ref": "mhs://landerpi-servo-actuator/read",
+          "query": "read declared scalar channels",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        },
+        {
+          "id": "landerpi-servo-actuator-read_structured",
+          "operation": "read_structured",
+          "source_ref": "mhs://landerpi-servo-actuator/read_structured",
+          "query": "read one bounded structured sample",
+          "side_effect": "none",
+          "timeout_s": 5.0,
+          "requires_approval": false
+        }
+      ],
+      "limitations": [
+        "This is an actuator candidate, not an authorization to move hardware."
+      ]
+    }
+  ]
+}

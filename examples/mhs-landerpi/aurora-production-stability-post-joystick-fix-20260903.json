@@ -1,0 +1,39 @@
+{
+  "schema_version": "rolo-mhs-aurora-production-stability/v2",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T13:21:39+08:00",
+  "access": "READ_ONLY_SUBSCRIPTION",
+  "test": {
+    "duration_s": 30.01,
+    "executor": "rclpy MultiThreadedExecutor(num_threads=4)",
+    "qos": "reliable, KEEP_LAST depth=100",
+    "actuator_commands_sent": 0,
+    "driver_error_log_scan": {"patterns": ["GetFrames", "Failed to get", "0x42005", "0x2100c", "timeout"], "matches": 0},
+    "scheduler_change_applied": "joystick update_buttons while-loop fix"
+  },
+  "streams": {
+    "rgb": {"count": 428, "receive_rate_hz": 14.514, "source_rate_hz": 14.483, "max_gap_ms": 137.0, "gaps_gt_100ms": 8, "stamp_monotonic": true},
+    "ir": {"count": 404, "receive_rate_hz": 13.687, "source_rate_hz": 13.669, "max_gap_ms": 211.0, "gaps_gt_100ms": 28, "stamp_monotonic": true},
+    "depth": {"count": 436, "receive_rate_hz": 14.794, "source_rate_hz": 14.72, "max_gap_ms": 140.0, "gaps_gt_100ms": 11, "stamp_monotonic": true},
+    "rgb_camera_info": {"count": 435, "receive_rate_hz": 14.76, "source_rate_hz": 14.686, "max_gap_ms": 140.0, "gaps_gt_100ms": 2, "stamp_monotonic": true},
+    "depth_camera_info": {"count": 435, "receive_rate_hz": 14.76, "source_rate_hz": 14.686, "max_gap_ms": 140.0, "gaps_gt_100ms": 2, "stamp_monotonic": true}
+  },
+  "comparison_to_pre_fix": {
+    "rgb_max_gap_ms_before": 421.0,
+    "rgb_max_gap_ms_after": 137.0,
+    "ir_max_gap_ms_before": 525.0,
+    "ir_max_gap_ms_after": 211.0,
+    "depth_max_gap_ms_before": 421.0,
+    "depth_max_gap_ms_after": 140.0
+  },
+  "assessment": {
+    "payload_availability": "PASS",
+    "timestamp_order": "PASS",
+    "driver_timeout_or_disconnect_seen": "PASS_NO_ERRORS",
+    "scheduler_contention": "IMPROVED_AFTER_FIX",
+    "nominal_15hz_continuity": "PARTIAL_IR_GAPS",
+    "next_action": "Profile Aurora IR stream scheduling/USB transfer independently; retain rgbd_enable=false and corrected joystick callback."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": "rolo-mhs-ros-payload-observation/v1",
+  "robot_id": "landerpi",
+  "container": "MentorPi",
+  "access": "READ_ONLY_AFTER_SERVICE_RESTART",
+  "observed_at": "2026-09-03T00:58:10+08:00",
+  "restart": {
+    "service": "start_app_node.service",
+    "command": "sudo systemctl restart start_app_node.service",
+    "result": "ACTIVE",
+    "launch": "ros2 launch bringup bringup.launch.py"
+  },
+  "method": "bounded rclpy subscriptions with the ROS workspace overlays; first message per topic retained",
+  "structured_fixture": "artifact://mhs-landerpi/ros-structured-fixture-20260903.json",
+  "samples": [
+    {
+      "topic": "/scan",
+      "expected_type": "sensor_msgs/msg/LaserScan",
+      "returncode": 0,
+      "status": "AVAILABLE",
+      "payload_observed": true
+    },
+    {
+      "topic": "/ascamera/camera_publisher/rgb0/image",
+      "expected_type": "sensor_msgs/msg/Image",
+      "returncode": 0,
+      "status": "AVAILABLE",
+      "payload_observed": true
+    },
+    {
+      "topic": "/ascamera/camera_publisher/depth0/image_raw",
+      "expected_type": "sensor_msgs/msg/Image",
+      "returncode": 0,
+      "status": "AVAILABLE",
+      "payload_observed": true
+    },
+    {
+      "topic": "/ascamera/camera_publisher/ir0/image",
+      "expected_type": "sensor_msgs/msg/Image",
+      "returncode": 0,
+      "status": "AVAILABLE",
+      "payload_observed": true
+    },
+    {
+      "topic": "/controller_manager/joint_states",
+      "expected_type": "sensor_msgs/msg/JointState",
+      "returncode": 0,
+      "status": "AVAILABLE",
+      "payload_observed": true
+    },
+    {
+      "topic": "/controller_manager/servo_states",
+      "expected_type": "servo_controller_msgs/msg/ServoStateList",
+      "returncode": 0,
+      "status": "AVAILABLE",
+      "payload_observed": true
+    }
+  ],
+  "driver_log_signals": [
+    "LD19: ldlidar node start is success",
+    "LD19: ldlidar communication is normal",
+    "LD19: Publish topic message:ldlidar scan data",
+    "Aurora 930: recv first frame error",
+    "joint_state_publisher: Waiting for robot_description to be published"
+  ],
+  "limitations": [
+    "Payload was read through subscriptions only; no publisher, service, action, parameter, GPIO, serial, CAN, I2C, or SPI operation was invoked.",
+    "The restart affected the complete bringup launch and may have reset controller state; no motion command was issued.",
+    "This proves runtime payload availability, but not actuator write authorization or physical safety."
+  ]
+}

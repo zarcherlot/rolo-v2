@@ -35,9 +35,6 @@ Provider 边界拒绝为 `UNAVAILABLE`。它们不属于当前 v2 release，也�
 旁路。每个成功结果携带 manifest/driver evidence IDs 和 canonical route；Provider 注册
 成功本身不提升 capability 状态。
 
-本示例不是 RKB 写执行器。Probe 只读采集；未来实际写操作必须由独立的 Rolo Write
-Execution session 在授权、状态前置条件和审计约束下调用 Provider，执行前后证据再写回 RKB。
-
 ## 运行与测试
 
 安装项目依赖后运行：
