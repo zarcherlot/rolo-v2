@@ -90,6 +90,8 @@ RGB/IR 两个 65 字符摘要已按序列化纠正规则归一化，修复记录
 本次按授权重启传感器节点后的重新采集记录见
 [`ros-reacquisition-20260903.json`](ros-reacquisition-20260903.json)：节点进程存在，但
 15 秒有界窗口仍无图像首帧，摘要保持待替换状态。
+USB/进程/内核日志排查见 [`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)：
+设备已枚举且进程打开了正确的 USB 节点，当前故障域收敛到 Aurora SDK 流初始化或帧接收路径。
 
 生成命令：
 

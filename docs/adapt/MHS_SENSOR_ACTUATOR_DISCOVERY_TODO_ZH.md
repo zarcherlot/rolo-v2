@@ -94,6 +94,9 @@ commands、binding 引用和负测。图像 fixture 的两个 65 字符摘要已
 随后按授权重启 Aurora 节点并进行了 15 秒有界重新订阅，记录见
 `examples/mhs-landerpi/ros-reacquisition-20260903.json`；节点进程存在但仍无首帧，
 因此当前摘要仍不能升级为重新采集的高保证证据。
+USB、进程、内核和 ROS 日志排查见
+`examples/mhs-landerpi/aurora-diagnostic-20260903.json`，当前故障域收敛到 SDK 流初始化
+或帧接收路径，后续先做只读能力/版本/句柄检查。
 急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：用户已声明
 存在物理急停键和机械限位块，但尚未完成回路、复位、行程边界的独立 proof-test，因此保持
 `DECLARED_PRESENT_NOT_TESTED` / `DECLARED_MECHANICAL_BLOCKS_NOT_TESTED`。watchdog 明确

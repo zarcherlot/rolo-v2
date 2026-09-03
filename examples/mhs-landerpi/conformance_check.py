@@ -122,6 +122,7 @@ def main() -> int:
             "estop-limits-evidence-20260903.json",
             "fixture-repair-20260903.json",
             "ros-reacquisition-20260903.json",
+            "aurora-diagnostic-20260903.json",
         ],
         "limitations": [
             "This is a Rolo-compatible profile check, not an official external MHS conformance certification.",
