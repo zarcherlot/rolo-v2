@@ -1,5 +1,6 @@
 """Typed, read-only Robot Knowledge Base evidence models."""
 
+from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
 from .canonical import (
     canonical_json,
     json_pointer,
@@ -7,6 +8,20 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .episodes import (
+    EpisodeArtifactRef,
+    EpisodeEvent,
+    EpisodeEventKind,
+    EpisodeMetadata,
+    EpisodeMetrics,
+    EpisodeQueryPage,
+    EpisodeState,
+    EpisodeStore,
+    build_episode_from_snapshot,
+    build_terminal_episode,
+    publish_probe_episode,
+)
+from .keyring import HMACKey, HMACKeyring
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -44,6 +59,8 @@ from .read_models import (
     TypedQueryResult,
     UnknownValue,
 )
+from .scheduler import AlertSchedule, run_alert_cycle
+from .schema_registry import SchemaPolicy, SchemaRegistry
 from .storage import RKBMetrics, RKBStore
 from .validation import (
     EvidenceValidationError,
@@ -54,6 +71,7 @@ from .validation import (
     validate_identity,
     validate_snapshot,
 )
+from .vault import keyring_from_vault
 
 __all__ = [
     "EvidenceEnvelope",
@@ -104,4 +122,25 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "AlertSeverity",
+    "RKBAlert",
+    "evaluate_alerts",
+    "HMACKey",
+    "HMACKeyring",
+    "SchemaPolicy",
+    "SchemaRegistry",
+    "AlertSchedule",
+    "run_alert_cycle",
+    "keyring_from_vault",
+    "EpisodeArtifactRef",
+    "EpisodeEvent",
+    "EpisodeEventKind",
+    "EpisodeMetrics",
+    "EpisodeMetadata",
+    "EpisodeQueryPage",
+    "EpisodeState",
+    "EpisodeStore",
+    "build_episode_from_snapshot",
+    "build_terminal_episode",
+    "publish_probe_episode",
 ]

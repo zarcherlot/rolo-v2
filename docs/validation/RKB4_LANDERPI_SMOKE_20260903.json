@@ -1,0 +1,79 @@
+{
+  "schema_version": "rkb4-target-smoke/v1",
+  "artifact_sha256": "575479a0d13cad8402d4e6d33662cfe9f031d865b7bbb921978028e3d484c0b1",
+  "executed_at": "2026-09-02T16:27:59.147244Z",
+  "robot_id": "mentorpi",
+  "target_host": "192.168.10.167",
+  "target_host_fingerprint": "70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9",
+  "transport": {
+    "ssh_host_key_algorithm": "ecdsa-sha2-nistp256",
+    "authentication": "password_not_recorded"
+  },
+  "identity": {
+    "status": "BOUND_TO_PRIOR_VERIFIED_FINGERPRINT",
+    "hostname": "raspberrypi",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "collector_id": "rkb4-mhs-canary"
+  },
+  "runtime": {
+    "status": "AVAILABLE",
+    "kernel": "Linux 6.6.20+rpt-rpi-2712 aarch64 GNU/Linux",
+    "python": "3.11.2",
+    "systemd": "running"
+  },
+  "middleware_graph": {
+    "status": "UNKNOWN",
+    "reason": "ros2 executable is not present on target"
+  },
+  "application": {
+    "status": "UNKNOWN",
+    "reason": "no application executable or route was provided by the MHS-only snapshot"
+  },
+  "mhs": {
+    "status": "AVAILABLE",
+    "read_only": true,
+    "routes": {
+      "inspect": "AVAILABLE",
+      "status": "AVAILABLE",
+      "read": "AVAILABLE"
+    },
+    "artifact_sha256": "0d078fc03f97d56505d32f37ea2618292c0b1bf4adc8e6ce7bc78d33c875bd41",
+    "snapshot_digest": "7e0ae63fdee9769e32496f68551fd79b8525541ec5a477f5b30885dd6b120978",
+    "observations": {
+      "temperature_c": 60.05,
+      "load_1m": 4.32,
+      "memory_used_percent": 29.088
+    }
+  },
+  "episode": {
+    "status": "PARTIAL",
+    "passed": true,
+    "episode_id": "landerpi-rkb4-fresh-20260903",
+    "episode_digest": "bf961c5258b21624669a83a52fdcf366d5a128295c4f9ae226c5cdf9402613c2",
+    "snapshot_ref": "artifact://rkb4-rkb/snapshots/7e0ae63fdee9769e32496f68551fd79b8525541ec5a477f5b30885dd6b120978.json",
+    "state_reason": "identity is fresh; runtime, graph, and application typed facts are unknown"
+  },
+  "decision": {
+    "status": "LIMITED_READ_ONLY_ROLLOUT",
+    "allow": [
+      "continue metadata-only RKB-4 collection on mentorpi",
+      "retain latest, rollback, query, and retention paths"
+    ],
+    "deny": [
+      "expand rollout to other targets",
+      "claim middleware graph or application verification",
+      "enable any device write operation"
+    ],
+    "rationale": [
+      "fresh target MHS inspect/status/read canary passed with read_only=true",
+      "RKB-4 Episode publish/query canary passed and produced an immutable digest",
+      "ROS2 and application routes were not available, so the Episode remains PARTIAL"
+    ]
+  },
+  "limitations": [
+    "This was a fresh generic Linux MHS observer canary; no ROS2 graph or application route was available.",
+    "The target fingerprint is bound to the prior verified RKB-3 enrollment artifact; no target configuration was changed.",
+    "No reset, calibrate, setpoint, stop, power-cycle, or firmware operation was executed."
+  ]
+}
