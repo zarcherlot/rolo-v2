@@ -1,0 +1,34 @@
+{
+  "schema_version": "rolo-mhs-aurora-production-stability/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T13:03:25+08:00",
+  "access": "READ_ONLY_SUBSCRIPTION",
+  "test": {
+    "duration_s": 30.01,
+    "executor": "rclpy MultiThreadedExecutor(num_threads=4)",
+    "qos": "reliable, KEEP_LAST depth=100",
+    "actuator_commands_sent": 0,
+    "driver_error_log_scan": {
+      "patterns": ["GetFrames", "Failed to get", "0x42005", "0x2100c", "timeout"],
+      "matches": 0
+    }
+  },
+  "streams": {
+    "rgb": {"count": 379, "receive_rate_hz": 13.759, "source_rate_hz": 13.736, "max_gap_ms": 421.0, "gaps_gt_100ms": 22, "stamp_monotonic": true},
+    "ir": {"count": 365, "receive_rate_hz": 13.257, "source_rate_hz": 13.227, "max_gap_ms": 525.0, "gaps_gt_100ms": 25, "stamp_monotonic": true},
+    "depth": {"count": 384, "receive_rate_hz": 13.967, "source_rate_hz": 13.954, "max_gap_ms": 421.0, "gaps_gt_100ms": 14, "stamp_monotonic": true},
+    "rgb_camera_info": {"count": 399, "receive_rate_hz": 14.45, "source_rate_hz": 14.428, "max_gap_ms": 359.0, "gaps_gt_100ms": 5, "stamp_monotonic": true},
+    "depth_camera_info": {"count": 399, "receive_rate_hz": 14.45, "source_rate_hz": 14.428, "max_gap_ms": 359.0, "gaps_gt_100ms": 5, "stamp_monotonic": true}
+  },
+  "assessment": {
+    "payload_availability": "PASS",
+    "timestamp_order": "PASS",
+    "driver_timeout_or_disconnect_seen": "PASS_NO_ERRORS",
+    "nominal_15hz_continuity": "FAIL",
+    "decision": "PARTIAL_FRAME_GAP_EVIDENCE",
+    "interpretation": "The persistent rgbd_enable=false fix keeps all streams alive, but production-like observation still shows long inter-frame gaps. This is a transport/executor scheduling issue to investigate before timing-sensitive high-assurance use.",
+    "next_action": "Profile camera publisher and container CPU scheduling, then repeat the same 30-second test with drop counters and no competing observer workload."
+  }
+}
