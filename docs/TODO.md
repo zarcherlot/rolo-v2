@@ -52,7 +52,8 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 - [x] 为 Episode 增加按 identity、source、freshness、status 的只读分页查询、幂等 Probe run 和 retention。
 - [x] 在固定目标机完成 identity → runtime → graph → app 的只读 smoke 后，记录灰度放量决策；LanderPi 当前 graph/app 为 `UNKNOWN`，灰度仅限 metadata-only 只读。
 - [x] 增加跨进程并发发布、指标增量合并、digest 损坏 record 隔离和 latest 恢复 fault canary。
-- [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐真机重启、跨进程和迁移回滚证据。
+- [x] 在 LanderPi 上执行跨进程并发、latest 恢复和损坏 record 隔离 canary，并记录目标机 artifact；使用合成 snapshot，不替代 MHS provider 证据。
+- [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐真机重启、kill-9 后重启恢复和迁移 rollback 证据。
 - [ ] 为 freshness/断线/digest mismatch/容量水位接入结构化告警和周期调度。
 - [ ] 固化 Episode schema 迁移注册表、旧 bundle/report 兼容窗口和发布弃用流程。
 - [ ] 将 HMAC/签名接入受控密钥存储，并补充轮换、吊销、时钟漂移和重放拒绝证据。
