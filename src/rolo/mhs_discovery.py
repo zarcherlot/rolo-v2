@@ -563,9 +563,14 @@ def resolve_identity(
 
 
 def write_gate_allowed(identity: MhsIdentityResolution) -> bool:
-    """Return whether a resolved device identity may be considered for writes."""
+    """Probe never grants write authority from identity discovery.
 
-    return identity.stability == IdentityStability.STABLE and identity.usable
+    The helper is retained for compatibility with older callers, but write
+    eligibility belongs to the separately approved Trace/Write gate.
+    """
+
+    del identity
+    return False
 
 
 def mhs_evidence_envelope(

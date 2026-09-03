@@ -76,7 +76,7 @@ def test_identity_resolution_prefers_serial_and_marks_path() -> None:
     assert path.stability == IdentityStability.PATH
     assert path.usable
     assert not write_gate_allowed(path)
-    assert write_gate_allowed(stable)
+    assert not write_gate_allowed(stable)
 
 
 def test_identity_conflict_fails_closed() -> None:
