@@ -21,8 +21,8 @@ class MhsReferenceCandidate(BaseModel):
     provider_id: str | None = None
     device_id: str | None = None
     manifest_id: str | None = None
-    source_kind: str = "TEST_FIXTURE"
-    authority: str = "PROVISIONAL"
+    source_kind: str = "TARGET_PROBE"
+    authority: str = "OBSERVED"
     transport: str = "UNKNOWN"
     resource_id: str | None = None
     route: str | None = None
@@ -48,8 +48,8 @@ class MhsManifestReference(BaseModel):
     schema_version: str = "rolo-mhs-manifest-reference/v1"
     manifest_id: str = Field(min_length=1)
     target_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    source_kind: str = "TEST_FIXTURE"
-    authority: str = "PROVISIONAL"
+    source_kind: str = "VENDOR_MANIFEST"
+    authority: str = "VENDOR"
     uri: str | None = None
     manifest_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     driver_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
