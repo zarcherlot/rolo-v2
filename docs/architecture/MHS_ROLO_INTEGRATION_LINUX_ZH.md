@@ -100,15 +100,18 @@ W4 实现 `MhsCanaryGate` admission preflight 和 `MhsCanaryRunner`：前者验�
 `MhsManifestRecord` 记录。当前 LanderPi 已确认一个**只读**控制器 manifest：
 `landerpi-rrc`，通过 `/dev/rrc -> /dev/ttyACM0`、USB serial
 `1a86_USB_Single_Serial_5B22016029`、`/ros_robot_controller` 节点和驱动源摘要交叉验证。
-底盘、机械臂、夹爪和 LD19 目前只是 ROS logical candidates，保持
-`DISCOVERED_UNVERIFIED`，不生成可执行写 command。
+底盘和 LD19 仍是 ROS logical candidates，保持 `DISCOVERED_UNVERIFIED`；夹爪已经完成
+控制板/servo ID/反馈链的绑定，但保持 `CONFIRMED_BOUND_WRITE_BLOCKED`。LanderPi 当前还
+观察到 Aurora 930 相机的 USB/视频节点和 RGB/depth/IR 话题，但因缺少 USB serial，仍为
+路径身份的 `DISCOVERED_UNVERIFIED` 只读候选。
 
-机械臂现在已有一条受证据约束的写 manifest 记录，但状态是
+机械臂和夹爪现在已有受证据约束的写 manifest 记录，但状态是
 `CONFIRMED_BOUND_WRITE_BLOCKED`：`joint1..joint5` 由
 `servo_controller.yaml` 绑定到 bus-servo ID `1..5`，R1 `stop_arm` 使用稳定资源
-`landerpi-rrc:5b22016029:bus-servo:arm`，反馈来自 `/joint_states` 和
-`/controller_manager/servo_states`，限位来自 servo YAML 与 arm URDF。external-estop、
-stop 实测、rollback、独立 watchdog 和 no-load 现场证据仍未验证，所以不能进入 canary write。
+`landerpi-rrc:5b22016029:bus-servo:arm`/`...:bus-servo:gripper`，反馈来自
+`/joint_states` 和 `/controller_manager/servo_states`，限位来自 servo YAML 与 arm URDF。
+外部急停由设备侧提供但尚未接入 Rolo 可观测门禁；stop 实测、rollback、独立 watchdog 和
+no-load 现场证据仍未验证，所以不能进入 canary write。
 
 ## Watchdog discovery 与无负载 fixture
 

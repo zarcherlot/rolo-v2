@@ -49,16 +49,40 @@ def test_landerpi_actuator_endpoints_remain_unverified_and_non_writable() -> Non
     ]
     assert candidates["landerpi-arm"].safety_evidence is not None
     assert candidates["landerpi-arm"].safety_evidence.is_write_ready() is False
+    assert candidates["landerpi-gripper"].confirmation_status == "CONFIRMED_BOUND_WRITE_BLOCKED"
+    assert candidates["landerpi-gripper"].manifest.commands[0].id == "stop_gripper"
+    assert (
+        candidates["landerpi-gripper"].manifest.commands[0].hardware_resource_id
+        == "landerpi-rrc:5b22016029:bus-servo:gripper"
+    )
+    assert candidates["landerpi-gripper"].hardware_bindings[0].feedback_routes == [
+        "ros2:/joint_states",
+        "ros2:/controller_manager/servo_states",
+    ]
+    assert candidates["landerpi-gripper"].safety_evidence is not None
+    assert candidates["landerpi-gripper"].safety_evidence.is_write_ready() is False
     assert all(
         item.confirmation_status == "DISCOVERED_UNVERIFIED"
         for key, item in candidates.items()
-        if key != "landerpi-arm"
+        if key not in {"landerpi-arm", "landerpi-gripper"}
     )
     assert all(
         not item.manifest.commands
         for key, item in candidates.items()
-        if key != "landerpi-arm"
+        if key not in {"landerpi-arm", "landerpi-gripper"}
     )
+
+
+def test_landerpi_camera_is_observed_but_not_identity_confirmed() -> None:
+    camera = next(
+        item
+        for item in MODULE.build_recorded_manifest_records()
+        if item.manifest.device_id == "landerpi-aurora930"
+    )
+    assert camera.confirmation_status == "DISCOVERED_UNVERIFIED"
+    assert camera.identity_stability == "path"
+    assert "ros2:/ascamera/camera_publisher/rgb0/image" in camera.manifest.resources
+    assert camera.manifest.commands == []
 
 
 def test_confirmed_record_rejects_path_identity_or_write_commands() -> None:
