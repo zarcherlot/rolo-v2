@@ -20,9 +20,33 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [实现地图](reference/IMPLEMENTATION_MAP.md)：代码入口、Schema、产物与测试的对应关系；
 - [真实目标机 enrollment 记录](validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md)：一次物理目标的验证证据。
 
+## 下一阶段（RKB 只读与 Probe 后受控写执行草案）
+
+- [RKB 设计](architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md)：事实分层、来源和
+  freshness 约束；
+- [开发计划评审](review/ROLO_V2_RKB_DEVELOPMENT_PLAN_REVIEW_ZH.md)：基线校正与阻塞项；
+- [可执行开发计划](architecture/ROLO_V2_RKB_EXECUTION_PLAN_ZH.md)：唯一的 RKB 排期入口；
+- [Probe 后受控写执行计划（RKB 只读前置，最终版）](architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md)：只读完工审计、
+  受控写执行试点和后续灰度门禁。
+- [Probe 后受控写执行计划复评](review/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_REVIEW_ZH.md)：当前完工判定、
+  阻塞项与修订要求。
+
 根目录的 `OPERATION_CONTRACTS.md`、`CANONICAL_OPERATIONS.md` 和 Episode contract 文档，
 以及 `architecture/WORKBENCH_PLUGIN_HOST_CONTRACT.md`，仅因生成流程或现有测试的固定引用
 而保留；它们不是新增功能的设计入口。
+
+## 目录职责
+
+| 目录 | 只放什么 |
+|---|---|
+| `architecture/` | 当前架构规范、开发准则，以及 RKB 设计/计划草案 |
+| `getting-started/` | 可复制执行的安装和 Probe 入门流程 |
+| `probe/` | Agent-native Tool、Application gap 和 operation 参考 |
+| `reference/` | 工程状态与代码/测试实现地图 |
+| `setup/` | 配置字段和运行时前置条件 |
+| `target/` | 目标证据部署与目标绑定边界 |
+| `validation/` | 当前仍有价值的固定目标 enrollment 证据 |
+| `review/` | 尚未成为规范的设计评审与阻塞项 |
 
 ## 四类稳定标准
 
