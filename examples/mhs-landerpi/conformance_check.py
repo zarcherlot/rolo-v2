@@ -79,16 +79,20 @@ def main() -> int:
         ),
         "status": "NOT_VERIFIED",
     }
+    image_topics = (
+        "/ascamera/camera_publisher/rgb0/image",
+        "/ascamera/camera_publisher/ir0/image",
+        "/ascamera/camera_publisher/depth0/image_raw",
+    )
+    invalid_hashes = {
+        topic: len(samples[topic].get("data_sha256", ""))
+        for topic in image_topics
+        if len(samples[topic].get("data_sha256", "")) != 64
+    }
     checks["fixture_digest_shape"] = {
-        "passed": all(
-            len(samples[topic].get("data_sha256", "")) == 64
-            for topic in (
-                "/ascamera/camera_publisher/rgb0/image",
-                "/ascamera/camera_publisher/ir0/image",
-                "/ascamera/camera_publisher/depth0/image_raw",
-            )
-        ),
+        "passed": not invalid_hashes,
         "algorithm": "sha256",
+        "invalid_hash_lengths": invalid_hashes,
     }
 
     # Safety is intentionally a separate gate: the read-only wire/profile checks

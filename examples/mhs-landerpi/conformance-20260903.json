@@ -46,7 +46,11 @@
     },
     "fixture_digest_shape": {
       "passed": false,
-      "algorithm": "sha256"
+      "algorithm": "sha256",
+      "invalid_hash_lengths": {
+        "/ascamera/camera_publisher/rgb0/image": 65,
+        "/ascamera/camera_publisher/ir0/image": 65
+      }
     }
   },
   "negative_tests": {
