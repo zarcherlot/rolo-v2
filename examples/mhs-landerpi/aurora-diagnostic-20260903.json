@@ -31,6 +31,43 @@
     "usb_port_number": "",
     "stream_sdk_log_enable": false
   },
+  "driver": {
+    "binary": "/home/ubuntu/third_party_ros2/third_party_ws/install/deptrum-ros-driver-aurora930/lib/deptrum-ros-driver-aurora930/aurora930_node",
+    "stream_library": "libdeptrum_stream_aurora900.so.1.1.22",
+    "source_package": "/home/ubuntu/third_party_ros2/third_party_ws/src/deptrum-ros-driver-aurora930",
+    "initialization_behavior": "GetSupportedFrameMode -> reject empty list -> use resolution_mode_index -> SetMode",
+    "frame_read_behavior": "GetFrames(frames, 2000ms)",
+    "known_error_codes": {
+      "0x42005": "Get frames timeout",
+      "0x2100c": "Device disconnect"
+    },
+    "compiled_error_signals": [
+      "GetSupportedFrameMode is empty",
+      "unknown frame mode!!",
+      "Failed to get rgb frame",
+      "Failed to get depth frame",
+      "Failed to get ir frame"
+    ],
+    "source_refs": [
+      "src/aurora900_ros2_device.cc:240-276",
+      "src/ros2_device.cc:373-414"
+    ]
+  },
+  "v4l2": {
+    "tool_version": "v4l2-ctl 1.22.1",
+    "camera_nodes_checked": ["/dev/video19", "/dev/video20", "/dev/video21", "/dev/video22", "/dev/video23"],
+    "observed_devices": [
+      {"node": "/dev/video19", "driver": "rpivid", "format": "NC12/S265"},
+      {"node": "/dev/video20", "driver": "pispbe", "format": "YU12"}
+    ],
+    "aurora_v4l2_node_identified": false,
+    "interpretation": "The listed V4L2 nodes are Raspberry Pi ISP/HEVC platform devices, not an Aurora-specific capture node; the Aurora SDK uses libusb directly."
+  },
+  "handles": {
+    "aurora_process_usb_handle": "/proc/1594/fd -> /dev/bus/usb/001/003",
+    "other_video_or_aurora_handles_found": false,
+    "defunct_aurora_processes_seen": [3118, 378144]
+  },
   "ros": {
     "node": "/aurora/aurora",
     "publishers_present": [
