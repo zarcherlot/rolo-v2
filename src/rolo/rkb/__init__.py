@@ -7,6 +7,8 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .collector import SnapshotCollector, collect_snapshot
+from .episodes import EpisodeEvent, EpisodeRecord, EpisodeStore
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -104,4 +106,9 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "EpisodeEvent",
+    "EpisodeRecord",
+    "EpisodeStore",
+    "SnapshotCollector",
+    "collect_snapshot",
 ]

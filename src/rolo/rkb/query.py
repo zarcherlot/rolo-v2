@@ -113,6 +113,9 @@ class _ApplicationQueries:
 
     inspect = executable_inspect
 
+    def episodes(self, **kwargs: Any) -> TypedQueryResult[list[dict[str, Any]]]:
+        return self._kb.query_episodes(**kwargs)
+
 
 class _CapabilityQueries:
     def __init__(self, kb: ReadOnlyKnowledgeBase) -> None:
@@ -257,9 +260,7 @@ class ReadOnlyKnowledgeBase:
         facts = self._layer_facts(envelope, {"hw", "hardware", "hardware_inventory"})
         data = self._merge_data(facts)
         merge_limitations = self._take_merge_limitations(data)
-        raw_resources = self._items_from_facts(
-            facts, ("resources", "devices", "inventory")
-        )
+        raw_resources = self._items_from_facts(facts, ("resources", "devices", "inventory"))
         resources: list[HardwareResourceModel] = []
         for index, raw in enumerate(raw_resources):
             item = dict(raw) if isinstance(raw, Mapping) else {"name": str(raw)}
@@ -335,15 +336,9 @@ class ReadOnlyKnowledgeBase:
                 )
             )
             endpoints = [
-                item
-                for item in endpoints
-                if token in {item.endpoint, item.node, item.route_id}
+                item for item in endpoints if token in {item.endpoint, item.node, item.route_id}
             ]
-            relationships = [
-                item
-                for item in relationships
-                if token in {item.source, item.target}
-            ]
+            relationships = [item for item in relationships if token in {item.source, item.target}]
         ordered_endpoints = sorted(endpoints, key=lambda item: item.route_id)
         ordered_relationships = sorted(relationships, key=lambda item: item.relationship_id)
         endpoint_page, endpoint_total, endpoint_next = self._paginate(
@@ -452,6 +447,46 @@ class ReadOnlyKnowledgeBase:
             facts,
             status=self._status_for(facts, now=now),
             reason="executables observed" if facts else "executables are UNKNOWN",
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
+        )
+
+    def query_episodes(
+        self,
+        *,
+        snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> TypedQueryResult[list[dict[str, Any]]]:
+        """Return bounded Episode summaries embedded in verified facts."""
+        envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
+        facts = self._layer_facts(envelope, {"episode", "episodes", "episode_history"})
+        items = self._items_from_facts(facts, ("episodes", "items", "records"))
+        summaries: list[dict[str, Any]] = []
+        for index, candidate in enumerate(items):
+            item = (
+                dict(candidate)
+                if isinstance(candidate, Mapping)
+                else {"episode_id": str(candidate)}
+            )
+            item.setdefault("episode_id", item.get("id") or f"episode-unknown-{index}")
+            item.setdefault("state", "UNKNOWN")
+            item.setdefault("verification", "NOT_AVAILABLE")
+            item.setdefault("coverage", "METADATA_ONLY")
+            item.setdefault("limitations", ["episode detail is bounded to the RKB snapshot"])
+            summaries.append(item)
+        summaries.sort(key=lambda item: str(item["episode_id"]))
+        page, total, next_offset = self._paginate(summaries, offset=offset, limit=limit)
+        return self._typed(
+            page,
+            facts,
+            status=self._status_for(facts, now=now),
+            reason="episodes observed" if facts else "episodes are UNKNOWN",
+            limitations=[] if facts else ["no Episode read model is present in this snapshot"],
             total=total,
             offset=offset,
             limit=limit,
@@ -785,13 +820,9 @@ class ReadOnlyKnowledgeBase:
     @staticmethod
     def _runtime_value(data: Mapping[str, Any]) -> dict[str, Any]:
         host = data.get("host") if isinstance(data.get("host"), Mapping) else {}
-        os_release = (
-            host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
-        )
+        os_release = host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
         environment = (
-            data.get("environment")
-            if isinstance(data.get("environment"), Mapping)
-            else {}
+            data.get("environment") if isinstance(data.get("environment"), Mapping) else {}
         )
         value = {
             "os_name": host.get("system") or data.get("os_name") or data.get("os"),
