@@ -55,7 +55,7 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 - [x] 在 LanderPi 上执行跨进程并发、latest 恢复和损坏 record 隔离 canary，并记录目标机 artifact；使用合成 snapshot，不替代 MHS provider 证据。
 - [x] 增加并在 LanderPi 执行迁移式新旧 Episode 发布、父 digest 绑定和 rollback 指针切换 canary；使用合成 snapshot，不替代真实 MHS 迁移证据。
 - [x] 在操作员重启后的 LanderPi 上重跑 MHS → snapshot → Episode 只读 smoke，并记录 boot id、启动时间、ROS2 graph/service/topic 计数。
-- [ ] 将 Episode 证据等级从 `PARTIAL/E3` 提升前，补齐 Episode 进程 `kill -9` 后的重启恢复与持久化证据（本项待最后维护窗口执行）。
+- [x] 在 LanderPi 上执行 Episode publisher `kill -9`，验证已持久化 record 可由新进程恢复读取，并记录 `RKB4_LANDERPI_KILL9_20260903.json`。
 - [x] 增加 freshness/断线/digest mismatch/容量水位的结构化告警策略；生产通知 transport、周期 cadence 和部署接线仍需落地。
 - [x] 固化 Episode schema 迁移注册表、旧 bundle/report 兼容窗口和发布弃用策略；最终公告与删除动作仍需发布流程接线。
 - [x] 增加受控 HMAC keyring 的轮换、吊销、时间窗口和重放拒绝策略；生产 vault 持久化与目标机密钥演练仍需维护窗口。

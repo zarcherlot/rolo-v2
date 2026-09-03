@@ -37,7 +37,9 @@ EpisodeStore 同时持久化跨进程指标，支持 latest 损坏后的记录�
 已验证新旧 digest 父子绑定、latest 指针回退和只读边界。操作员完成重启后，已重新执行
 真实 MHS → snapshot → Episode canary，并记录在 `docs/validation/RKB4_LANDERPI_POSTREBOOT_20260903.json`；
 同时在 MentorPi 容器内观察到 ROS2 graph、service、topic 及 `/robot_api` 等应用 route presence。
-Episode 进程 `kill -9` 后的持久化恢复仍需最后维护窗口，不能据此提升为 `STABLE`。
+Episode publisher `kill -9` 后的持久化恢复已在 LanderPi canary 中通过，证据见
+`docs/validation/RKB4_LANDERPI_KILL9_20260903.json`；该 canary 只终止自身 publisher，
+不触碰 MentorPi/ROS2 调试进程。
 
 结构化告警策略、HMAC keyring 和 schema registry 的离线 hardening 证据记录在
 `docs/validation/RKB4_HARDENING_CANARY_20260903.json`；它们不包含密钥材料，且生产
@@ -84,4 +86,5 @@ LanderPi 的 identity → runtime → graph → app 只读 smoke 必须使用当
 
 工程状态在完成本地拒绝路径和真机 smoke 前保持 `PARTIAL/E2`；本次 LanderPi smoke 与操作员
 重启后复验已达到 `PARTIAL/E3`。ROS2/app 目前有 route presence 证据，但 typed graph/state-safety
-仍未由 MHS snapshot 提供，且 kill-9 持久化恢复未闭环，因此不得改成 `STABLE`。
+仍未由 MHS snapshot 提供，且设备写入/物理行为不在本 gate；RKB-4 metadata-only surface
+现可标记为 `STABLE/E4`，范围限定为已 enrollment 的 mentorpi。

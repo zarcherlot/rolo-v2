@@ -1,5 +1,6 @@
 """Typed, read-only Robot Knowledge Base evidence models."""
 
+from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
 from .canonical import (
     canonical_json,
     json_pointer,
@@ -20,6 +21,7 @@ from .episodes import (
     build_terminal_episode,
     publish_probe_episode,
 )
+from .keyring import HMACKey, HMACKeyring
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -57,12 +59,9 @@ from .read_models import (
     TypedQueryResult,
     UnknownValue,
 )
-from .storage import RKBMetrics, RKBStore
-from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
-from .keyring import HMACKey, HMACKeyring
-from .schema_registry import SchemaPolicy, SchemaRegistry
 from .scheduler import AlertSchedule, run_alert_cycle
-from .vault import keyring_from_vault
+from .schema_registry import SchemaPolicy, SchemaRegistry
+from .storage import RKBMetrics, RKBStore
 from .validation import (
     EvidenceValidationError,
     freshness_status,
@@ -72,6 +71,7 @@ from .validation import (
     validate_identity,
     validate_snapshot,
 )
+from .vault import keyring_from_vault
 
 __all__ = [
     "EvidenceEnvelope",
