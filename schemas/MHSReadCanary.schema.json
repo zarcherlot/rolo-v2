@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schema/mhs-read-canary/v1",
+  "title": "Rolo MHS read-only canary",
+  "type": "object",
+  "required": ["schema_version", "device_id", "passed", "results", "limitations"],
+  "properties": {
+    "schema_version": {"const": "mhs-read-canary/v1"},
+    "device_id": {"type": "string", "minLength": 1},
+    "target_host_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "collected_at": {"type": "string", "format": "date-time"},
+    "passed": {"type": "boolean"},
+    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "snapshot_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "results": {"type": "array", "minItems": 3, "items": {"$ref": "MHSReadOnly.schema.json"}},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

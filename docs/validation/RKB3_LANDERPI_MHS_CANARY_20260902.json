@@ -1,0 +1,38 @@
+{
+  "schema_version": "mhs-read-canary/v1",
+  "artifact_sha256": "0e278edddbad87eebd6ca35aa63bdc8c21f97eae200ec29c4045866c06e45e8c",
+  "device_id": "mentorpi-linux",
+  "target_host_fingerprint": "70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9",
+  "manifest_sha256": "f85638c9a8ac47bee6993a1d9c0fa587658371c6f4ff1bb75a4d5396322d58d8",
+  "snapshot_digest": "cb4624daeb661d1937542e97e5972b9ba073eb36f18fc6655bef1f9747a1bcf9a",
+  "driver": {
+    "provider_id": "rolo.mhs.linux-observer",
+    "version": "1.0.0",
+    "sha256": "31dc0f544f4759152c110a3397e709c25ba48d26d176bdc86bacbf005c9a3a2a"
+  },
+  "observed_at": "2026-09-02T14:38:02.969042Z",
+  "routes": {
+    "inspect": "AVAILABLE",
+    "status": "AVAILABLE",
+    "read": "AVAILABLE"
+  },
+  "readings": {
+    "cpu_temperature_degC": 63.35,
+    "memory_used_percent": 29.501,
+    "load_1m": 8.3
+  },
+  "status": {
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "i2c": true,
+    "spi": true,
+    "gpio": true,
+    "usb": true,
+    "read_only": true
+  },
+  "limitations": [
+    "This is a generic Linux read-only observer, not a vendor actuator/controller driver.",
+    "Successful read does not establish physical safety or authorization.",
+    "No reset, calibrate, setpoint, stop, power-cycle, or firmware operation was executed."
+  ]
+}

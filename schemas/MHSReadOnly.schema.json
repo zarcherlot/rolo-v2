@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schema/mhs-readonly/v1",
+  "title": "Rolo MHS-compatible read-only result",
+  "type": "object",
+  "required": ["schema_version", "status", "device_id", "capability_id", "route", "source_kind", "manifest_sha256", "driver_provider_id", "driver_version", "driver_sha256", "observed_at", "fresh_until"],
+  "properties": {
+    "schema_version": {"const": "rolo-mhs-result/v1"},
+    "status": {"enum": ["AVAILABLE", "UNAVAILABLE", "STALE"]},
+    "device_id": {"type": "string", "minLength": 1},
+    "capability_id": {"enum": ["inspect", "status", "read"]},
+    "route": {"type": "string", "pattern": "^mhs://[^/]+/(inspect|status|read)$"},
+    "source_kind": {"enum": ["DECLARED", "OBSERVED"]},
+    "target_host_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "driver_provider_id": {"type": "string", "minLength": 1},
+    "driver_version": {"type": "string", "minLength": 1},
+    "driver_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "value": {"type": ["object", "null"]},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "fresh_until": {"type": "string", "format": "date-time"},
+    "fact_ids": {"type": "array", "items": {"type": "string"}},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "reason": {"type": ["string", "null"]},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
