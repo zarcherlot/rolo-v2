@@ -9,7 +9,6 @@ from rolo.rkb.mhs_read_models import (
     project_probe_evidence_view,
 )
 
-
 NOW = datetime(2026, 9, 3, tzinfo=timezone.utc)
 
 

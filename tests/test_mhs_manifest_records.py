@@ -16,7 +16,6 @@ from rolo.mhs_manifest_records import (
     resolve_manifest_reference,
 )
 
-
 NOW = datetime(2026, 9, 3, 12, 0, tzinfo=timezone.utc)
 FINGERPRINT = "a" * 64
 

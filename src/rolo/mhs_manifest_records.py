@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -75,9 +76,15 @@ class MhsReferenceCandidate(BaseModel):
             "MHS_PROVIDER_READ_ONLY_CONFIRMED",
         }:
             raise ValueError("unsupported MHS reference candidate status")
-        if self.source_kind == MhsSourceKind.VENDOR_MANIFEST and self.authority != MhsAuthority.VENDOR:
+        if (
+            self.source_kind == MhsSourceKind.VENDOR_MANIFEST
+            and self.authority != MhsAuthority.VENDOR
+        ):
             raise ValueError("vendor manifest candidates must stay vendor-authority")
-        if self.source_kind == MhsSourceKind.TEST_FIXTURE and self.authority != MhsAuthority.PROVISIONAL:
+        if (
+            self.source_kind == MhsSourceKind.TEST_FIXTURE
+            and self.authority != MhsAuthority.PROVISIONAL
+        ):
             raise ValueError("test fixtures must stay provisional")
         return self
 
@@ -118,9 +125,15 @@ class MhsManifestReference(BaseModel):
             "MHS_PROVISIONAL_FIXTURE",
         }:
             raise ValueError("unsupported MHS manifest reference status")
-        if self.source_kind == MhsSourceKind.VENDOR_MANIFEST and self.authority != MhsAuthority.VENDOR:
+        if (
+            self.source_kind == MhsSourceKind.VENDOR_MANIFEST
+            and self.authority != MhsAuthority.VENDOR
+        ):
             raise ValueError("vendor manifests must use vendor authority")
-        if self.source_kind == MhsSourceKind.TEST_FIXTURE and self.authority != MhsAuthority.PROVISIONAL:
+        if (
+            self.source_kind == MhsSourceKind.TEST_FIXTURE
+            and self.authority != MhsAuthority.PROVISIONAL
+        ):
             raise ValueError("test fixtures must use provisional authority")
         if self.source_kind == MhsSourceKind.OBSERVED and self.authority not in {
             MhsAuthority.OBSERVED,

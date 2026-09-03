@@ -190,9 +190,13 @@ def build_probe_evidence_view(
     freshness_value = freshness or _freshness_for_view(references, manifests, read_results)
     return ProbeEvidenceView(
         target_fingerprint=target_fingerprint,
-        mhs_references=[MhsReferenceCandidate.model_validate(_model_payload(item)) for item in references],
+        mhs_references=[
+            MhsReferenceCandidate.model_validate(_model_payload(item)) for item in references
+        ],
         manifests=[MhsManifestReference.model_validate(_model_payload(item)) for item in manifests],
-        read_results=[MhsReadOnlyResult.model_validate(_model_payload(item)) for item in read_results],
+        read_results=[
+            MhsReadOnlyResult.model_validate(_model_payload(item)) for item in read_results
+        ],
         freshness=freshness_value,
         limitations=sorted(combined_limitations),
     )

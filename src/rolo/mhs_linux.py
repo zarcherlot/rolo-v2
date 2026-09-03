@@ -16,8 +16,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .mhs_hardware import MhsBackend, MhsChannel, MhsDeviceClass, MhsDeviceManifest
-from .mhs_hardware import MhsDeviceProvider
+from .mhs_hardware import (
+    MhsBackend,
+    MhsChannel,
+    MhsDeviceClass,
+    MhsDeviceManifest,
+    MhsDeviceProvider,
+)
 
 DRIVER_ID = "rolo.mhs.linux-observer"
 DRIVER_VERSION = "0.1.0"
@@ -163,7 +168,11 @@ class LinuxPresenceBackend:
 
     def status(self) -> Mapping[str, Any]:
         path = self.root / self.node.lstrip("/")
-        return {"health": "OK" if path.exists() else "UNAVAILABLE", "kind": self.kind, "node": self.node}
+        return {
+            "health": "OK" if path.exists() else "UNAVAILABLE",
+            "kind": self.kind,
+            "node": self.node,
+        }
 
 
 class LinuxThermalBackend(LinuxHardwareBackend):
@@ -240,12 +249,19 @@ class LinuxMhsInventory:
                 ),
                 channels=[
                     MhsChannel(
-                        id="temperature", name="Temperature", unit="degC", min_value=-40, max_value=150
+                        id="temperature",
+                        name="Temperature",
+                        unit="degC",
+                        min_value=-40,
+                        max_value=150,
                     )
                 ],
                 resources=[zone_name],
                 state={"read": ["health", "zone", "type"]},
-                transport={"kind": "sysfs", "properties": {"path": f"/sys/class/thermal/{zone_name}"}},
+                transport={
+                    "kind": "sysfs",
+                    "properties": {"path": f"/sys/class/thermal/{zone_name}"},
+                },
                 limits=["read-only", "path identity; serial not observed"],
                 driver_id=DRIVER_ID,
                 driver_version=DRIVER_VERSION,
@@ -275,7 +291,9 @@ class LinuxMhsInventory:
                 backend = LinuxThermalBackend(self.root, f"sys/class/thermal/{zone}")
             else:
                 node = candidate.manifest.transport.get("properties", {}).get("path", "")
-                backend = LinuxPresenceBackend(self.root, str(node), candidate.manifest.device_class.value)
+                backend = LinuxPresenceBackend(
+                    self.root, str(node), candidate.manifest.device_class.value
+                )
             providers.append((candidate, MhsDeviceProvider(candidate.manifest, backend)))
         return providers
 
@@ -290,7 +308,9 @@ class LinuxMhsInventory:
                 name=f"Linux {label} node {safe}",
                 vendor="linux-kernel",
                 model=label,
-                channels=[MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")],
+                channels=[
+                    MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")
+                ],
                 resources=[safe],
                 state={"read": ["health", "kind", "node"]},
                 transport={"kind": "linux-device-node", "properties": {"path": node}},
@@ -326,11 +346,20 @@ class LinuxMhsInventory:
                 vendor=vendor or "unknown-usb-vendor",
                 model=product or "unknown-usb-product",
                 serial=serial,
-                channels=[MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")],
+                channels=[
+                    MhsChannel(id="present", name="Node present", unit="bool", value_type="boolean")
+                ],
                 resources=[safe],
                 state={"read": ["health", "kind", "node"]},
-                transport={"kind": "sysfs-usb", "properties": {"path": f"/sys/bus/usb/devices/{path.name}"}},
-                limits=["read-only", "presence only", "USB identity requires serial when available"],
+                transport={
+                    "kind": "sysfs-usb",
+                    "properties": {"path": f"/sys/bus/usb/devices/{path.name}"},
+                },
+                limits=[
+                    "read-only",
+                    "presence only",
+                    "USB identity requires serial when available",
+                ],
                 driver_id=DRIVER_ID,
                 driver_version=DRIVER_VERSION,
                 driver_sha256=DRIVER_SHA256,

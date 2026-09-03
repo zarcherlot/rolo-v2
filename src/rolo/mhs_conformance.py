@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-
 FORBIDDEN_OPERATIONS = {"reset", "calibrate", "setpoint", "power", "power_cycle", "stop", "write"}
 
 
