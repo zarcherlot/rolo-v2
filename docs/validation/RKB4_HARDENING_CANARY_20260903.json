@@ -1,0 +1,17 @@
+{
+  "artifact_sha256": "81b11cd01ae7bad341e5a234bcd5afbf75f061763c2adbaf4b45ace9047f63ed",
+  "schema_version": "rkb4-hardening-canary/v1",
+  "execution_date": "2026-09-03",
+  "checks": {
+    "episode_sigkill_recovery": "PASS",
+    "structured_alert_policy": "PASS",
+    "hmac_rotation_revocation_replay_window": "PASS",
+    "schema_registry_compatibility_window": "PASS"
+  },
+  "scope": "offline development canary; no device route invoked",
+  "limitations": [
+    "SIGKILL recovery was proven against a local persisted Episode store; target-machine process kill remains a maintenance-window task.",
+    "HMAC keyring is a policy boundary and expects an external controlled vault for secret persistence.",
+    "Alert evaluation is scheduler-ready but production notification transport and cadence wiring remain deployment-specific."
+  ]
+}

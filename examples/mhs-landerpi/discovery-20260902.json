@@ -1,0 +1,103 @@
+{
+  "schema_version": "rolo-mhs-discovery/v1",
+  "status": "DISCOVERED_UNVERIFIED",
+  "scope": {
+    "network": "192.168.10.0/24",
+    "gateway": "192.168.10.1",
+    "collector_id": "rolo.discovery.local-20260902",
+    "deployment_mode": "remote",
+    "access": "READ_ONLY"
+  },
+  "target": {
+    "address": "192.168.10.167",
+    "hostname": "raspberrypi",
+    "robot_id": "landerpi",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+    "ssh_host_key": {
+      "algorithm": "ecdsa-sha2-nistp256",
+      "fingerprint": "SHA256:aFHbH0ko9ZzobJZEfeoAKyWjbYfP/zqmgvTwXMMKMnQ"
+    },
+    "observed_at": "2026-09-02T13:40:18.060331108Z"
+  },
+  "network_discovery": {
+    "live_addresses": [
+      "192.168.10.1",
+      "192.168.10.127",
+      "192.168.10.167",
+      "192.168.10.220",
+      "192.168.10.226",
+      "192.168.10.242",
+      "192.168.10.248"
+    ],
+    "ssh_port_22": ["192.168.10.167"],
+    "method": "single ICMP per address, TCP/22 check for live addresses",
+    "limitations": ["ICMP and TCP reachability do not identify device type"]
+  },
+  "transports": {
+    "i2c": ["/dev/i2c-1", "/dev/i2c-11", "/dev/i2c-12"],
+    "spi": ["/dev/spidev10.0"],
+    "gpio": ["/dev/gpiochip0", "/dev/gpiochip1", "/dev/gpiochip2", "/dev/gpiochip3", "/dev/gpiochip4"],
+    "serial": [
+      {
+        "path": "/dev/ttyACM0",
+        "by_id": "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B22016029-if00",
+        "vid": "1a86",
+        "pid": "55d4",
+        "serial": "1a86_USB_Single_Serial_5B22016029",
+        "identity_stability": "stable"
+      },
+      {
+        "path": "/dev/ttyUSB1",
+        "by_id": "/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0",
+        "vid": "1a86",
+        "pid": "7523",
+        "serial": "1a86_USB_Serial",
+        "identity_stability": "stable"
+      }
+    ],
+    "thermal": [
+      {"zone": "thermal_zone0", "type": "cpu-thermal", "raw_temp_millic": 64450}
+    ]
+  },
+  "usb_devices": [
+    {"sysfs": "1-1", "vid": "1a86", "pid": "55d4", "serial": "5B22016029"},
+    {"sysfs": "1-2", "vid": "3251", "pid": "1930", "serial": "HY400516001016421G00082", "product": "Aurora 930"},
+    {"sysfs": "3-1", "vid": "1a86", "pid": "7523", "product": "CH340"},
+    {"sysfs": "3-2", "vid": "1a86", "pid": "8091", "product": "USB HUB"},
+    {"sysfs": "3-2.1", "vid": "1a86", "pid": "7523", "product": "CH340"},
+    {"sysfs": "3-2.2", "vid": "0c76", "pid": "161f", "product": "USB PnP Audio Device"}
+  ],
+  "software_stack": {
+    "os": "Debian GNU/Linux 12 (bookworm)",
+    "kernel": "6.6.20+rpt-rpi-2712",
+    "services": ["find_device.service", "remote.service", "start_app_node.service", "wifi.service", "ssh.service"],
+    "processes_of_interest": [
+      "robot_api", "ros_robot_controller", "servo_controller", "joint_state_pub",
+      "odom_publisher", "ekf_node", "aurora930_node", "ldlidar_stl_ros",
+      "scan_to_scan_filter", "web_video_server", "apply_calib"
+    ],
+    "ros2_cli": "unavailable on host shell",
+    "containers": ["MentorPi ros:humble"]
+  },
+  "mhs_candidate": {
+    "device_id": "landerpi",
+    "device_class": "compute",
+    "route_prefix": "mhs://landerpi",
+    "commands": [],
+    "identity_stability": "stable",
+    "manifest_digest": null,
+    "driver_digest": null,
+    "limitations": [
+      "Target does not have Rolo/Pydantic installed; provider replay must run on controller.",
+      "I2C/SPI child-device identity was not probed; only bus presence was observed.",
+      "No GPIO output was toggled and no serial/CAN/ROS write or handshake was attempted.",
+      "Ed25519 SSH host-key signature verification failed; ECDSA was used and requires independent host-key confirmation."
+    ]
+  },
+  "traces": [
+    {"source_ref": "icmp://192.168.10.0/24", "operation": "presence", "side_effect": "none"},
+    {"source_ref": "ssh://192.168.10.167", "operation": "read-only shell inventory", "side_effect": "none"}
+  ]
+}

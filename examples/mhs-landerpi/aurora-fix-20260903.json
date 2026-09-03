@@ -1,0 +1,36 @@
+{
+  "schema_version": "rolo-mhs-aurora-fix/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T12:08:42+08:00",
+  "device": {
+    "product": "Aurora 930",
+    "serial": "HY400516001016421G00082",
+    "firmware": "2.0.8",
+    "sdk": "1.1.22"
+  },
+  "parameter_change": {
+    "name": "rgbd_enable",
+    "before": true,
+    "after": false,
+    "source_launch": "/home/ubuntu/ros2_ws/src/peripherals/launch/include/aurora930.launch.py",
+    "install_launch": "/home/ubuntu/ros2_ws/install/peripherals/share/peripherals/launch/include/aurora930.launch.py",
+    "backup_suffix": ".bak-20260903"
+  },
+  "root_cause": "The Aurora supported-mode list exposes depth_mode=kInvalid for the selected 640x400 RGB/IR mode. Enabling the combined kRgbdIr path therefore initialized no usable frame stream; separate RGB, IR and depth paths produce frames.",
+  "verification": {
+    "persistent_launch_restarted": true,
+    "rgb_payload_observed": true,
+    "ir_payload_observed": true,
+    "depth_payload_observed": true,
+    "rgb_rate_hz_approx": 11.2,
+    "synchronized_source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
+    "reacquisition_artifact": "artifact://mhs-landerpi/ros-reacquisition-20260903-success.json"
+  },
+  "safety": {
+    "access": "READ_ONLY",
+    "actuator_commands_sent": false
+  },
+  "persistence": "VERIFIED_TARGET_LAUNCH"
+}

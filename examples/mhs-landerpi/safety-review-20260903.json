@@ -1,0 +1,117 @@
+{
+  "schema_version": "rolo-mhs-safety-review/v1",
+  "robot_id": "landerpi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "reviewed_at": "2026-09-03T08:30:00+08:00",
+  "scope": "read-only MHS discovery and feedback surfaces",
+  "operational_safety_assumption": "Physical E-stop/limit proof-tests are out of scope for this release; on-site personnel provide safety coverage during remote control.",
+  "decision": "BLOCKED_FOR_WRITE_AND_VERIFIED",
+  "reviewer": "pending-human-safety-owner",
+  "evidence": [
+    "artifact://mhs-landerpi/physical-binding-20260903.json",
+    "artifact://mhs-landerpi/ros-structured-fixture-20260903.json",
+    "artifact://mhs-landerpi/mhs-gate-20260903.json",
+    "artifact://mhs-landerpi/estop-limits-evidence-20260903.json",
+    "artifact://mhs-landerpi/safety-review-20260903.json#/runtime_signal_probe"
+  ],
+  "runtime_signal_probe": {
+    "observed_at": "2026-09-03T08:27:30+08:00",
+    "method": "read-only ros2 topic/service list and gpio line-label search inside MentorPi",
+    "topics_matching_safety_terms": [
+      "/ros_robot_controller/enable_reception [std_msgs/msg/Bool]"
+    ],
+    "services_matching_safety_terms": [
+      "/enable [std_srvs/srv/Empty]",
+      "/hand_trajectory/stop [std_srvs/srv/Trigger]"
+    ],
+    "gpio_matching_safety_terms": [],
+    "interpretation": "These names are not authoritative proof of an external E-stop, safe torque-off path, limit switch, or watchdog. No service was called."
+  },
+  "global_invariants": {
+    "write_commands_enabled": false,
+    "commands_sent": 0,
+    "state_changing_services_called": 0,
+    "external_estop_clear": "DECLARED_PRESENT_NOT_TESTED",
+    "watchdog_healthy": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE",
+    "power_domain_isolated": "UNKNOWN",
+    "human_canary_approval": false
+  },
+  "surfaces": [
+    {
+      "device_id": "landerpi-vision-aurora930",
+      "risk_class": "S0_READ_ONLY_SENSOR",
+      "status": "PASS_WITH_LIMITATIONS",
+      "allowed_operations": ["inspect", "status", "read", "read_structured"],
+      "forbidden_operations": ["calibrate", "reset", "firmware_update"],
+      "checks": {
+        "stable_physical_binding": true,
+        "payload_shape_and_freshness": true,
+        "write_path_absent": true,
+        "estop_required": false,
+        "calibration_health": false
+      },
+      "limitations": ["Camera calibration and long-run health were not reviewed."]
+    },
+    {
+      "device_id": "landerpi-lidar",
+      "risk_class": "S0_READ_ONLY_SENSOR",
+      "status": "PASS_WITH_LIMITATIONS",
+      "allowed_operations": ["inspect", "status", "read", "read_structured"],
+      "forbidden_operations": ["configure", "reset", "firmware_update"],
+      "checks": {
+        "stable_physical_binding": false,
+        "payload_shape_and_freshness": true,
+        "write_path_absent": true,
+        "estop_required": false,
+        "model_identity": false
+      },
+      "limitations": ["LD19 launch identity and CH340 transport are correlated, but device model/serial is not independently exposed."]
+    },
+    {
+      "device_id": "landerpi-ros-robot-controller",
+      "risk_class": "S2_CONTROL_PLANE",
+      "status": "BLOCKED",
+      "allowed_operations": ["inspect", "status", "read", "read_structured"],
+      "forbidden_operations": ["enable", "mode", "reset", "configure", "set_motor", "set_servo"],
+      "checks": {
+        "stable_physical_binding": true,
+        "payload_shape_and_freshness": true,
+        "write_path_absent": true,
+        "controller_ready": false,
+        "external_estop_clear": false,
+        "watchdog_healthy": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE",
+        "fault_state_known": false
+      },
+      "blocking_reasons": ["init_finish=false", "no independent emergency-stop evidence", "no watchdog/fault evidence"]
+    },
+    {
+      "device_id": "landerpi-servo-actuator",
+      "risk_class": "S3_ACTUATOR",
+      "status": "BLOCKED",
+      "allowed_operations": ["inspect", "status", "read", "read_structured"],
+      "forbidden_operations": ["set_position", "set_state", "enable", "home", "stop", "calibrate"],
+      "checks": {
+        "stable_physical_binding": false,
+        "payload_shape_and_freshness": true,
+        "write_path_absent": true,
+        "channel_mapping_complete": false,
+        "hardware_limits_known": "DECLARED_MECHANICAL_BLOCKS_NOT_TESTED",
+        "limit_switches_verified": "NOT_APPLICABLE_MECHANICAL_BLOCKS",
+        "external_estop_clear": false,
+        "watchdog_healthy": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE"
+      },
+      "blocking_reasons": ["w_joint id=9 absent from observed feedback", "logical-to-physical harness not validated", "mechanical limits and E-stop presence are declared but not proof-tested"]
+    }
+  ],
+  "required_follow_up": [
+    "Obtain human safety-owner sign-off on the controller and actuator risk assessment.",
+    "Document the physical E-stop circuit, safe state, reset behavior, and proof-test procedure.",
+    "Capture authoritative mechanical limit blocks and their per-joint travel envelope; perform a restrained-fixture boundary check.",
+    "Track watchdog implementation as a future customer-deliverable prerequisite; it is out of scope for this sampling release.",
+    "Only after the above, run conformance negative tests and request an explicitly approved canary."
+  ],
+  "limitations": [
+    "This review is an evidence gate, not a functional-safety certification.",
+    "The user declared a physical E-stop button and mechanical limit blocks; neither was exercised or independently inspected. Watchdog is explicitly deferred to the future customer deliverable."
+  ]
+}

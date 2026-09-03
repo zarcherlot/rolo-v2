@@ -1,0 +1,19 @@
+{
+  "schema_version": "rolo-mhs-fixture-repair/v1",
+  "robot_id": "landerpi",
+  "repaired_at": "2026-09-03T12:08:42+08:00",
+  "scope": "ros-structured-fixture-20260903.json",
+  "status": "FRESH_REACQUISITION_VERIFIED",
+  "reacquisition_attempt": "artifact://mhs-landerpi/ros-reacquisition-20260903-success.json",
+  "raw_payload_reacquired": true,
+  "method": "Replaced prior serialization-normalized image digests with SHA-256 values freshly computed from synchronized ROS Image payloads after the persistent Aurora stream-mode fix.",
+  "changes": [
+    {"topic": "/ascamera/camera_publisher/rgb0/image", "after": "14bb9b6badfc9ced55f253241a6cd224cea1df799aaf67d0379ee07d9d3bc090"},
+    {"topic": "/ascamera/camera_publisher/ir0/image", "after": "bfdb02f953b2847f9d4ad8c67fe3146b5bdc087e51dcb4fbdcacccc77e137212"},
+    {"topic": "/ascamera/camera_publisher/depth0/image_raw", "after": "2017bf46f45c62db3262df68d86c49925341517dbd33d4499336249d2660fea6"}
+  ],
+  "limitations": [
+    "Fresh values are independently computed from one synchronized timestamp across RGB, IR and depth payloads.",
+    "Long-run stream stability and calibration remain unverified."
+  ]
+}

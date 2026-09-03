@@ -10,9 +10,9 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -31,6 +31,7 @@ class MhsDeviceClass(str, Enum):
     COMPUTE = "compute"
     BUS = "bus"
     TOOL = "tool"
+    END_EFFECTOR = "end-effector"
 
 
 class MhsChannel(BaseModel):
@@ -54,10 +55,160 @@ class MhsChannel(BaseModel):
         return self
 
 
+class MhsIdentitySource(BaseModel):
+    """One independently observable identity source for a physical device."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["serial", "device_tree", "udev_by_id", "controller_resource", "path", "other"]
+    value: str = Field(min_length=1)
+    observed: bool = True
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class MhsIdentity(BaseModel):
+    """Stable identity and disagreement state, separate from display metadata."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stable_id: str | None = None
+    sources: list[MhsIdentitySource] = Field(default_factory=list)
+    confidence: Literal["high", "medium", "low"] = "low"
+    conflicts: list[str] = Field(default_factory=list)
+
+
+class MhsProvenance(BaseModel):
+    """Lifecycle and evidence metadata for a declared manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal[
+        "DECLARED",
+        "DISCOVERED_UNVERIFIED",
+        "READY_FOR_SAMPLING",
+        "VERIFIED",
+        "REJECTED",
+    ] = "DECLARED"
+    evidence_ids: list[str] = Field(default_factory=list)
+    observed_at: datetime | None = None
+    fresh_until: datetime | None = None
+    field_status: dict[str, Literal["declared", "observed", "inferred", "unknown"]] = Field(
+        default_factory=dict
+    )
+
+    @model_validator(mode="after")
+    def valid_window(self) -> MhsProvenance:
+        if (
+            self.observed_at is not None
+            and self.fresh_until is not None
+            and self.fresh_until < self.observed_at
+        ):
+            raise ValueError("provenance fresh_until cannot precede observed_at")
+        if self.status == "VERIFIED" and not self.evidence_ids:
+            raise ValueError("verified manifest requires provenance evidence")
+        return self
+
+
+class MhsRelation(BaseModel):
+    """Typed edge between MHS devices, interfaces, or transport resources."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["attached_to", "driven_by", "publishes_to", "controls", "member_of"]
+    target: str = Field(min_length=1)
+    interface_id: str | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class MhsInterfaceDescriptor(BaseModel):
+    """Middleware-neutral structured data interface.
+
+    ``transport_ref`` may point to a ROS topic, USB endpoint, CAN frame, native
+    SDK handle, or another adapter-specific resource.  The interface kind and
+    payload schema remain stable when the transport changes.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    kind: Literal[
+        "scalar",
+        "image",
+        "point_cloud",
+        "laser_scan",
+        "joint_state",
+        "pose",
+        "event",
+        "command",
+    ]
+    access: Literal["read", "stream", "write"] = "read"
+    transport_ref: str | None = None
+    payload_schema: dict[str, Any] = Field(default_factory=dict)
+    encoding: str | None = None
+    shape: list[int | str] = Field(default_factory=list)
+    unit: str | None = None
+    frame_id: str | None = None
+    timestamp: Literal["none", "source", "receipt", "source_and_receipt"] = "none"
+    qos: dict[str, Any] = Field(default_factory=dict)
+
+
+class MhsSafetyContract(BaseModel):
+    """Read-side safety facts and write-adapter prerequisites."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    read_only: bool = True
+    resource_claims: list[str] = Field(default_factory=list)
+    modes: list[str] = Field(default_factory=list)
+    limits: list[str] = Field(default_factory=list)
+    faults: list[str] = Field(default_factory=list)
+    interlocks: list[str] = Field(default_factory=list)
+    estop_required: bool | None = None
+
+
+class MhsInterfaceSample(BaseModel):
+    """One structured sample emitted by a transport adapter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    interface_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    value: Any
+    observed_at: datetime
+    source_timestamp: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MhsCommandDescriptor(BaseModel):
+    """One bounded write command declared by a device manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    access: Literal["write"] = "write"
+    hardware_resource_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.:/-]*$")
+    risk: str = Field(pattern=r"^R[1-3]$")
+    input_schema: dict[str, Any]
+    timeout_s: float = Field(gt=0, le=300)
+    idempotent: bool = False
+    requires: list[str] = Field(default_factory=list)
+    cancel_capability: str | None = None
+    compensation_capability: str | None = None
+
+    @model_validator(mode="after")
+    def validate_input_schema(self) -> MhsCommandDescriptor:
+        if self.input_schema.get("type", "object") != "object":
+            raise ValueError("MHS command input_schema must describe an object")
+        if self.input_schema.get("additionalProperties") is not False:
+            raise ValueError("MHS command input_schema must reject additional properties")
+        if not isinstance(self.input_schema.get("properties"), dict):
+            raise ValueError("MHS command input_schema must declare properties")
+        return self
+
+
 class MhsDeviceManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: str = "rolo-mhs-device/v1"
+    schema_version: str = "rolo-mhs-device/v1.1"
     device_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
     device_class: MhsDeviceClass
     name: str = Field(min_length=1)
@@ -66,16 +217,30 @@ class MhsDeviceManifest(BaseModel):
     serial: str | None = None
     channels: list[MhsChannel] = Field(default_factory=list)
     resources: list[str] = Field(default_factory=list)
+    state: dict[str, list[str]] = Field(default_factory=lambda: {"read": []})
+    commands: list[MhsCommandDescriptor] = Field(default_factory=list)
     transport: dict[str, Any] = Field(default_factory=dict)
     limits: list[str] = Field(default_factory=list)
     driver_id: str = Field(default="unknown-driver", min_length=1)
+    driver_version: str = Field(default="unknown", min_length=1)
     driver_sha256: str = Field(default="0" * 64, pattern=r"^[0-9a-f]{64}$")
+    identity: MhsIdentity = Field(default_factory=MhsIdentity)
+    provenance: MhsProvenance = Field(default_factory=MhsProvenance)
+    relations: list[MhsRelation] = Field(default_factory=list)
+    interfaces: list[MhsInterfaceDescriptor] = Field(default_factory=list)
+    safety: MhsSafetyContract = Field(default_factory=MhsSafetyContract)
 
     @model_validator(mode="after")
     def unique_channels(self) -> MhsDeviceManifest:
         ids = [item.id for item in self.channels]
         if len(ids) != len(set(ids)):
             raise ValueError("manifest contains duplicate channel ids")
+        command_ids = [item.id for item in self.commands]
+        if len(command_ids) != len(set(command_ids)):
+            raise ValueError("manifest contains duplicate command ids")
+        interface_ids = [item.id for item in self.interfaces]
+        if len(interface_ids) != len(set(interface_ids)):
+            raise ValueError("manifest contains duplicate interface ids")
         return self
 
     @property
@@ -88,10 +253,34 @@ class MhsDeviceManifest(BaseModel):
         ).hexdigest()
 
 
+def migrate_mhs_manifest_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Upgrade a v1 payload with v1.1 defaults without mutating the input."""
+
+    migrated = dict(payload)
+    version = str(migrated.get("schema_version", "rolo-mhs-device/v1"))
+    if version == "rolo-mhs-device/v1":
+        migrated["schema_version"] = "rolo-mhs-device/v1.1"
+    for field, default in (
+        ("identity", {}),
+        ("provenance", {}),
+        ("relations", []),
+        ("interfaces", []),
+        ("safety", {}),
+    ):
+        migrated.setdefault(field, default)
+    return migrated
+
+
 class MhsBackend(Protocol):
     def read(self) -> Mapping[str, int | float | bool | str]: ...
 
     def status(self) -> Mapping[str, Any]: ...
+
+
+class MhsStructuredBackend(Protocol):
+    """Optional adapter surface for non-scalar interfaces."""
+
+    def read_structured(self) -> list[MhsInterfaceSample]: ...
 
 
 class MhsResult(BaseModel):
@@ -103,15 +292,24 @@ class MhsResult(BaseModel):
     route: str
     value: dict[str, Any] | None = None
     observed_at: datetime | None = None
+    fresh_until: datetime | None = None
+    manifest_sha256: str | None = None
+    driver_id: str | None = None
+    driver_version: str | None = None
+    driver_sha256: str | None = None
+    provider_version: str | None = None
+    transport: dict[str, Any] = Field(default_factory=dict)
     reason: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    samples: list[MhsInterfaceSample] = Field(default_factory=list)
 
 
 class MhsDeviceProvider:
     """Read-only Provider SPI for one MHS device manifest and backend."""
 
     provider_version = "1.0.0"
+    freshness_seconds = 300
     READ_CAPABILITIES = frozenset({"inspect", "status", "read"})
 
     def __init__(self, manifest: MhsDeviceManifest, backend: MhsBackend) -> None:
@@ -126,7 +324,7 @@ class MhsDeviceProvider:
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
-        return [
+        readable = [
             {
                 "capability_id": capability,
                 "access": "read",
@@ -136,6 +334,30 @@ class MhsDeviceProvider:
             }
             for capability in sorted(self.READ_CAPABILITIES)
         ]
+        writable = [
+            {
+                "capability_id": command.id,
+                "access": "write",
+                "route": self.route(command.id),
+                "status": "DISCOVERED_UNVERIFIED",
+                "risk": command.risk,
+                "hardware_resource_id": command.hardware_resource_id,
+                "requires_rolo_write_gate": True,
+                "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
+            }
+            for command in sorted(self.manifest.commands, key=lambda item: item.id)
+        ]
+        if callable(getattr(self.backend, "read_structured", None)):
+            readable.append(
+                {
+                    "capability_id": "read_structured",
+                    "access": "read",
+                    "route": self.route("read_structured"),
+                    "status": "DISCOVERED_UNVERIFIED",
+                    "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
+                }
+            )
+        return [*readable, *writable]
 
     def inspect(self) -> MhsResult:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
@@ -184,6 +406,37 @@ class MhsDeviceProvider:
         except Exception as exc:
             return self._error(capability, f"backend read failed: {type(exc).__name__}")
 
+    def read_structured(self) -> MhsResult:
+        """Read structured samples through an optional environment adapter."""
+
+        capability = "read_structured"
+        observed_at = datetime.now(timezone.utc)
+        reader = getattr(self.backend, "read_structured", None)
+        if not callable(reader):
+            return self._error(capability, "structured interface backend is unavailable")
+        try:
+            samples = list(reader())
+            declared = {interface.id: interface for interface in self.manifest.interfaces}
+            for sample in samples:
+                interface = declared.get(sample.interface_id)
+                if interface is None:
+                    raise ValueError(f"undeclared interface: {sample.interface_id}")
+                if interface.access == "write":
+                    raise ValueError(f"write interface cannot be sampled: {sample.interface_id}")
+            return self._ok(
+                capability,
+                {
+                    "device_id": self.manifest.device_id,
+                    "samples": [sample.model_dump(mode="json") for sample in samples],
+                },
+                observed_at,
+                samples=samples,
+            )
+        except ValueError as exc:
+            return self._error(capability, f"structured read rejected: {exc}")
+        except Exception as exc:
+            return self._error(capability, f"structured read failed: {type(exc).__name__}")
+
     def invoke(self, capability_id: str, arguments: Mapping[str, Any] | None = None) -> MhsResult:
         """Invoke only read capabilities; all write-like requests fail closed."""
 
@@ -195,18 +448,34 @@ class MhsDeviceProvider:
             return self.status()
         if capability == "read":
             return self.read()
+        if capability == "read_structured":
+            return self.read_structured()
         return self._error(capability, "write or unknown capability is not available in v2")
 
     def _ok(
-        self, capability: str, value: dict[str, Any], observed_at: datetime | None = None
+        self,
+        capability: str,
+        value: dict[str, Any],
+        observed_at: datetime | None = None,
+        *,
+        samples: list[MhsInterfaceSample] | None = None,
     ) -> MhsResult:
+        point = observed_at or datetime.now(timezone.utc)
         return MhsResult(
             status=MhsStatus.AVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
             route=self.route(capability),
             value=value,
-            observed_at=observed_at,
+            observed_at=point,
+            fresh_until=point + timedelta(seconds=self.freshness_seconds),
+            manifest_sha256=self.manifest.manifest_sha256,
+            driver_id=self.manifest.driver_id,
+            driver_version=self.manifest.driver_version,
+            driver_sha256=self.manifest.driver_sha256,
+            provider_version=self.provider_version,
+            transport=self.manifest.transport,
+            samples=list(samples or []),
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
                 f"mhs-driver:{self.manifest.driver_sha256}",
@@ -214,6 +483,7 @@ class MhsDeviceProvider:
         )
 
     def _error(self, capability: str, reason: str) -> MhsResult:
+        point = datetime.now(timezone.utc)
         return MhsResult(
             status=MhsStatus.UNAVAILABLE,
             device_id=self.manifest.device_id,
@@ -222,5 +492,17 @@ class MhsDeviceProvider:
             # making an unsafe capability a routable provider operation.
             route=f"mhs://{self.manifest.device_id}/{capability}",
             reason=reason,
+            observed_at=point,
+            fresh_until=point + timedelta(seconds=self.freshness_seconds),
+            manifest_sha256=self.manifest.manifest_sha256,
+            driver_id=self.manifest.driver_id,
+            driver_version=self.manifest.driver_version,
+            driver_sha256=self.manifest.driver_sha256,
+            provider_version=self.provider_version,
+            transport=self.manifest.transport,
+            evidence_ids=[
+                f"mhs-manifest:{self.manifest.manifest_sha256}",
+                f"mhs-driver:{self.manifest.driver_sha256}",
+            ],
             limitations=["read-only provider; no write operations"],
         )
