@@ -27,6 +27,15 @@ from .models import (
     snapshot_from_target_bundle,
 )
 from .query import QueryRejectedError, QueryResult, ReadOnlyKnowledgeBase, SnapshotReference
+from .mhs_read_models import (
+    MhsManifestReference,
+    MhsReadOnlyResult,
+    MhsReferenceCandidate,
+    ProbeEvidenceView,
+    build_probe_evidence_view,
+    project_mhs_read_result,
+    project_probe_evidence_view,
+)
 from .read_models import (
     CapabilityRecord,
     CapabilityState,
@@ -74,6 +83,13 @@ __all__ = [
     "QueryRejectedError",
     "ReadOnlyKnowledgeBase",
     "ReadModelMetadata",
+    "MhsReferenceCandidate",
+    "MhsManifestReference",
+    "MhsReadOnlyResult",
+    "ProbeEvidenceView",
+    "build_probe_evidence_view",
+    "project_mhs_read_result",
+    "project_probe_evidence_view",
     "RobotIdentityModel",
     "RuntimeStatusModel",
     "HardwareResourceModel",
