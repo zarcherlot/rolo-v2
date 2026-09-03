@@ -198,6 +198,9 @@ class LinuxMhsCandidate(BaseModel):
     discovery_status: Literal["DISCOVERED_UNVERIFIED"] = "DISCOVERED_UNVERIFIED"
     source: str = Field(min_length=1)
     identity_stability: Literal["stable", "path", "unknown"] = "unknown"
+    source_kind: Literal["TARGET_PROBE", "OBSERVED", "TEST_FIXTURE"] = "TARGET_PROBE"
+    authority: Literal["OBSERVED", "VENDOR", "PROVISIONAL"] = "OBSERVED"
+    access: Literal["READ_ONLY"] = "READ_ONLY"
 
 
 class LinuxMhsInventory:
