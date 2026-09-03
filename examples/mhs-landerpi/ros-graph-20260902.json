@@ -1,66 +1,85 @@
 {
-  "schema_version": "rolo-mhs-landerpi-ros-graph/v1",
-  "target": {
-    "host": "192.168.10.167",
-    "model": "Raspberry Pi 5 Model B Rev 1.0",
-    "serial": "f96761a4f6b6d40e",
-    "os": "Debian 12",
-    "kernel": "6.6.20+rpt-rpi-2712",
-    "container": "MentorPi",
-    "container_image": "ros:humble",
-    "transport": "ros2/host-network"
-  },
-  "observed_at_epoch": 1788357257.8258864,
+  "schema_version": "rolo-mhs-ros-graph/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "container": "MentorPi",
+  "ros_distro": "humble",
+  "access": "READ_ONLY",
+  "observed_at": "2026-09-02T15:00:00Z",
+  "method": "docker exec MentorPi bash -lc 'source /opt/ros/humble/setup.bash; ros2 ...'",
   "nodes": [
-    "/ros_robot_controller",
-    "/controller_manager",
-    "/arm_controller",
-    "/gripper_controller",
-    "/LD19",
     "/aurora/aurora",
-    "/robot_state_publisher",
+    "/controller_manager",
+    "/joint_state_publisher",
+    "/lidar_app",
     "/robot_api",
-    "/joy_node",
-    "/imu_filter",
-    "/odom_publisher"
+    "/ros_robot_controller",
+    "/scan_to_scan_filter_chain",
+    "/servo_manager",
+    "/web_video_server"
   ],
-  "topics": [
-    {"name": "/joint_states", "type": "sensor_msgs/msg/JointState", "publishers": 1, "subscribers": 2, "access": "read"},
-    {"name": "/controller_manager/servo_states", "type": "servo_controller_msgs/msg/ServoStateList", "publishers": 1, "subscribers": 0, "access": "read"},
-    {"name": "/ros_robot_controller/battery", "type": "std_msgs/msg/UInt16", "publishers": 1, "subscribers": 2, "access": "read"},
-    {"name": "/imu", "type": "sensor_msgs/msg/Imu", "publishers": 1, "subscribers": 0, "access": "read"},
-    {"name": "/scan", "type": "sensor_msgs/msg/LaserScan", "publishers": 1, "subscribers": 3, "access": "read"},
-    {"name": "/odom", "type": "nav_msgs/msg/Odometry", "publishers": 1, "subscribers": 0, "access": "read"},
-    {"name": "/cmd_vel", "type": "geometry_msgs/msg/Twist", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
-    {"name": "/ros_robot_controller/set_motor", "type": "ros_robot_controller_msgs/msg/MotorsState", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
-    {"name": "/ros_robot_controller/bus_servo/set_position", "type": "ros_robot_controller_msgs/msg/ServosPosition", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
-    {"name": "/ros_robot_controller/pwm_servo/set_state", "type": "unknown-observed", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"}
+  "topics": {
+    "/ascamera/camera_publisher/depth0/camera_info": "sensor_msgs/msg/CameraInfo",
+    "/ascamera/camera_publisher/depth0/image_raw": "sensor_msgs/msg/Image",
+    "/ascamera/camera_publisher/depth0/points": "sensor_msgs/msg/PointCloud2",
+    "/ascamera/camera_publisher/ir0/image": "sensor_msgs/msg/Image",
+    "/ascamera/camera_publisher/rgb0/camera_info": "sensor_msgs/msg/CameraInfo",
+    "/ascamera/camera_publisher/rgb0/image": "sensor_msgs/msg/Image",
+    "/controller_manager/joint_states": "sensor_msgs/msg/JointState",
+    "/controller_manager/servo_states": "servo_controller_msgs/msg/ServoStateList",
+    "/ros_robot_controller/battery": "std_msgs/msg/UInt16",
+    "/scan": "sensor_msgs/msg/LaserScan"
+  },
+  "bindings": [
+    {
+      "node": "/aurora/aurora",
+      "publishes": [
+        "/ascamera/camera_publisher/depth0/image_raw",
+        "/ascamera/camera_publisher/depth0/points",
+        "/ascamera/camera_publisher/ir0/image",
+        "/ascamera/camera_publisher/rgb0/image"
+      ]
+    },
+    {
+      "node": "/scan_to_scan_filter_chain",
+      "publishes": ["/scan"]
+    },
+    {
+      "node": "/ros_robot_controller",
+      "publishes": ["/ros_robot_controller/battery"],
+      "subscribes": [
+        "/ros_robot_controller/bus_servo/set_position",
+        "/ros_robot_controller/set_motor",
+        "/ros_robot_controller/pwm_servo/set_state"
+      ]
+    }
   ],
-  "actions": [
-    {"name": "/arm_controller/follow_joint_trajectory", "type": "unknown-observed", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"},
-    {"name": "/gripper_controller/follow_joint_trajectory", "type": "unknown-observed", "access": "write-candidate", "status": "DISCOVERED_UNVERIFIED"}
-  ],
-  "device_nodes": ["/dev/ttyACM0", "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/i2c-1", "/dev/i2c-11", "/dev/i2c-12", "/dev/spidev10.0"],
-  "joint_names_observed": [
-    "wheel_left_front_joint",
-    "wheel_left_back_joint",
-    "wheel_right_front_joint",
-    "wheel_right_back_joint",
-    "joint1",
-    "joint2",
-    "joint3",
-    "joint4",
-    "joint5",
-    "gripper_base_joint",
-    "gripper_left_join",
-    "gripper_right_joint",
-    "left_jaw_joint",
-    "right_jaw_joint"
-  ],
+  "topic_info": {
+    "/ascamera/camera_publisher/depth0/image_raw": {
+      "publisher": "/aurora/aurora",
+      "type": "sensor_msgs/msg/Image",
+      "reliability": "RELIABLE",
+      "durability": "VOLATILE"
+    },
+    "/scan": {
+      "publisher": "/scan_to_scan_filter_chain",
+      "type": "sensor_msgs/msg/LaserScan",
+      "reliability": "RELIABLE",
+      "durability": "VOLATILE"
+    }
+  },
   "limitations": [
-    "ROS graph and topic samples were read only; no topic, service, or action was invoked.",
-    "All write candidates remain DISCOVERED_UNVERIFIED; no hardware_resource_id, risk approval, or safety evidence is bound.",
-    "The graph does not prove actuator wiring, emergency-stop state, watchdog health, or rollback behavior.",
-    "This artifact contains no credentials or raw command arguments."
+    "Only graph and topic metadata were read; no topic payload was consumed.",
+    "ROS services that can mutate state were listed but not called.",
+    "The camera USB serial to /aurora/aurora binding still requires a read-only process/device mapping.",
+    "LiDAR upstream hardware identity is still unknown; /scan is a filtered topic."
+  ],
+  "traces": [
+    {"operation": "node list", "side_effect": "none", "returncode": 0},
+    {"operation": "topic list -t", "side_effect": "none", "returncode": 0},
+    {"operation": "topic info -v /scan", "side_effect": "none", "returncode": 0},
+    {"operation": "node info /aurora/aurora", "side_effect": "none", "returncode": 0},
+    {"operation": "node info /ros_robot_controller", "side_effect": "none", "returncode": 0}
   ]
 }

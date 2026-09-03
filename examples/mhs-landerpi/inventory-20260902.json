@@ -1,6 +1,9 @@
 {
   "schema_version": "rolo-mhs-linux-inventory/v1",
-  "device_identity": {"model": "Raspberry Pi 5 Model B Rev 1.0", "serial": "f96761a4f6b6d40e"},
+  "device_identity": {
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e"
+  },
   "nodes": [
     {"kind": "i2c", "path": "/dev/i2c-1", "status": "DISCOVERED_UNVERIFIED"},
     {"kind": "i2c", "path": "/dev/i2c-11", "status": "DISCOVERED_UNVERIFIED"},

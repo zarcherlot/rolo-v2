@@ -1,0 +1,115 @@
+{
+  "schema_version": "rolo-mhs-ros-diagnostic/v1",
+  "robot_id": "landerpi",
+  "target": {
+    "host": "192.168.10.167",
+    "container": "MentorPi",
+    "access": "READ_ONLY",
+    "observed_at": "2026-09-03T00:12:00+08:00",
+    "network_mode": "host"
+  },
+  "container_state": {
+    "status": "running",
+    "restart_count": 0,
+    "started_at": "2026-09-01T23:10:13Z",
+    "driver_process_state": "Sl (running, multithreaded)"
+  },
+  "ros_context": {
+    "ros_domain_id_env": "unset",
+    "rmw_implementation_env": "unset",
+    "running_daemon": "domain 0, rmw_fastrtps_cpp",
+    "cli_overlays": [
+      "/opt/ros/humble/setup.bash",
+      "/home/ubuntu/ros2_ws/install/setup.bash",
+      "/home/ubuntu/third_party_ros2/third_party_ws/install/setup.bash"
+    ],
+    "servo_controller_msgs_prefix": "/home/ubuntu/ros2_ws/install/servo_controller_msgs"
+  },
+  "topic_checks": [
+    {
+      "topic": "/scan_raw",
+      "type": "sensor_msgs/msg/LaserScan",
+      "publisher": "LD19",
+      "publisher_qos": {"reliability": "RELIABLE", "durability": "VOLATILE"},
+      "subscriber": "scan_to_scan_filter_chain",
+      "subscriber_qos": {"reliability": "BEST_EFFORT", "durability": "VOLATILE"},
+      "payload": {"reliable": "none_within_6s", "best_effort": "none_within_6s"}
+    },
+    {
+      "topic": "/scan",
+      "type": "sensor_msgs/msg/LaserScan",
+      "publisher": "scan_to_scan_filter_chain",
+      "publisher_qos": {"reliability": "RELIABLE", "durability": "VOLATILE"},
+      "payload": {
+        "reliable": "none_within_6s",
+        "best_effort": "none_within_6s",
+        "frequency": "no messages reported in a 5s window"
+      }
+    },
+    {
+      "topic": "/controller_manager/joint_states",
+      "type": "sensor_msgs/msg/JointState",
+      "publisher": "controller_manager",
+      "publisher_qos": {"reliability": "RELIABLE", "durability": "VOLATILE"},
+      "payload": {
+        "reliable": "none_within_6s",
+        "best_effort": "none_within_6s",
+        "frequency": "topic hz reported no messages in a 5s window"
+      }
+    },
+    {
+      "topic": "/controller_manager/servo_states",
+      "type": "servo_controller_msgs/msg/ServoStateList",
+      "publisher": "controller_manager",
+      "publisher_qos": {"reliability": "RELIABLE", "durability": "VOLATILE"},
+      "subscription_count": 0,
+      "payload": {
+        "reliable": "none_within_6s",
+        "best_effort": "none_within_6s",
+        "frequency": "topic hz reported no messages in a 5s window"
+      }
+    },
+    {
+      "topic": "/ascamera/camera_publisher/depth0/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "publisher": "aurora (namespace /aurora)",
+      "publisher_qos": {"reliability": "RELIABLE", "durability": "VOLATILE"},
+      "subscription_count": 0,
+      "payload": {"reliable": "none_within_6s", "best_effort": "none_within_6s"}
+    }
+  ],
+  "physical_checks": {
+    "usb_aurora_930": "present: 3251:1930",
+    "serial_devices": ["/dev/ttyACM0", "/dev/ttyUSB0", "/dev/ttyUSB1"],
+    "runtime_bindings": [
+      {"process": "ldlidar_stl_ros (node /LD19)", "open_device": "/dev/ttyUSB0"},
+      {"process": "ros_robot_controller", "open_device": "/dev/ttyACM0"},
+      {"process": "aurora930_node", "open_device": "/dev/bus/usb/001/003"}
+    ],
+    "serial_termios_observation": [
+      {"device": "/dev/ttyUSB0", "speed": "0 baud (reported by stty; driver-specific configuration not inferred)"},
+      {"device": "/dev/ttyUSB1", "speed": "9600 baud"},
+      {"device": "/dev/ttyACM0", "speed": "1000000 baud"}
+    ],
+    "kernel_enumeration": "Linux kernel log records cdc_acm ttyACM0 and ch341 ttyUSB0/ttyUSB1 attachment.",
+    "interpretation": [
+      "The pre-restart ROS graph and USB identities were present, but bounded CLI reads did not prove active streaming.",
+      "The pre-restart QoS fallback did not recover a message; this was later superseded by a direct overlay subscription after restart.",
+      "The pre-restart upstream LD19 topic was silent; a post-restart subscription subsequently observed /scan data.",
+      "The live driver processes hold the expected serial/USB device handles; this narrows the issue to device readiness, driver state, or upstream data flow rather than a missing process binding.",
+      "ServoStateList requires the ROS workspace overlay for type resolution; no write or service call was made."
+    ]
+  },
+  "follow_up_after_restart": {
+    "service": "start_app_node.service",
+    "status": "ACTIVE",
+    "subscription_method": "rclpy with /opt/ros/humble and both workspace overlays",
+    "payload_status": "AVAILABLE for /scan, RGB, IR, depth, joint_states and servo_states",
+    "fixture_ref": "artifact://mhs-landerpi/ros-structured-fixture-20260903.json"
+  },
+  "limitations": [
+    "A bounded read cannot distinguish a stopped driver from a physically idle or unavailable device.",
+    "No ROS publisher, subscriber, service, action, parameter, GPIO, serial, CAN, I2C, or SPI operation was invoked.",
+    "The process table contains stale historical ROS CLI entries; they are not attributed to this observation."
+  ]
+}

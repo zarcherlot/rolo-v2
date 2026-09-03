@@ -1,0 +1,86 @@
+{
+  "schema_version": "rolo-mhs-gate-evaluation/v1",
+  "robot_id": "landerpi",
+  "evaluated_at": "2026-09-03T01:02:00+08:00",
+  "access": "READ_ONLY_REPLAY",
+  "fixture": "artifact://mhs-landerpi/ros-structured-fixture-20260903.json",
+  "decisions": [
+    {
+      "device_id": "landerpi-vision-aurora930",
+      "sample_count": 3,
+      "status": "ELIGIBLE",
+      "checks": {
+        "identity_tuple": true,
+        "target_fingerprint": true,
+        "manifest_digest": true,
+        "driver_digest": true,
+        "canonical_routes": true,
+        "runtime_results": true,
+        "freshness": true,
+        "physical_binding": false,
+        "safety_review": false,
+        "conformance": false
+      },
+      "reasons": ["physical_binding", "safety_review", "conformance"]
+    },
+    {
+      "device_id": "landerpi-lidar",
+      "sample_count": 1,
+      "status": "REJECTED",
+      "checks": {
+        "identity_tuple": false,
+        "target_fingerprint": true,
+        "manifest_digest": true,
+        "driver_digest": true,
+        "canonical_routes": true,
+        "runtime_results": true,
+        "freshness": true,
+        "physical_binding": false,
+        "safety_review": false,
+        "conformance": false
+      },
+      "reasons": ["identity_tuple", "physical_binding", "safety_review"]
+    },
+    {
+      "device_id": "landerpi-ros-robot-controller",
+      "sample_count": 1,
+      "status": "REJECTED",
+      "checks": {
+        "identity_tuple": false,
+        "target_fingerprint": true,
+        "manifest_digest": true,
+        "driver_digest": true,
+        "canonical_routes": true,
+        "runtime_results": true,
+        "freshness": true,
+        "physical_binding": false,
+        "safety_review": false,
+        "conformance": false
+      },
+      "reasons": ["identity_tuple", "physical_binding", "safety_review"]
+    },
+    {
+      "device_id": "landerpi-servo-actuator",
+      "sample_count": 1,
+      "status": "REJECTED",
+      "checks": {
+        "identity_tuple": false,
+        "target_fingerprint": true,
+        "manifest_digest": true,
+        "driver_digest": true,
+        "canonical_routes": true,
+        "runtime_results": true,
+        "freshness": true,
+        "physical_binding": false,
+        "safety_review": false,
+        "conformance": false
+      },
+      "reasons": ["identity_tuple", "physical_binding", "safety_review"]
+    }
+  ],
+  "limitations": [
+    "Replay validates manifest routes and payload shape only; it does not touch hardware.",
+    "ELIGIBLE does not mean VERIFIED: physical binding, safety review and conformance remain separate gates.",
+    "Aurora point-cloud interface has no captured sample in this fixture."
+  ]
+}

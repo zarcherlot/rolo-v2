@@ -1,9 +1,31 @@
 {
   "schema_version": "rolo-mhs-landerpi-canary/v1",
   "device_id": "landerpi",
-  "driver": {"id": "rolo.mhs.landerpi", "version": "0.1.0", "sha256": "fccc058c95424dbbceb7a7da7142b8e97c3c23c0fe90cb01dc2c50b0dd25721d"},
-  "manifest": {"device_class": "compute", "model": "Raspberry Pi 5 Model B Rev 1.0", "serial": "f96761a4f6b6d40e", "transport": "local-linux", "read_only": true},
-  "status": {"health": "OK", "model": "Raspberry Pi 5 Model B Rev 1.0", "serial": "f96761a4f6b6d40e", "kernel": "Linux", "uptime_seconds": 40311.08, "transports": {"gpio": true, "i2c": true, "spi": true, "usb": true}, "read_only": true},
-  "read": {"cpu_temperature": 64.45, "load_1m": 2.56, "memory_used_percent": 24.72},
+  "driver": {
+    "id": "rolo.mhs.landerpi",
+    "version": "0.1.0",
+    "sha256": "fccc058c95424dbbceb7a7da7142b8e97c3c23c0fe90cb01dc2c50b0dd25721d"
+  },
+  "manifest": {
+    "device_class": "compute",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "transport": "local-linux",
+    "read_only": true
+  },
+  "status": {
+    "health": "OK",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "kernel": "Linux",
+    "uptime_seconds": 40311.08,
+    "transports": {"gpio": true, "i2c": true, "spi": true, "usb": true},
+    "read_only": true
+  },
+  "read": {
+    "cpu_temperature": 64.45,
+    "load_1m": 2.56,
+    "memory_used_percent": 24.72
+  },
   "observed_at_epoch": 1788345294.1617684
 }
