@@ -65,6 +65,9 @@ python_files = [
   "test_target_executors.py",
   "test_tool_conformance.py",
   "test_tool_planning.py",
+  "test_workbench_read_models_api.py",
+  "test_mhs_registry.py",
+  "test_tool_verification_projection.py",
 ]
 markers = [
   "lerobot: opt-in integration test requiring a separately installed LeRobot checkout",

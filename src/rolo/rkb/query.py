@@ -424,6 +424,40 @@ class ReadOnlyKnowledgeBase:
             status_reason="missing executable is not success",
         )
 
+    def query_executables(
+        self,
+        *,
+        snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> TypedQueryResult[list[ExecutableModel]]:
+        """Return the bounded application executable inventory."""
+        envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
+        facts = self._layer_facts(envelope, {"application", "executable", "app"})
+        items = self._items_from_facts(facts, ("executables", "applications"))
+        executables: list[ExecutableModel] = []
+        for index, candidate in enumerate(items):
+            item = dict(candidate) if isinstance(candidate, Mapping) else {"name": str(candidate)}
+            item.setdefault("name", item.get("executable") or f"executable-{index}")
+            item.setdefault("executable_id", item.get("id") or item.get("name"))
+            item.setdefault("observed", True)
+            item.setdefault("source_kind", "OBSERVED")
+            executables.append(ExecutableModel.model_validate(item))
+        ordered = sorted(executables, key=lambda item: item.executable_id)
+        page, total, next_offset = self._paginate(ordered, offset=offset, limit=limit)
+        return self._typed(
+            page,
+            facts,
+            status=self._status_for(facts, now=now),
+            reason="executables observed" if facts else "executables are UNKNOWN",
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
+        )
+
     def query_capability(
         self,
         operation_id: str,
@@ -480,6 +514,45 @@ class ReadOnlyKnowledgeBase:
             status_reason="capability record is unavailable",
         )
 
+    def query_capabilities(
+        self,
+        *,
+        snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> TypedQueryResult[list[CapabilityRecord]]:
+        """Return the complete bounded capability projection for one snapshot."""
+        envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
+        facts = self._layer_facts(envelope, {"capability", "capabilities", "application"})
+        items = self._items_from_facts(facts, ("capabilities", "operations"))
+        operation_ids = sorted(
+            {
+                str(item.get("operation_id") or item.get("id") or item.get("operation"))
+                for item in items
+                if isinstance(item, Mapping)
+                and (item.get("operation_id") or item.get("id") or item.get("operation"))
+            }
+        )
+        reference = self.reference(envelope)
+        records = [
+            self.query_capability(operation_id, snapshot_ref=reference, now=now).value
+            for operation_id in operation_ids
+        ]
+        records = [item for item in records if item is not None]
+        page, total, next_offset = self._paginate(records, offset=offset, limit=limit)
+        return self._typed(
+            page,
+            facts,
+            status=self._status_for(facts, now=now),
+            reason="capability records observed" if facts else "capability records are UNKNOWN",
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
+        )
+
     def query_state_safety(
         self,
         *,
@@ -519,7 +592,10 @@ class ReadOnlyKnowledgeBase:
     middleware_graph_snapshot = query_middleware_graph
     middleware_route_inspect = query_middleware_route
     app_executable_inspect = query_executable
+    app_executable_list = query_executables
     capability_get = query_capability
+    capability_list = query_capabilities
+    executable_list = query_executables
     state_safety_snapshot = query_state_safety
 
     def _latest(self) -> EvidenceEnvelope | Snapshot | None:

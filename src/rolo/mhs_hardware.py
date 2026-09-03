@@ -121,6 +121,8 @@ class MhsDeviceProvider:
 
     def route(self, capability_id: str) -> str:
         capability = capability_id.removeprefix("mhs.")
+        if capability not in self.READ_CAPABILITIES:
+            raise ValueError(f"capability is not available in v2: {capability}")
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
@@ -216,7 +218,9 @@ class MhsDeviceProvider:
             status=MhsStatus.UNAVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
-            route=self.route(capability),
+            # Keep the rejected request addressable for diagnostics without
+            # making an unsafe capability a routable provider operation.
+            route=f"mhs://{self.manifest.device_id}/{capability}",
             reason=reason,
             limitations=["read-only provider; no write operations"],
         )
