@@ -22,8 +22,8 @@
   "per_channel": [
     {
       "channel": "external_estop",
-      "status": "UNKNOWN",
-      "evidence": [],
+      "status": "DECLARED_PRESENT_NOT_TESTED",
+      "evidence": ["user://2026-09-03/physical-estop-button-declaration"],
       "required": "authoritative circuit diagram plus proof-test result"
     },
     {
@@ -34,26 +34,26 @@
     },
     {
       "channel": "joint_hard_limits",
-      "status": "DECLARED_ONLY",
-      "evidence": ["artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3/software_binding/configured_position_limits"],
-      "required": "authoritative limits plus restrained-fixture boundary test"
+      "status": "DECLARED_MECHANICAL_BLOCKS_NOT_TESTED",
+      "evidence": ["user://2026-09-03/mechanical-limit-blocks-declaration", "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3/software_binding/configured_position_limits"],
+      "required": "per-joint travel envelope plus restrained-fixture boundary test"
     },
     {
       "channel": "limit_switches",
-      "status": "UNKNOWN",
+      "status": "NOT_APPLICABLE_MECHANICAL_BLOCKS",
       "evidence": [],
-      "required": "GPIO/driver mapping and independent activation test"
+      "required": "mechanical-block contact/clearance inspection and boundary test"
     },
     {
       "channel": "watchdog_timeout",
-      "status": "UNKNOWN",
+      "status": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE",
       "evidence": [],
-      "required": "timeout-to-safe-state test with motion inhibited"
+      "required": "future customer-provided watchdog design and timeout-to-safe-state test"
     }
   ],
   "decision": "NOT_VERIFIED",
   "limitations": [
-    "Topic/service names alone cannot establish a safety function or authority.",
+    "Topic/service names or user declarations alone cannot establish a safety function or authority.",
     "No command, enable, stop, GPIO toggle, or physical motion was performed."
   ]
 }

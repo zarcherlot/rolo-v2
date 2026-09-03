@@ -90,9 +90,10 @@ fail-closed。I²C/SPI/GPIO 的设备级识别仍是后续工作项。binding �
 `BLOCKED_FOR_WRITE_AND_VERIFIED`；conformance 检查器已覆盖 schema、topic/type、空
 commands、binding 引用和负测，但当前因图像 fixture 的 SHA-256 字段长度异常而报告
 `FAIL`。这是需要修复的证据质量问题，不得通过放宽校验掩盖。
-急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：仅发现
-名称疑似相关的 topic/service，未发现可授权的外部急停、STO、限位开关或 watchdog 证明，
-因此全部保持 `UNKNOWN`/`DECLARED_ONLY`。
+急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：用户已声明
+存在物理急停键和机械限位块，但尚未完成回路、复位、行程边界的独立 proof-test，因此保持
+`DECLARED_PRESENT_NOT_TESTED` / `DECLARED_MECHANICAL_BLOCKS_NOT_TESTED`。watchdog 明确
+作为未来客户交付项，不纳入本轮 gate。
 
 ## 交付物
 

@@ -80,6 +80,8 @@ USB serial 与 ROS 进程的关联、LiDAR 的 `/dev/ldlidar -> /dev/ttyUSB0` �
 急停/限位的只读搜索结果见
 [`estop-limits-evidence-20260903.json`](estop-limits-evidence-20260903.json)；发现的
 `/enable`、`/hand_trajectory/stop` 等名称不具备安全权威性，未调用任何服务。
+用户补充确认设备存在物理急停键和机械限位块；当前仅记录为声明，尚未完成回路、复位和
+行程边界 proof-test。watchdog 延后为未来客户交付项，不作为本轮实现目标。
 可重复的只读 conformance 检查由 `conformance_check.py` 执行，结果见
 [`conformance-20260903.json`](conformance-20260903.json)；当前报告 `FAIL`，原因是
 fixture 中 RGB/IR 的 SHA-256 字段有一项长度异常，必须修复原始证据后才能重新评估。

@@ -30,8 +30,8 @@
     "write_commands_enabled": false,
     "commands_sent": 0,
     "state_changing_services_called": 0,
-    "external_estop_clear": "UNKNOWN",
-    "watchdog_healthy": "UNKNOWN",
+    "external_estop_clear": "DECLARED_PRESENT_NOT_TESTED",
+    "watchdog_healthy": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE",
     "power_domain_isolated": "UNKNOWN",
     "human_canary_approval": false
   },
@@ -78,7 +78,7 @@
         "write_path_absent": true,
         "controller_ready": false,
         "external_estop_clear": false,
-        "watchdog_healthy": false,
+        "watchdog_healthy": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE",
         "fault_state_known": false
       },
       "blocking_reasons": ["init_finish=false", "no independent emergency-stop evidence", "no watchdog/fault evidence"]
@@ -94,23 +94,23 @@
         "payload_shape_and_freshness": true,
         "write_path_absent": true,
         "channel_mapping_complete": false,
-        "hardware_limits_known": false,
-        "limit_switches_verified": false,
+        "hardware_limits_known": "DECLARED_MECHANICAL_BLOCKS_NOT_TESTED",
+        "limit_switches_verified": "NOT_APPLICABLE_MECHANICAL_BLOCKS",
         "external_estop_clear": false,
-        "watchdog_healthy": false
+        "watchdog_healthy": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE"
       },
-      "blocking_reasons": ["w_joint id=9 absent from observed feedback", "logical-to-physical harness not validated", "limits and E-stop not tested"]
+      "blocking_reasons": ["w_joint id=9 absent from observed feedback", "logical-to-physical harness not validated", "mechanical limits and E-stop presence are declared but not proof-tested"]
     }
   ],
   "required_follow_up": [
     "Obtain human safety-owner sign-off on the controller and actuator risk assessment.",
-    "Document the external E-stop circuit, safe state, reset behavior, and proof-test procedure.",
-    "Capture authoritative hard limits and limit-switch status for every actuator channel.",
-    "Demonstrate watchdog timeout to a safe state on an unpowered or mechanically restrained test fixture.",
+    "Document the physical E-stop circuit, safe state, reset behavior, and proof-test procedure.",
+    "Capture authoritative mechanical limit blocks and their per-joint travel envelope; perform a restrained-fixture boundary check.",
+    "Track watchdog implementation as a future customer-deliverable prerequisite; it is out of scope for this sampling release.",
     "Only after the above, run conformance negative tests and request an explicitly approved canary."
   ],
   "limitations": [
     "This review is an evidence gate, not a functional-safety certification.",
-    "No E-stop, limit switch, watchdog, motor enable, calibration, or actuator command was exercised."
+    "The user declared a physical E-stop button and mechanical limit blocks; neither was exercised or independently inspected. Watchdog is explicitly deferred to the future customer deliverable."
   ]
 }
