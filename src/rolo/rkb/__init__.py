@@ -8,6 +8,7 @@ from .canonical import (
     resolve_json_pointer,
 )
 from .mhs_api import MhsEvidenceReadApi
+from .mhs_http import create_mhs_app
 from .mhs_read_models import (
     MhsManifestReference,
     MhsReadOnlyResult,
@@ -92,6 +93,7 @@ __all__ = [
     "project_mhs_read_result",
     "project_probe_evidence_view",
     "MhsEvidenceReadApi",
+    "create_mhs_app",
     "RobotIdentityModel",
     "RuntimeStatusModel",
     "HardwareResourceModel",
