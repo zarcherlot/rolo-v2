@@ -1,0 +1,59 @@
+{
+  "schema_version": "rolo-mhs-estop-limits-evidence/v1",
+  "robot_id": "landerpi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "observed_at": "2026-09-03T08:27:30+08:00",
+  "access": "READ_ONLY",
+  "probe": {
+    "operations": ["ros2 topic list -t", "ros2 service list -t", "gpioinfo line-label search"],
+    "writes": 0,
+    "services_called": 0
+  },
+  "signals": {
+    "candidate_topics": [
+      {"name": "/ros_robot_controller/enable_reception", "type": "std_msgs/msg/Bool", "authority": "UNKNOWN"}
+    ],
+    "candidate_services": [
+      {"name": "/enable", "type": "std_srvs/srv/Empty", "authority": "UNKNOWN"},
+      {"name": "/hand_trajectory/stop", "type": "std_srvs/srv/Trigger", "authority": "UNKNOWN"}
+    ],
+    "gpio_lines_with_safety_labels": []
+  },
+  "per_channel": [
+    {
+      "channel": "external_estop",
+      "status": "UNKNOWN",
+      "evidence": [],
+      "required": "authoritative circuit diagram plus proof-test result"
+    },
+    {
+      "channel": "safe_stop_or_safe_torque_off",
+      "status": "UNKNOWN",
+      "evidence": [],
+      "required": "hardware/controller safety function and de-energized-state observation"
+    },
+    {
+      "channel": "joint_hard_limits",
+      "status": "DECLARED_ONLY",
+      "evidence": ["artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3/software_binding/configured_position_limits"],
+      "required": "authoritative limits plus restrained-fixture boundary test"
+    },
+    {
+      "channel": "limit_switches",
+      "status": "UNKNOWN",
+      "evidence": [],
+      "required": "GPIO/driver mapping and independent activation test"
+    },
+    {
+      "channel": "watchdog_timeout",
+      "status": "UNKNOWN",
+      "evidence": [],
+      "required": "timeout-to-safe-state test with motion inhibited"
+    }
+  ],
+  "decision": "NOT_VERIFIED",
+  "limitations": [
+    "Topic/service names alone cannot establish a safety function or authority.",
+    "No command, enable, stop, GPIO toggle, or physical motion was performed."
+  ]
+}

@@ -68,6 +68,22 @@ fixture 可通过 `examples/mhs-landerpi/evaluate_fixture.py` 加载到
 [`mhs-gate-20260903.json`](mhs-gate-20260903.json)。Aurora 930 已达到 `ELIGIBLE`，
 但尚未 `VERIFIED`；LiDAR、控制器和舵机组仍因缺少稳定物理身份及安全绑定而被拒绝。
 
+物理绑定阶段的只读证据见
+[`physical-binding-20260903.json`](physical-binding-20260903.json)。其中记录了 Aurora
+USB serial 与 ROS 进程的关联、LiDAR 的 `/dev/ldlidar -> /dev/ttyUSB0` 及 LD19 launch
+配置、控制器的 `/dev/rrc -> /dev/ttyACM0` 稳定 by-id，以及逻辑 joint 到观测舵机 ID 的
+配置映射。该 artifact 明确标注了 `PARTIAL_IDENTITY`、`PARTIAL_CHANNEL_MAPPING` 和
+`init_finish=false` 等限制；它是安全评审和 conformance 的输入，不是移动执行器的授权。
+
+安全门清单见 [`safety-review-20260903.json`](safety-review-20260903.json)，当前控制器与
+舵机保持 `BLOCKED_FOR_WRITE_AND_VERIFIED`，急停、限位、watchdog 和 fault-clear 均未验证。
+急停/限位的只读搜索结果见
+[`estop-limits-evidence-20260903.json`](estop-limits-evidence-20260903.json)；发现的
+`/enable`、`/hand_trajectory/stop` 等名称不具备安全权威性，未调用任何服务。
+可重复的只读 conformance 检查由 `conformance_check.py` 执行，结果见
+[`conformance-20260903.json`](conformance-20260903.json)；当前报告 `FAIL`，原因是
+fixture 中 RGB/IR 的 SHA-256 字段有一项长度异常，必须修复原始证据后才能重新评估。
+
 生成命令：
 
 ```bash

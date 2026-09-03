@@ -200,6 +200,7 @@ def landerpi_mhs_bundle() -> MhsBundle:
     ros_graph = "artifact://mhs-landerpi/ros-graph-20260902.json"
     ros_payload = "artifact://mhs-landerpi/ros-payload-20260903.json"
     ros_diagnostic = "artifact://mhs-landerpi/ros-diagnostic-20260903.json"
+    physical_binding = "artifact://mhs-landerpi/physical-binding-20260903.json"
     devices = [
         MhsBundleDevice(
             manifest=_manifest(
@@ -356,6 +357,11 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     ref=ros_diagnostic,
                     statement="After bringup restart, a direct rclpy subscription observed RGB/IR/depth frames.",
                 ),
+                MhsEvidenceRef(
+                    kind="physical",
+                    ref=f"{physical_binding}#/bindings/0",
+                    statement="Read-only process/device correlation binds /aurora/aurora streams to USB serial HY400516001016421G00082.",
+                ),
             ],
             sampling_contract=[
                 "read ROS node/topic graph",
@@ -453,6 +459,11 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     kind="software",
                     ref=ros_diagnostic,
                     statement="A direct bounded subscription observed /scan and its /scan_raw upstream.",
+                ),
+                MhsEvidenceRef(
+                    kind="physical",
+                    ref=f"{physical_binding}#/bindings/1",
+                    statement="Read-only binding resolves /dev/ldlidar to /dev/ttyUSB0 and records the LD19 launch configuration; model identity remains partial.",
                 ),
             ],
             sampling_contract=[
@@ -560,6 +571,11 @@ def landerpi_mhs_bundle() -> MhsBundle:
                     ref=ros_diagnostic,
                     statement="JointState payload was observed after bringup restart with the workspace overlay.",
                 ),
+                MhsEvidenceRef(
+                    kind="physical",
+                    ref=f"{physical_binding}#/bindings/2",
+                    statement="Read-only binding resolves the controller default /dev/rrc to stable USB serial 5B22016029; init_finish remains false.",
+                ),
             ],
             sampling_contract=[
                 "read controller manager state",
@@ -657,6 +673,11 @@ def landerpi_mhs_bundle() -> MhsBundle:
                         "ServoStateList type resolves after sourcing the ROS workspace overlay; "
                         "a six-servo feedback payload was observed."
                     ),
+                ),
+                MhsEvidenceRef(
+                    kind="physical",
+                    ref=f"{physical_binding}#/bindings/3",
+                    statement="Read-only binding correlates ServoStateList IDs with configured logical joints; physical harness and limit-switch mapping remain unverified.",
                 ),
             ],
             sampling_contract=[

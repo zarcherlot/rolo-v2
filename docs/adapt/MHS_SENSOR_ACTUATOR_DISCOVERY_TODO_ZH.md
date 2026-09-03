@@ -71,10 +71,28 @@ examples/mhs-landerpi/ros-structured-fixture-20260903.json
 examples/mhs-landerpi/mhs-gate-20260903.json
 ```
 
+物理 binding 的只读核查已落成
+`examples/mhs-landerpi/physical-binding-20260903.json`：Aurora 930 已将稳定 USB
+serial 与 `/aurora/aurora` 的图像流相关联；LiDAR 已解析 `/dev/ldlidar -> /dev/ttyUSB0`
+及 LD19 launch 参数；控制器已解析 `/dev/rrc -> /dev/ttyACM0` 和稳定 by-id；舵机已将
+配置中的逻辑 joint 与 `ServoStateList` ID 对齐。后 3 项仍是 `PARTIAL`，因为型号、物理
+线束、限位和急停互锁尚未有独立证据。
+
 Aurora 930 因稳定 serial、目标 fingerprint、digest、route 和 runtime evidence 已满足而
 达到 `ELIGIBLE`；物理 binding、安全评审和 conformance 仍未满足，不能标记 `VERIFIED`。
 LiDAR、控制器和舵机组的 payload 已取得，但稳定物理身份或安全前置条件仍不足，保持
-fail-closed。I²C/SPI/GPIO 的设备级识别仍是后续工作项。
+fail-closed。I²C/SPI/GPIO 的设备级识别仍是后续工作项。binding 证据不会自动提升 gate：
+安全评审、conformance、急停和限位必须分别通过。
+
+安全评审与 conformance 的当前结果分别见
+`examples/mhs-landerpi/safety-review-20260903.json` 和
+`examples/mhs-landerpi/conformance-20260903.json`。安全评审对控制器/执行器保持
+`BLOCKED_FOR_WRITE_AND_VERIFIED`；conformance 检查器已覆盖 schema、topic/type、空
+commands、binding 引用和负测，但当前因图像 fixture 的 SHA-256 字段长度异常而报告
+`FAIL`。这是需要修复的证据质量问题，不得通过放宽校验掩盖。
+急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：仅发现
+名称疑似相关的 topic/service，未发现可授权的外部急停、STO、限位开关或 watchdog 证明，
+因此全部保持 `UNKNOWN`/`DECLARED_ONLY`。
 
 ## 交付物
 

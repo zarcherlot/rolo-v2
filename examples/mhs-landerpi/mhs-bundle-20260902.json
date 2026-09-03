@@ -231,6 +231,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
           "statement": "After bringup restart, a direct rclpy subscription observed RGB/IR/depth frames."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/0",
+          "statement": "Read-only process/device correlation binds /aurora/aurora streams to USB serial HY400516001016421G00082."
         }
       ],
       "sampling_contract": [
@@ -440,7 +445,12 @@
         {
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
-          "statement": "Both reliable and best-effort bounded reads found no /scan frame; the upstream /scan_raw publisher was also silent."
+          "statement": "After bringup restart, a direct bounded subscription observed /scan and its /scan_raw upstream."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/1",
+          "statement": "Read-only binding resolves /dev/ldlidar to /dev/ttyUSB0 and records the LD19 launch configuration; model identity remains partial."
         }
       ],
       "sampling_contract": [
@@ -652,6 +662,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
           "statement": "JointState payload was observed after bringup restart with the workspace overlay."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/2",
+          "statement": "Read-only binding resolves the controller default /dev/rrc to stable USB serial 5B22016029; init_finish remains false."
         }
       ],
       "sampling_contract": [
@@ -855,6 +870,11 @@
           "kind": "software",
           "ref": "artifact://mhs-landerpi/ros-diagnostic-20260903.json",
           "statement": "ServoStateList type resolves after sourcing the ROS workspace overlay; a six-servo feedback payload was observed."
+        },
+        {
+          "kind": "physical",
+          "ref": "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3",
+          "statement": "Read-only binding correlates ServoStateList IDs with configured logical joints; physical harness and limit-switch mapping remain unverified."
         }
       ],
       "sampling_contract": [
