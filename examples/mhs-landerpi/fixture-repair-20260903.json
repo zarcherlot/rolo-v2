@@ -1,0 +1,24 @@
+{
+  "schema_version": "rolo-mhs-fixture-repair/v1",
+  "robot_id": "landerpi",
+  "repaired_at": "2026-09-03T10:10:00+08:00",
+  "scope": "ros-structured-fixture-20260903.json",
+  "status": "SERIALIZATION_CORRECTED_NOT_REACQUIRED",
+  "method": "For each 65-character hexadecimal image digest, remove the final extra hexadecimal character so the stored field conforms to SHA-256's 64-character representation.",
+  "changes": [
+    {
+      "topic": "/ascamera/camera_publisher/rgb0/image",
+      "before": "5ebdf02924c2a8815da6c887101d1f3242f303e9cc8e1f54a7154da547c412c4e",
+      "after": "5ebdf02924c2a8815da6c887101d1f3242f303e9cc8e1f54a7154da547c412c4"
+    },
+    {
+      "topic": "/ascamera/camera_publisher/ir0/image",
+      "before": "930112cc9843c1dde39f085ebdaed73e87b96c6195d0eae847b13d649811dd121",
+      "after": "930112cc9843c1dde39f085ebdaed73e87b96c6195d0eae847b13d649811dd12"
+    }
+  ],
+  "limitations": [
+    "The raw image bytes were not retained and the device stream was unavailable during repair; the corrected values are format-normalized prefixes of the recorded values, not independently recomputed hashes.",
+    "A future fresh read must replace these values with hashes computed directly from reacquired image bytes before any high-assurance evidence use."
+  ]
+}

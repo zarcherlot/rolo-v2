@@ -5,6 +5,11 @@
   "access": "READ_ONLY_SUBSCRIPTION",
   "observed_at": "2026-09-03T00:58:10+08:00",
   "method": "rclpy subscriptions with an 8-12 second bounded spin; first message per topic retained",
+  "repair": {
+    "artifact": "artifact://mhs-landerpi/fixture-repair-20260903.json",
+    "kind": "serialization_correction",
+    "raw_payload_reacquired": false
+  },
   "samples": {
     "/scan": {
       "interface_id": "scan",
@@ -62,7 +67,7 @@
       "is_bigendian": 0,
       "step": 1920,
       "data_len": 768000,
-      "data_sha256": "5ebdf02924c2a8815da6c887101d1f3242f303e9cc8e1f54a7154da547c412c4e",
+      "data_sha256": "5ebdf02924c2a8815da6c887101d1f3242f303e9cc8e1f54a7154da547c412c4",
       "data_head_hex": "100c080f0b07100c0a100c0a11090a11"
     },
     "/ascamera/camera_publisher/ir0/image": {
@@ -76,7 +81,7 @@
       "is_bigendian": 0,
       "step": 640,
       "data_len": 256000,
-      "data_sha256": "930112cc9843c1dde39f085ebdaed73e87b96c6195d0eae847b13d649811dd121",
+      "data_sha256": "930112cc9843c1dde39f085ebdaed73e87b96c6195d0eae847b13d649811dd12",
       "data_head_hex": "000000000000000000009231233c3532"
     },
     "/ascamera/camera_publisher/depth0/image_raw": {

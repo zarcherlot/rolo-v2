@@ -120,6 +120,7 @@ def main() -> int:
             "physical-binding-20260903.json",
             "safety-review-20260903.json",
             "estop-limits-evidence-20260903.json",
+            "fixture-repair-20260903.json",
         ],
         "limitations": [
             "This is a Rolo-compatible profile check, not an official external MHS conformance certification.",

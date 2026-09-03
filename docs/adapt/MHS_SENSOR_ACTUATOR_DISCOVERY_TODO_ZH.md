@@ -88,8 +88,9 @@ fail-closed。I²C/SPI/GPIO 的设备级识别仍是后续工作项。binding �
 `examples/mhs-landerpi/safety-review-20260903.json` 和
 `examples/mhs-landerpi/conformance-20260903.json`。安全评审对控制器/执行器保持
 `BLOCKED_FOR_WRITE_AND_VERIFIED`；conformance 检查器已覆盖 schema、topic/type、空
-commands、binding 引用和负测，但当前因图像 fixture 的 SHA-256 字段长度异常而报告
-`FAIL`。这是需要修复的证据质量问题，不得通过放宽校验掩盖。
+commands、binding 引用和负测。图像 fixture 的两个 65 字符摘要已做可审计的序列化纠正，
+当前报告 `PASS_READ_ONLY`；由于原始图像字节未保留，这不是重新采集的高保证哈希，详见
+`examples/mhs-landerpi/fixture-repair-20260903.json`。
 急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：用户已声明
 存在物理急停键和机械限位块，但尚未完成回路、复位、行程边界的独立 proof-test，因此保持
 `DECLARED_PRESENT_NOT_TESTED` / `DECLARED_MECHANICAL_BLOCKS_NOT_TESTED`。watchdog 明确

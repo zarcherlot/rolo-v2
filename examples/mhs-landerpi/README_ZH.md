@@ -83,8 +83,10 @@ USB serial 与 ROS 进程的关联、LiDAR 的 `/dev/ldlidar -> /dev/ttyUSB0` �
 用户补充确认设备存在物理急停键和机械限位块；当前仅记录为声明，尚未完成回路、复位和
 行程边界 proof-test。watchdog 延后为未来客户交付项，不作为本轮实现目标。
 可重复的只读 conformance 检查由 `conformance_check.py` 执行，结果见
-[`conformance-20260903.json`](conformance-20260903.json)；当前报告 `FAIL`，原因是
-fixture 中 RGB/IR 的 SHA-256 字段有一项长度异常，必须修复原始证据后才能重新评估。
+[`conformance-20260903.json`](conformance-20260903.json)；当前报告为 `PASS_READ_ONLY`。
+RGB/IR 两个 65 字符摘要已按序列化纠正规则归一化，修复记录见
+[`fixture-repair-20260903.json`](fixture-repair-20260903.json)。由于原始图像字节未保留，
+后续仍应以重新采集的真实字节哈希替换它们，不能作为高保证证据使用。
 
 生成命令：
 

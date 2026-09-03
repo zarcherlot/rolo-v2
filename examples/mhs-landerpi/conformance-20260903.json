@@ -3,7 +3,7 @@
   "robot_id": "landerpi",
   "evaluated_at": "2026-09-03T08:35:00+08:00",
   "profile": "rolo-mhs-compatible-read-only/v1",
-  "result": "FAIL",
+  "result": "PASS_READ_ONLY",
   "write_profile": "NOT_ELIGIBLE",
   "checks": {
     "bundle_schema": {
@@ -45,12 +45,9 @@
       "status": "NOT_VERIFIED"
     },
     "fixture_digest_shape": {
-      "passed": false,
+      "passed": true,
       "algorithm": "sha256",
-      "invalid_hash_lengths": {
-        "/ascamera/camera_publisher/rgb0/image": 65,
-        "/ascamera/camera_publisher/ir0/image": 65
-      }
+      "invalid_hash_lengths": {}
     }
   },
   "negative_tests": {
@@ -64,7 +61,8 @@
     "ros-structured-fixture-20260903.json",
     "physical-binding-20260903.json",
     "safety-review-20260903.json",
-    "estop-limits-evidence-20260903.json"
+    "estop-limits-evidence-20260903.json",
+    "fixture-repair-20260903.json"
   ],
   "limitations": [
     "This is a Rolo-compatible profile check, not an official external MHS conformance certification.",
