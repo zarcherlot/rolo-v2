@@ -100,6 +100,10 @@ A/B 达到 14.72 Hz、最大间隔 76 ms 且无 >100 ms 间隔，确认是共享
 [`aurora-production-stability-post-joystick-fix-20260903.json`](aurora-production-stability-post-joystick-fix-20260903.json)
 及此前的 [`aurora-production-stability-20260903.json`](aurora-production-stability-20260903.json)。USB/进程/内核及修复验证见
 [`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)。
+驱动现已在点云没有订阅者时跳过 `PointCloud2` 转换，同时保留 SDK 点云流和按需发布能力；
+实际订阅验证得到 `width=256000`。CPU 绑核、优先级和移除额外限速的 A/B 未呈现可重复收益，
+均已回退；共享配置的 IR 连续性仍为 `PARTIAL`。完整记录见
+[`aurora-shared-load-optimization-20260903.json`](aurora-shared-load-optimization-20260903.json)。
 
 生成命令：
 

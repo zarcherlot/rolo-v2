@@ -101,6 +101,13 @@ payload 并独立计算 SHA-256；当前报告 `PASS_READ_ONLY`，单帧证据�
 配置已恢复并保持 `rgbd_enable=false`；稳定性保持 `PARTIAL_IN_SHARED_PROFILE`，详细对比见
 `examples/mhs-landerpi/joystick-scheduler-fix-20260903.json` 和
 `examples/mhs-landerpi/aurora-production-stability-post-joystick-fix-20260903.json`。
+共享负载优化进一步在驱动中加入按订阅需求的点云转换：无点云订阅者时跳过昂贵的
+`PointCloud2` 构造，但保留 `kPointCloud` SDK 流、topic 和完整点云能力；实际订阅仍取得
+`width=256000` 的点云。绑核、整进程/单线程调优和移除二次限速均已做 A/B，其中无可重复收益
+的方案全部回退。保留方案下 RGB/IR/Depth 仍持续可达且时间戳单调，驱动 timeout/disconnect/
+publish failure 为 0；IR 共享配置连续性仍为 `PARTIAL`，进一步优化需要把 SDK 点云流拆分或动态
+启停，而不能继续依靠进程级调度参数。证据见
+`examples/mhs-landerpi/aurora-shared-load-optimization-20260903.json`。
 基础标定窗口见 `examples/mhs-landerpi/aurora-stability-calibration-20260903.json`。USB、进程、内核和 ROS 日志及修复验证见
 `examples/mhs-landerpi/aurora-diagnostic-20260903.json`。
 急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`。按用户现场约束，
