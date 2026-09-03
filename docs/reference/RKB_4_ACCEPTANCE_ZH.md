@@ -17,7 +17,7 @@ metadata-only Episode。Episode 只索引 Probe run、bundle/report/snapshot 引
 - `scripts/rkb4_migration_canary.py`：验证迁移式新旧 Episode 发布、父 digest 绑定和 rollback 指针切换；
 - `schemas/RKBEpisodeMetadata.schema.json`：`rkb-episode-metadata/v1` 契约；
 - `schemas/RKBEpisodeQueryPage.schema.json`：`rkb-episode-query-page/v1` 分页契约；
-- `tests/test_rkb_episode.py`：正向、身份/父 digest、幂等、恢复、分页、retention、失败不移动 latest、回滚、敏感字段拒绝和 legacy 双读测试。
+- `tests/test_rkb_episode.py`：正向、身份/父 digest、幂等、恢复、分页、retention、失败不移动 latest、回滚、敏感字段拒绝和 legacy 双读测试；`tests/test_rkb4_hardening.py` 覆盖 SIGKILL 恢复、告警策略、HMAC keyring 与 schema registry。
 
 ## 双读一写
 
@@ -38,6 +38,10 @@ EpisodeStore 同时持久化跨进程指标，支持 latest 损坏后的记录�
 真实 MHS → snapshot → Episode canary，并记录在 `docs/validation/RKB4_LANDERPI_POSTREBOOT_20260903.json`；
 同时在 MentorPi 容器内观察到 ROS2 graph、service、topic 及 `/robot_api` 等应用 route presence。
 Episode 进程 `kill -9` 后的持久化恢复仍需最后维护窗口，不能据此提升为 `STABLE`。
+
+结构化告警策略、HMAC keyring 和 schema registry 的离线 hardening 证据记录在
+`docs/validation/RKB4_HARDENING_CANARY_20260903.json`；它们不包含密钥材料，且生产
+通知 transport、受控 vault 持久化和旧格式删除公告仍需部署侧接线。
 
 ## 验收命令
 

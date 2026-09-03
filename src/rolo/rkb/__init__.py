@@ -58,6 +58,9 @@ from .read_models import (
     UnknownValue,
 )
 from .storage import RKBMetrics, RKBStore
+from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
+from .keyring import HMACKey, HMACKeyring
+from .schema_registry import SchemaPolicy, SchemaRegistry
 from .validation import (
     EvidenceValidationError,
     freshness_status,
@@ -117,6 +120,13 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "AlertSeverity",
+    "RKBAlert",
+    "evaluate_alerts",
+    "HMACKey",
+    "HMACKeyring",
+    "SchemaPolicy",
+    "SchemaRegistry",
     "EpisodeArtifactRef",
     "EpisodeEvent",
     "EpisodeEventKind",
