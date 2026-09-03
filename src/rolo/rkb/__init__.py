@@ -7,6 +7,16 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .mhs_api import MhsEvidenceReadApi
+from .mhs_read_models import (
+    MhsManifestReference,
+    MhsReadOnlyResult,
+    MhsReferenceCandidate,
+    ProbeEvidenceView,
+    build_probe_evidence_view,
+    project_mhs_read_result,
+    project_probe_evidence_view,
+)
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -27,15 +37,6 @@ from .models import (
     snapshot_from_target_bundle,
 )
 from .query import QueryRejectedError, QueryResult, ReadOnlyKnowledgeBase, SnapshotReference
-from .mhs_read_models import (
-    MhsManifestReference,
-    MhsReadOnlyResult,
-    MhsReferenceCandidate,
-    ProbeEvidenceView,
-    build_probe_evidence_view,
-    project_mhs_read_result,
-    project_probe_evidence_view,
-)
 from .read_models import (
     CapabilityRecord,
     CapabilityState,
@@ -90,6 +91,7 @@ __all__ = [
     "build_probe_evidence_view",
     "project_mhs_read_result",
     "project_probe_evidence_view",
+    "MhsEvidenceReadApi",
     "RobotIdentityModel",
     "RuntimeStatusModel",
     "HardwareResourceModel",
