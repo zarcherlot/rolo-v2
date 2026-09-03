@@ -91,6 +91,9 @@ fail-closed。I²C/SPI/GPIO 的设备级识别仍是后续工作项。binding �
 commands、binding 引用和负测。图像 fixture 的两个 65 字符摘要已做可审计的序列化纠正，
 当前报告 `PASS_READ_ONLY`；由于原始图像字节未保留，这不是重新采集的高保证哈希，详见
 `examples/mhs-landerpi/fixture-repair-20260903.json`。
+随后按授权重启 Aurora 节点并进行了 15 秒有界重新订阅，记录见
+`examples/mhs-landerpi/ros-reacquisition-20260903.json`；节点进程存在但仍无首帧，
+因此当前摘要仍不能升级为重新采集的高保证证据。
 急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`：用户已声明
 存在物理急停键和机械限位块，但尚未完成回路、复位、行程边界的独立 proof-test，因此保持
 `DECLARED_PRESENT_NOT_TESTED` / `DECLARED_MECHANICAL_BLOCKS_NOT_TESTED`。watchdog 明确

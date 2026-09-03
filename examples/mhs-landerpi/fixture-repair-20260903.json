@@ -3,7 +3,8 @@
   "robot_id": "landerpi",
   "repaired_at": "2026-09-03T10:10:00+08:00",
   "scope": "ros-structured-fixture-20260903.json",
-  "status": "SERIALIZATION_CORRECTED_NOT_REACQUIRED",
+  "status": "SERIALIZATION_CORRECTED_REACQUISITION_UNAVAILABLE",
+  "reacquisition_attempt": "artifact://mhs-landerpi/ros-reacquisition-20260903.json",
   "method": "For each 65-character hexadecimal image digest, remove the final extra hexadecimal character so the stored field conforms to SHA-256's 64-character representation.",
   "changes": [
     {

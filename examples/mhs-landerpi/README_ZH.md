@@ -87,6 +87,9 @@ USB serial 与 ROS 进程的关联、LiDAR 的 `/dev/ldlidar -> /dev/ttyUSB0` �
 RGB/IR 两个 65 字符摘要已按序列化纠正规则归一化，修复记录见
 [`fixture-repair-20260903.json`](fixture-repair-20260903.json)。由于原始图像字节未保留，
 后续仍应以重新采集的真实字节哈希替换它们，不能作为高保证证据使用。
+本次按授权重启传感器节点后的重新采集记录见
+[`ros-reacquisition-20260903.json`](ros-reacquisition-20260903.json)：节点进程存在，但
+15 秒有界窗口仍无图像首帧，摘要保持待替换状态。
 
 生成命令：
 
