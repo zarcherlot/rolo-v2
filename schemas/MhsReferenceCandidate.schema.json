@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mhs-reference-candidate/v1",
+  "title": "MHS reference candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_id", "target_fingerprint", "status", "access"],
+  "properties": {
+    "schema_version": {"const": "rolo-mhs-reference-candidate/v1"},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vendor_id": {"type": ["string", "null"]},
+    "provider_id": {"type": ["string", "null"]},
+    "device_id": {"type": ["string", "null"]},
+    "manifest_id": {"type": ["string", "null"]},
+    "source_kind": {"type": "string", "enum": ["TARGET_PROBE", "OBSERVED", "VENDOR_MANIFEST", "TEST_FIXTURE"]},
+    "authority": {"type": "string", "enum": ["OBSERVED", "VENDOR", "PROVISIONAL"]},
+    "transport": {"type": "string", "enum": ["USB", "SERIAL", "I2C", "SPI", "GPIO", "ROS", "UDEV", "REGISTRY", "PACKAGE", "UNKNOWN"]},
+    "resource_id": {"type": ["string", "null"]},
+    "route": {"type": ["string", "null"]},
+    "source_ref": {"type": ["string", "null"]},
+    "collector_id": {"type": ["string", "null"]},
+    "observed_at": {"type": ["string", "null"], "format": "date-time"},
+    "freshness": {"type": "string", "enum": ["FRESH", "STALE", "UNKNOWN"]},
+    "digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "status": {"type": "string", "enum": ["MHS_REFERENCE_DISCOVERED", "MHS_MANIFEST_AVAILABLE", "MHS_MANIFEST_UNAVAILABLE", "DISCOVERED_UNVERIFIED", "MHS_PROVISIONAL_FIXTURE", "MHS_PROVIDER_READ_ONLY_CONFIRMED"]},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "access": {"const": "READ_ONLY"}
+  }
+}

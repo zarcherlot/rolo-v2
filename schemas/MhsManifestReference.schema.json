@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mhs-manifest-reference/v1",
+  "title": "MHS manifest reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "manifest_id", "target_fingerprint", "status", "access"],
+  "properties": {
+    "schema_version": {"const": "rolo-mhs-manifest-reference/v1"},
+    "manifest_id": {"type": "string", "minLength": 1},
+    "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_kind": {"type": "string", "enum": ["VENDOR_MANIFEST", "TEST_FIXTURE", "OBSERVED"]},
+    "authority": {"type": "string", "enum": ["VENDOR", "PROVISIONAL", "OBSERVED"]},
+    "uri": {"type": ["string", "null"]},
+    "manifest_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "driver_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "canonical_route": {"type": ["string", "null"]},
+    "available": {"type": "boolean"},
+    "verified": {"type": "boolean"},
+    "status": {"type": "string", "enum": ["MHS_MANIFEST_AVAILABLE", "MHS_MANIFEST_UNAVAILABLE", "DISCOVERED_UNVERIFIED", "MHS_PROVISIONAL_FIXTURE"]},
+    "fixture_id": {"type": ["string", "null"]},
+    "generated_by": {"type": ["string", "null"]},
+    "generated_at": {"type": ["string", "null"], "format": "date-time"},
+    "input_evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "not_vendor_manifest": {"type": "boolean"},
+    "not_release_authority": {"type": "boolean"},
+    "access": {"const": "READ_ONLY"},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}
