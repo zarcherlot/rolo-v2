@@ -1,4 +1,4 @@
-<!-- status: canary; authority: implementation note; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: guide; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
 
 # Linux MHS 接入 Rolo 设计（含 landerpi 观测）
 
