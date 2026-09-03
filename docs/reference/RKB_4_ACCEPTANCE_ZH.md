@@ -14,6 +14,7 @@ metadata-only Episode。Episode 只索引 Probe run、bundle/report/snapshot 引
 - `scripts/rkb4_episode_canary.py`：从已验证 `robot-snapshot/v1` 运行只读 Episode canary；
 - `scripts/rkb4_fault_canary.py`：在不调用设备写路由的前提下验证 latest 恢复和损坏 record 隔离；
 - `scripts/rkb4_concurrency_canary.py`：以两个独立进程验证并发 Episode 发布与指标合并；
+- `scripts/rkb4_migration_canary.py`：验证迁移式新旧 Episode 发布、父 digest 绑定和 rollback 指针切换；
 - `schemas/RKBEpisodeMetadata.schema.json`：`rkb-episode-metadata/v1` 契约；
 - `schemas/RKBEpisodeQueryPage.schema.json`：`rkb-episode-query-page/v1` 分页契约；
 - `tests/test_rkb_episode.py`：正向、身份/父 digest、幂等、恢复、分页、retention、失败不移动 latest、回滚、敏感字段拒绝和 legacy 双读测试。
@@ -32,15 +33,17 @@ EpisodeStore 同时持久化跨进程指标，支持 latest 损坏后的记录�
 `tests/test_rkb_episode.py` 覆盖两个进程并发发布、指标合并和 digest 损坏隔离。LanderPi
 目标机 storage canary 记录在 `docs/validation/RKB4_LANDERPI_STORAGE_CANARY_20260903.json`；
 该 canary 使用目标 fingerprint 绑定的合成 snapshot，不替代真实 MHS provider 采集。
+迁移 rollback canary 记录在 `docs/validation/RKB4_LANDERPI_MIGRATION_CANARY_20260903.json`，
+已验证新旧 digest 父子绑定、latest 指针回退和只读边界；真机 reboot/kill-9 仍需维护窗口。
 
 ## 验收命令
 
 ```powershell
 $py = 'C:\Users\zarch\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
 $env:PYTHONPATH = (Resolve-Path 'src').Path
-& $py -m ruff check src/rolo/rkb/episodes.py scripts/rkb4_episode_canary.py scripts/rkb4_fault_canary.py tests/test_rkb_episode.py
+& $py -m ruff check src/rolo/rkb/episodes.py scripts/rkb4_episode_canary.py scripts/rkb4_fault_canary.py scripts/rkb4_concurrency_canary.py scripts/rkb4_migration_canary.py tests/test_rkb_episode.py
 & $py -m pytest -q --basetemp (Resolve-Path '.pytest-tmp').Path tests/test_rkb_episode.py
-& $py -m compileall -q src tests scripts/rkb4_episode_canary.py scripts/rkb4_fault_canary.py
+& $py -m compileall -q src tests scripts/rkb4_episode_canary.py scripts/rkb4_fault_canary.py scripts/rkb4_concurrency_canary.py scripts/rkb4_migration_canary.py
 python scripts/check_docs.py
 ```
 
@@ -54,6 +57,12 @@ python scripts/check_docs.py
 
 ```powershell
 & $py scripts/rkb4_concurrency_canary.py SNAPSHOT.json --artifact-root .rkb4-concurrency-artifacts --probe-run-id local-concurrency
+```
+
+迁移 rollback canary：
+
+```powershell
+& $py scripts/rkb4_migration_canary.py SNAPSHOT.json --artifact-root .rkb4-migration-artifacts --probe-run-id local-migration
 ```
 
 ## 灰度边界

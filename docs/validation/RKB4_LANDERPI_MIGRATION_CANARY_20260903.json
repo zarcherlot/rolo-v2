@@ -1,0 +1,51 @@
+{
+  "schema_version": "rkb4-target-migration-canary/v1",
+  "artifact_sha256": "d53f8bafdd98ee22a44e8f0a284ad035f8431d53ebbf74b06843ba0c06dec3d8",
+  "execution_date": "2026-09-03",
+  "target_host": "192.168.10.167",
+  "target_host_fingerprint": "70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9",
+  "robot_id": "mentorpi",
+  "source_snapshot": {
+    "kind": "synthetic_target_bound_snapshot",
+    "target_fingerprint_bound": true,
+    "mhs_collection": false,
+    "reason": "The migration canary isolates Episode pointer behavior from provider collection."
+  },
+  "remote_artifact_root": "/tmp/rkb4-migration-artifacts",
+  "canary": {
+    "status": "PASS",
+    "artifact_sha256": "c1d65815bcb8d0c18e4c926675127ab063d9635cd1aae295c443cfa3db61b266",
+    "checks": {
+      "latest_before_is_new": true,
+      "new_parent_binds_old": true,
+      "rollback_returns_old": true,
+      "latest_after_is_old": true,
+      "read_only": true
+    },
+    "old_digest": "da5ea5fc935d0ff8699faf573401386336f0480608ec53fc487e73314652feb9",
+    "new_digest": "4c98c07d77437e89cd289f3b45571e5d65c5e540458d74cf3965dec62aba2c5e",
+    "rollback_digest": "da5ea5fc935d0ff8699faf573401386336f0480608ec53fc487e73314652feb9",
+    "metrics": {
+      "writes": 2,
+      "rollbacks": 1,
+      "validation_rejections": 0
+    }
+  },
+  "decision": {
+    "status": "TARGET_MIGRATION_POINTER_VERIFIED",
+    "allow": [
+      "retain metadata-only Episode pointer rollback on mentorpi",
+      "continue read-only rollout under the existing fingerprint"
+    ],
+    "deny": [
+      "claim machine reboot or kill-9 recovery",
+      "claim real MHS provider migration coverage",
+      "enable device writes or expand platform rollout"
+    ]
+  },
+  "limitations": [
+    "No reboot was issued because it would interrupt the existing target debug process.",
+    "No device route, reset, calibration, setpoint, stop, power-cycle, or firmware operation was invoked.",
+    "The ROS2 graph and application route remain UNKNOWN in the fresh MHS evidence."
+  ]
+}
