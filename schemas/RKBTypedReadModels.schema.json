@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rkb-typed-read-models/v1",
+  "title": "RKB typed read models",
+  "type": "object",
+  "required": ["schema_version", "status"],
+  "properties": {
+    "schema_version": {"const": "rkb-typed-query-result/v1"},
+    "status": {"type": "string", "enum": ["FRESH", "STALE", "UNKNOWN", "DISCOVERED_UNVERIFIED", "ELIGIBLE", "VERIFIED", "UNAVAILABLE"]},
+    "value": {},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "observed_at": {"type": ["string", "null"], "format": "date-time"},
+    "fresh_until": {"type": ["string", "null"], "format": "date-time"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "status_reason": {"type": "string"},
+    "total": {"type": ["integer", "null"], "minimum": 0},
+    "offset": {"type": "integer", "minimum": 0},
+    "limit": {"type": ["integer", "null"], "minimum": 1},
+    "next_offset": {"type": ["integer", "null"], "minimum": 0}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "UnknownValue": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {"status": {"const": "UNKNOWN"}, "reason": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "RuntimeStatus": {
+      "type": "object",
+      "required": ["schema_version", "state"],
+      "properties": {
+        "schema_version": {"const": "rkb-runtime-status/v1"},
+        "state": {"type": "string"},
+        "os_name": {"type": ["string", "null"]},
+        "os_version": {"type": ["string", "null"]},
+        "kernel": {"type": ["string", "null"]},
+        "architecture": {"type": ["string", "null"]},
+        "hostname": {"type": ["string", "null"]},
+        "ros_distro": {"type": ["string", "null"]},
+        "ros_version": {"type": ["string", "null"]},
+        "ros_domain_id": {"oneOf": [{"type": "integer"}, {"$ref": "#/$defs/UnknownValue"}]},
+        "rmw_implementation": {"oneOf": [{"type": "string"}, {"$ref": "#/$defs/UnknownValue"}]}
+      },
+      "additionalProperties": false
+    },
+    "HardwareResource": {
+      "type": "object",
+      "required": ["schema_version", "resource_id", "stability"],
+      "properties": {
+        "schema_version": {"const": "rkb-hardware-resource/v1"},
+        "resource_id": {"type": "string"},
+        "kind": {"type": "string"},
+        "name": {"type": ["string", "null"]},
+        "serial": {"type": ["string", "null"]},
+        "transport": {"type": ["string", "null"]},
+        "address": {"type": ["string", "null"]},
+        "path": {"type": ["string", "null"]},
+        "provider_id": {"type": ["string", "null"]},
+        "stability": {"type": "string", "enum": ["STABLE", "UNSTABLE", "UNKNOWN"]},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "HardwareInventory": {
+      "type": "object",
+      "required": ["schema_version", "resources"],
+      "properties": {"schema_version": {"const": "rkb-hardware-inventory/v1"}, "resources": {"type": "array", "items": {"$ref": "#/$defs/HardwareResource"}}},
+      "additionalProperties": false
+    },
+    "MiddlewareGraph": {
+      "type": "object",
+      "required": ["schema_version", "endpoints", "relationships"],
+      "properties": {"schema_version": {"const": "rkb-middleware-graph/v1"}, "endpoints": {"type": "array"}, "relationships": {"type": "array"}},
+      "additionalProperties": false
+    },
+    "Executable": {"type": "object", "required": ["schema_version", "executable_id", "name"], "properties": {"schema_version": {"const": "rkb-executable/v1"}, "executable_id": {"type": "string"}, "name": {"type": "string"}}, "additionalProperties": false},
+    "CapabilityRecord": {"type": "object", "required": ["schema_version", "operation_id", "state", "reason"], "properties": {"schema_version": {"const": "rkb-capability-record/v1"}, "operation_id": {"type": "string"}, "state": {"type": "string"}, "reason": {"type": "string"}}, "additionalProperties": false},
+    "StateSafety": {"type": "object", "required": ["schema_version", "state", "safety_status"], "properties": {"schema_version": {"const": "rkb-state-safety/v1"}, "state": {"type": "string"}, "safety_status": {"type": "string"}, "observed_fields": {"type": "object"}}, "additionalProperties": false}
+  }
+}

@@ -1,4 +1,4 @@
-<!-- status: active; authority: delivery-report; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
 
 # MHS Sensor/Actuator Discovery D0-D5 交付与验收
 

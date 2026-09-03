@@ -14,7 +14,7 @@ Rolo 独立验证（VERIFIED）
 用户或 Provider 决策（DECISION）
 ~~~
 
-RKB 不替代急停、碰撞检测、功能安全控制器或人工授权。缺失证据表示 UNKNOWN，不表示安全；静态声明表示候选，不表示目标当前可用。
+RKB 不替代急停、碰撞检测、功能安全控制器或人工授权，也不执行任何设备写操作。缺失证据表示 UNKNOWN，不表示安全；静态声明表示候选，不表示目标当前可用。实际写入必须由独立的 Rolo Write Execution 层完成，RKB 只提供资格、前置条件并保存执行证据。
 
 ## 2. 顶层结构
 
@@ -237,10 +237,14 @@ state_safety 前置条件、quiescence/resource lock、授权引用和可回滚/
 
 ### 7.2 MHS 与 RKB 的证据映射
 
-MHS manifest 是 `DECLARED`/`PROVIDER` 证据；driver probe/status/read 是目标
-`OBSERVED` 证据；Rolo 对 manifest、driver、route、schema、状态和授权的独立检查才可
-产生 `ELIGIBLE` 或 `VERIFIED`。每次 MHS inspect/read/write 的结果都要带 RKB fact IDs、
+MHS manifest 是 `DECLARED`/`PROVIDER` 证据；driver probe/status/read，以及 Write Execution
+经 MHS Provider 调用产生的结果是目标 `OBSERVED` 证据；Rolo 对 manifest、driver、route、schema、
+状态和授权的独立检查才可产生 `ELIGIBLE` 或 `VERIFIED`。每次 MHS inspect/read 或 Write
+Execution 的结果都要带 RKB fact IDs、
 observed_at、fresh_until、manifest digest、driver version 和 transport route。
+
+RKB 不调用 MHS Provider、不生成物理命令；Write Execution 读取 RKB 的写资格和新鲜前置条件，
+通过固定的 Provider adapter 执行后，再把 pre/post state、结果和审计事件作为 RKB 事实写回。
 
 建议 route 统一为：
 
@@ -248,11 +252,12 @@ observed_at、fresh_until、manifest digest、driver version 和 transport route
 mhs://<device_id>/<capability_id>
 ~~~
 
-MCP、CLI 和 API 只做 adapter，最终调用链保持：
+MCP、CLI 和 API 只做 adapter，读写链路必须区分：
 
 ~~~text
-Agent -> typed RKB query/Tool -> Rolo policy/session -> MHS Provider
-      -> bounded driver -> physical device
+只读：Agent -> Probe/typed RKB query -> MHS Provider -> bounded driver -> physical device
+受控写：Agent -> typed RKB query（资格/前置条件） -> Rolo Write Execution session/policy
+       -> MHS Provider -> bounded driver -> physical device
 ~~~
 
 当前附件中的 `examples/mhs-sensor/mhs_sensor.py` 仅是传感器兼容原型；待 Rolo Provider SPI
@@ -260,5 +265,5 @@ Agent -> typed RKB query/Tool -> Rolo policy/session -> MHS Provider
 在官方 MHS wire schema 和 conformance 测试公开前，只能声明 Rolo 的 MHS-compatible profile，
 不能声明官方合规。
 
-实现审计和落地顺序见：[Probe → RKB 审计报告](../review/ROLO_V2_PROBE_KNOWLEDGE_BASE_AUDIT_ZH.md) ·
-[后续开发计划](../adapt/ROLO_V2_ROBOT_KNOWLEDGE_BASE_DEVELOPMENT_PLAN_ZH.md)。
+审计结论已归并到[开发计划评审](../review/ROLO_V2_RKB_DEVELOPMENT_PLAN_REVIEW_ZH.md)，落地顺序
+见[可执行开发计划](ROLO_V2_RKB_EXECUTION_PLAN_ZH.md)。
