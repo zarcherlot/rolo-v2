@@ -163,8 +163,9 @@ def build_arm_bound_record() -> MhsManifestRecord:
     )
     safety = MhsSafetyEvidenceBundle(
         external_estop=MhsSafetyEvidence(
-            status="NOT_OBSERVED",
-            notes="No independent external e-stop state or manual attestation was provided.",
+            status="UNVERIFIED",
+            source_refs=["operator:landerpi-external-estop"],
+            notes="External e-stop is declared on the device side; Rolo-readable state and trip evidence were not observed.",
         ),
         stop=MhsSafetyEvidence(
             status="UNVERIFIED",
