@@ -1,0 +1,31 @@
+{
+  "schema_version": "rolo-mhs-joystick-scheduler-fix/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T13:20:11+08:00",
+  "access": "REMOTE_CONFIGURATION_CHANGE",
+  "change": {
+    "file_source": "/home/ubuntu/ros2_ws/src/peripherals/peripherals/joystick_control.py",
+    "file_build": "/home/ubuntu/ros2_ws/build/peripherals/peripherals/joystick_control.py",
+    "backup_suffix": ".bak-20260903",
+    "before": "update_buttons timer callback entered an unconditional while True loop",
+    "after": "update_buttons processes one pygame event batch per timer callback and returns",
+    "scope": "scheduler/CPU fix only; no actuator command or parameter change"
+  },
+  "diagnosis": {
+    "old_process_pid": 1625,
+    "old_cpu_percent_approx": 97,
+    "replacement_process_pid": 418833,
+    "replacement_cpu_percent_approx": 10,
+    "replacement_start_log": "/tmp/joystick-fixed3.log"
+  },
+  "verification": {
+    "artifact": "artifact://mhs-landerpi/aurora-production-stability-post-joystick-fix-20260903.json",
+    "actuator_commands_sent_by_collector": 0
+  },
+  "safety": {
+    "remote_operator_required": true,
+    "physical_estop_limit_proof_test": "OUT_OF_SCOPE_BY_USER_REQUEST"
+  }
+}

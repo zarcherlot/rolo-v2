@@ -91,8 +91,12 @@ Aurora 930 的根因是组合 `kRgbdIr` 路径与设备返回的 `depth_mode=kIn
 真实 payload，新的 SHA-256 记录见
 [`ros-reacquisition-20260903-success.json`](ros-reacquisition-20260903-success.json) 和
 [`fixture-repair-20260903.json`](fixture-repair-20260903.json)；单帧证据有效，长时间稳定性与
-CameraInfo 内参维度、畸变模型和非零内参已通过只读检查；30 秒稳定性窗口结果为 `PARTIAL`，
-详见 [`aurora-stability-calibration-20260903.json`](aurora-stability-calibration-20260903.json)。USB/进程/内核及修复验证见
+CameraInfo 内参维度、畸变模型和非零内参已通过只读检查。生产近似多线程执行器下的 30 秒窗口
+内消息持续可达且时间戳单调；进一步发现 `joystick_control` 定时器无限循环占用约 97% CPU，
+已修正为单次事件处理。修复后 RGB/Depth 最大间隔降至 137–140 ms，IR 为 211 ms，稳定性结果
+为 `PARTIAL_IR_GAPS`。详见 [`joystick-scheduler-fix-20260903.json`](joystick-scheduler-fix-20260903.json)、
+[`aurora-production-stability-post-joystick-fix-20260903.json`](aurora-production-stability-post-joystick-fix-20260903.json)
+及此前的 [`aurora-production-stability-20260903.json`](aurora-production-stability-20260903.json)。USB/进程/内核及修复验证见
 [`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)。
 
 生成命令：

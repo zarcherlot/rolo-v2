@@ -93,9 +93,13 @@ commands、binding 引用和负测。Aurora 驱动根因已确认：设备支持
 源启动文件和安装树持久化为 `rgbd_enable=False` 并重启传感器节点，修复记录见
 `examples/mhs-landerpi/aurora-fix-20260903.json`。随后从同一 ROS 时间戳重新取得 RGB/IR/Depth
 payload 并独立计算 SHA-256；当前报告 `PASS_READ_ONLY`，单帧证据有效。CameraInfo 的
-内参维度、畸变模型和非零内参已通过只读检查；30 秒流稳定性窗口保持 `PARTIAL`（消息可达且
-时间戳单调，但回调速率低于名义 15 Hz），详见 `examples/mhs-landerpi/aurora-stability-calibration-20260903.json`。
-USB、进程、内核和 ROS 日志及修复验证见
+内参维度、畸变模型和非零内参已通过只读检查。生产近似多线程执行器下的 30 秒窗口内消息持续
+可达且时间戳单调；排查发现 `joystick_control` 定时器的无限循环占用约 97% CPU，已在设备源/构建
+副本修正为单次事件处理并重启。修复后 RGB/Depth 最大间隔降至 137–140 ms，IR 为 211 ms，
+驱动错误扫描仍为 0；稳定性保持 `PARTIAL_IR_GAPS`，详细对比见
+`examples/mhs-landerpi/joystick-scheduler-fix-20260903.json` 和
+`examples/mhs-landerpi/aurora-production-stability-post-joystick-fix-20260903.json`。
+基础标定窗口见 `examples/mhs-landerpi/aurora-stability-calibration-20260903.json`。USB、进程、内核和 ROS 日志及修复验证见
 `examples/mhs-landerpi/aurora-diagnostic-20260903.json`。
 急停/限位专项证据见 `examples/mhs-landerpi/estop-limits-evidence-20260903.json`。按用户现场约束，
 本轮不执行急停/限位 proof-test；现场人员通过远程控制保障运行安全，该项作为操作前置条件记录，
