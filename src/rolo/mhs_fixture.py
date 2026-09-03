@@ -48,11 +48,16 @@ class MhsProvisionalFixture(BaseModel):
         return self
 
     def _digest_payload(self) -> dict[str, Any]:
-        payload = self.model_dump(mode="json", exclude={"digest"})
+        payload = self.model_dump(mode="python", exclude={"digest"})
         return payload
 
     def computed_digest(self) -> str:
-        encoded = json.dumps(self._digest_payload(), sort_keys=True, separators=(",", ":")).encode()
+        encoded = json.dumps(
+            self._digest_payload(),
+            sort_keys=True,
+            separators=(",", ":"),
+            default=lambda value: value.isoformat() if isinstance(value, datetime) else str(value),
+        ).encode()
         return hashlib.sha256(encoded).hexdigest()
 
 
