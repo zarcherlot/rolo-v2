@@ -68,7 +68,7 @@ def replay_fixture(fixture: MhsProvisionalFixture, *, target_fingerprint: str) -
     return {
         "schema_version": "rolo-mhs-read-only/v1",
         "device_id": "landerpi-provisional",
-        "provider_id": "fixture.land erpi".replace(" ", ""),
+        "provider_id": "fixture.landerpi",
         "target_fingerprint": fixture.target_fingerprint,
         "route": "fixture://landerpi/read",
         "operation": "read",
