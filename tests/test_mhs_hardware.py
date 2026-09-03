@@ -5,6 +5,7 @@ from rolo.mhs_hardware import (
     MhsDeviceClass,
     MhsDeviceManifest,
     MhsDeviceProvider,
+    MhsCommandDescriptor,
     MhsStatus,
 )
 
@@ -62,3 +63,18 @@ def test_mhs_provider_rejects_unknown_and_unsafe_measurements():
     rejected = instance.read()
     assert rejected.status == MhsStatus.UNAVAILABLE
     assert rejected.manifest_sha256 == instance.manifest.manifest_sha256
+
+
+def test_probe_does_not_publish_manifest_commands_as_tools():
+    instance, _ = make_provider()
+    instance.manifest.commands = [
+        MhsCommandDescriptor(
+            id="reset",
+            hardware_resource_id="cabinet-1",
+            risk="R3",
+            input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+            timeout_s=1,
+        )
+    ]
+    assert all(item["access"] == "read" for item in instance.capabilities())
+    assert "reset" not in {item["capability_id"] for item in instance.capabilities()}

@@ -166,6 +166,9 @@ class MhsDeviceProvider:
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
+        # Probe publishes only the bounded read surface.  A vendor manifest may
+        # carry command metadata for later Trace/Write review, but commands are
+        # deliberately not converted into executable Tool descriptors here.
         readable = [
             {
                 "capability_id": capability,
@@ -176,20 +179,7 @@ class MhsDeviceProvider:
             }
             for capability in sorted(self.READ_CAPABILITIES)
         ]
-        writable = [
-            {
-                "capability_id": command.id,
-                "access": "write",
-                "route": self.route(command.id),
-                "status": "DISCOVERED_UNVERIFIED",
-                "risk": command.risk,
-                "hardware_resource_id": command.hardware_resource_id,
-                "requires_rolo_write_gate": True,
-                "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
-            }
-            for command in sorted(self.manifest.commands, key=lambda item: item.id)
-        ]
-        return [*readable, *writable]
+        return readable
 
     def inspect(self) -> MhsResult:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
