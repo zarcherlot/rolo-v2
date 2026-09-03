@@ -1,0 +1,17 @@
+{
+  "schema_version": "rolo-mhs-ros-reacquisition/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "captured_at": "2026-09-03T12:08:42+08:00",
+  "access": "READ_ONLY_AFTER_RGBD_MODE_FIX",
+  "fix": {"parameter": "rgbd_enable", "before": true, "after": false},
+  "samples": [
+    {"topic": "/ascamera/camera_publisher/rgb0/image", "type": "sensor_msgs/msg/Image", "payload_observed": true, "sha256": "14bb9b6badfc9ced55f253241a6cd224cea1df799aaf67d0379ee07d9d3bc090", "length": 768000, "encoding": "bgr8", "height": 400, "width": 640, "source_timestamp": {"sec": 1788408522, "nanosec": 529000000}, "head_hex": "e2eedce2eedce5f0dce4efdbeaf0d6ea"},
+    {"topic": "/ascamera/camera_publisher/ir0/image", "type": "sensor_msgs/msg/Image", "payload_observed": true, "sha256": "bfdb02f953b2847f9d4ad8c67fe3146b5bdc087e51dcb4fbdcacccc77e137212", "length": 256000, "encoding": "mono8", "height": 400, "width": 640, "source_timestamp": {"sec": 1788408522, "nanosec": 529000000}, "head_hex": "000000000000000000009231233c3532"},
+    {"topic": "/ascamera/camera_publisher/depth0/image_raw", "type": "sensor_msgs/msg/Image", "payload_observed": true, "sha256": "2017bf46f45c62db3262df68d86c49925341517dbd33d4499336249d2660fea6", "length": 512000, "encoding": "mono16", "height": 400, "width": 640, "source_timestamp": {"sec": 1788408522, "nanosec": 529000000}, "head_hex": "00000000000000000000000000000000"}
+  ],
+  "rate_check": {"topic": "/ascamera/camera_publisher/rgb0/image", "observed_hz_approx": 15.0, "window_s": 8},
+  "decision": "REACQUIRED",
+  "limitations": ["Single-frame digests are fresh and independently computed, but long-run stability remains unverified."]
+}

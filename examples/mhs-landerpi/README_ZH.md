@@ -84,14 +84,14 @@ USB serial 与 ROS 进程的关联、LiDAR 的 `/dev/ldlidar -> /dev/ttyUSB0` �
 行程边界 proof-test。watchdog 延后为未来客户交付项，不作为本轮实现目标。
 可重复的只读 conformance 检查由 `conformance_check.py` 执行，结果见
 [`conformance-20260903.json`](conformance-20260903.json)；当前报告为 `PASS_READ_ONLY`。
-RGB/IR 两个 65 字符摘要已按序列化纠正规则归一化，修复记录见
-[`fixture-repair-20260903.json`](fixture-repair-20260903.json)。由于原始图像字节未保留，
-后续仍应以重新采集的真实字节哈希替换它们，不能作为高保证证据使用。
-本次按授权重启传感器节点后的重新采集记录见
-[`ros-reacquisition-20260903.json`](ros-reacquisition-20260903.json)：节点进程存在，但
-15 秒有界窗口仍无图像首帧，摘要保持待替换状态。
-USB/进程/内核日志排查见 [`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)：
-设备已枚举且进程打开了正确的 USB 节点，当前故障域收敛到 Aurora SDK 流初始化或帧接收路径。
+Aurora 930 的根因是组合 `kRgbdIr` 路径与设备返回的 `depth_mode=kInvalid` 不兼容；已将目标端
+源启动文件和安装树的 `rgbd_enable` 默认值持久化为 `false` 并重启节点，详见
+[`aurora-fix-20260903.json`](aurora-fix-20260903.json)。修复后从同一时间戳取得 RGB/IR/Depth
+真实 payload，新的 SHA-256 记录见
+[`ros-reacquisition-20260903-success.json`](ros-reacquisition-20260903-success.json) 和
+[`fixture-repair-20260903.json`](fixture-repair-20260903.json)；单帧证据有效，长时间稳定性与
+相机标定仍未宣称完成。USB/进程/内核及修复验证见
+[`aurora-diagnostic-20260903.json`](aurora-diagnostic-20260903.json)。
 
 生成命令：
 

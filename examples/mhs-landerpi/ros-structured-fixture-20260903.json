@@ -3,12 +3,12 @@
   "robot_id": "landerpi",
   "container": "MentorPi",
   "access": "READ_ONLY_SUBSCRIPTION",
-  "observed_at": "2026-09-03T00:58:10+08:00",
+  "observed_at": "2026-09-03T12:08:42+08:00",
   "method": "rclpy subscriptions with an 8-12 second bounded spin; first message per topic retained",
   "repair": {
     "artifact": "artifact://mhs-landerpi/fixture-repair-20260903.json",
-    "kind": "serialization_correction",
-    "raw_payload_reacquired": false
+    "kind": "fresh_reacquisition",
+    "raw_payload_reacquired": true
   },
   "samples": {
     "/scan": {
@@ -60,42 +60,42 @@
       "interface_id": "rgb",
       "type": "sensor_msgs/msg/Image",
       "frame_id": "rgb_camera_link",
-      "source_timestamp": {"sec": 1788368290, "nanosec": 99000000},
+      "source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
       "height": 400,
       "width": 640,
       "encoding": "bgr8",
       "is_bigendian": 0,
       "step": 1920,
       "data_len": 768000,
-      "data_sha256": "5ebdf02924c2a8815da6c887101d1f3242f303e9cc8e1f54a7154da547c412c4",
-      "data_head_hex": "100c080f0b07100c0a100c0a11090a11"
+      "data_sha256": "14bb9b6badfc9ced55f253241a6cd224cea1df799aaf67d0379ee07d9d3bc090",
+      "data_head_hex": "e2eedce2eedce5f0dce4efdbeaf0d6ea"
     },
     "/ascamera/camera_publisher/ir0/image": {
       "interface_id": "ir",
       "type": "sensor_msgs/msg/Image",
       "frame_id": "depth_camera_link",
-      "source_timestamp": {"sec": 1788368290, "nanosec": 99000000},
+      "source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
       "height": 400,
       "width": 640,
       "encoding": "mono8",
       "is_bigendian": 0,
       "step": 640,
       "data_len": 256000,
-      "data_sha256": "930112cc9843c1dde39f085ebdaed73e87b96c6195d0eae847b13d649811dd12",
+      "data_sha256": "bfdb02f953b2847f9d4ad8c67fe3146b5bdc087e51dcb4fbdcacccc77e137212",
       "data_head_hex": "000000000000000000009231233c3532"
     },
     "/ascamera/camera_publisher/depth0/image_raw": {
       "interface_id": "depth",
       "type": "sensor_msgs/msg/Image",
       "frame_id": "depth_camera_link",
-      "source_timestamp": {"sec": 1788368290, "nanosec": 99000000},
+      "source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
       "height": 400,
       "width": 640,
       "encoding": "mono16",
       "is_bigendian": 0,
       "step": 1280,
       "data_len": 512000,
-      "data_sha256": "6521f6df65d19fb6f4dd0077d3d0531a5aabe01884d89ccb23f5743b95fd212c",
+      "data_sha256": "2017bf46f45c62db3262df68d86c49925341517dbd33d4499336249d2660fea6",
       "data_head_hex": "00000000000000000000000000000000"
     }
   },

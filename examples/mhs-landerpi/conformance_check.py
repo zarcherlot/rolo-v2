@@ -103,7 +103,7 @@ def main() -> int:
     report = {
         "schema_version": "rolo-mhs-conformance/v1",
         "robot_id": "landerpi",
-        "evaluated_at": "2026-09-03T08:35:00+08:00",
+        "evaluated_at": "2026-09-03T12:14:35+08:00",
         "profile": "rolo-mhs-compatible-read-only/v1",
         "result": "PASS_READ_ONLY" if read_only_pass else "FAIL",
         "write_profile": "NOT_ELIGIBLE",
@@ -123,6 +123,8 @@ def main() -> int:
             "fixture-repair-20260903.json",
             "ros-reacquisition-20260903.json",
             "aurora-diagnostic-20260903.json",
+            "aurora-fix-20260903.json",
+            "ros-reacquisition-20260903-success.json",
         ],
         "limitations": [
             "This is a Rolo-compatible profile check, not an official external MHS conformance certification.",
