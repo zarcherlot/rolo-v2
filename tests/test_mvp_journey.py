@@ -69,3 +69,15 @@ def test_certify_report_has_per_case_results():
     assert report.conclusion == "PASS"
     assert report.results[0].status.value == "PASS"
     assert report.results[0].evidence_ids
+
+
+def test_stale_catalog_is_refused_before_execution():
+    catalog = build_target_catalog(target_id="mentorpi", descriptors=[_tool("native.os.host.inspect")])
+    service = TraceService(catalog, lambda *_: {"status": "SUCCEEDED"})
+    request = TraceSessionRequest(target_id="mentorpi", catalog_digest=catalog.digest or "", task="inspect")
+    try:
+        service.create_session(request)
+    except ValueError as exc:
+        assert "stale" in str(exc)
+    else:
+        raise AssertionError("stale catalog must be refused")
