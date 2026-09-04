@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-import secrets
 import re
+import secrets
 from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
