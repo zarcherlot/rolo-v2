@@ -168,10 +168,19 @@ class TraceService:
         try:
             encoded_arguments = json.dumps(call.arguments, ensure_ascii=False, separators=(",", ":"))
         except (TypeError, ValueError) as exc:
+            session.state = SessionState.BLOCKED
+            self._event(session, SessionState.BLOCKED, "PARAMETER_REJECTED", tool_id=call.tool_id, error_code="PARAMETER_REJECTED")
             raise ValueError("PARAMETER_REJECTED: arguments must be JSON serializable") from exc
         if len(encoded_arguments.encode("utf-8")) > 16 * 1024:
+            session.state = SessionState.BLOCKED
+            self._event(session, SessionState.BLOCKED, "PARAMETER_REJECTED", tool_id=call.tool_id, error_code="PARAMETER_REJECTED")
             raise ValueError("PARAMETER_REJECTED: arguments exceed 16 KiB")
-        self._validate_arguments(descriptor, call.arguments)
+        try:
+            self._validate_arguments(descriptor, call.arguments)
+        except ValueError as exc:
+            session.state = SessionState.BLOCKED
+            self._event(session, SessionState.BLOCKED, "PARAMETER_REJECTED", tool_id=call.tool_id, error_code="PARAMETER_REJECTED")
+            raise exc
         session.state = SessionState.CALLING
         self._event(session, SessionState.CALLING, "TOOL_CALL", tool_id=call.tool_id, arguments=dict(call.arguments))
         session.calls += 1
@@ -179,6 +188,12 @@ class TraceService:
             result = self.invoker(call.tool_id, call.arguments, session.session_id)
         except Exception as exc:
             result = {"status": "FAILED", "error": type(exc).__name__}
+        try:
+            result_size = len(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        except (TypeError, ValueError):
+            result_size = 0
+        if result_size > 512 * 1024:
+            result = {"status": "FAILED", "error": "RESULT_TOO_LARGE"}
         session.state = SessionState.OBSERVED
         evidence = [f"trace:{session.session_id}:call:{session.calls}"]
         session.evidence_ids.extend(evidence)
@@ -230,7 +245,7 @@ class TraceService:
             pattern = definition.get("pattern")
             if pattern and isinstance(value, str) and re.fullmatch(str(pattern), value) is None:
                 raise ValueError(f"PARAMETER_REJECTED: argument {name} does not match pattern")
-            if definition.get("kind") == "integer" and not isinstance(value, int):
+            if definition.get("kind") == "integer" and (isinstance(value, bool) or not isinstance(value, int)):
                 raise ValueError(f"PARAMETER_REJECTED: argument {name} must be an integer")
 
     def _finish(self, session_id: str, state: SessionState, event: str) -> TraceSession:

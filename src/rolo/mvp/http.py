@@ -65,9 +65,13 @@ def invoke_tool(payload: dict[str, Any]) -> dict[str, Any]:
     session_id = payload.get("session_id")
     tool_id = payload.get("tool_id")
     arguments = payload.get("arguments", {})
+    target_id = payload.get("target_id")
     if not isinstance(session_id, str) or not isinstance(tool_id, str) or not isinstance(arguments, dict):
         raise HTTPException(status_code=422, detail="session_id, tool_id, and object arguments are required")
-    for service in _services.values():
+    services = [_services[target_id]] if isinstance(target_id, str) and target_id in _services else list(_services.values()) if target_id is None else []
+    if target_id is None and len(services) > 1:
+        raise HTTPException(status_code=400, detail="target_id is required when multiple targets are registered")
+    for service in services:
         if session_id in service.sessions:
             try:
                 session = service.execute(session_id, [TraceCall(tool_id=tool_id, arguments=arguments)])
@@ -81,6 +85,8 @@ def invoke_tool(payload: dict[str, Any]) -> dict[str, Any]:
 @router.get("/runs/{run_id}")
 def get_run(run_id: str, target_id: str | None = None) -> dict[str, Any]:
     services = [_services[target_id]] if target_id in _services else list(_services.values()) if target_id is None else []
+    if target_id is None and len(services) > 1:
+        raise HTTPException(status_code=400, detail="target_id is required when multiple targets are registered")
     for service in services:
         if run_id in service.sessions:
             return service.sessions[run_id].model_dump(mode="json")
