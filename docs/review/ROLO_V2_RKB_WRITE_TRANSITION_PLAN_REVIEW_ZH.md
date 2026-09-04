@@ -1,4 +1,4 @@
-<!-- status: draft; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-02; reviewed_commit: decb3b7; reviewed_plan: ../architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md -->
+<!-- status: draft; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-04; reviewed_commit: c05ab27; reviewed_plan: ../architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md -->
 
 # Rolo v2 Probe 后受控写执行计划复评
 
@@ -11,7 +11,7 @@
 - [RKB 架构说明](../architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md)；
 - `docs/reference/ENGINEERING_STATUS.md`、`pyproject.toml` 和当前 v2 源码/测试布局。
 
-当前基线提交为 `decb3b7`。复评不把计划中的 artifact、测试或真机证据视为已经存在的事实。
+当前基线提交为 `c05ab27`。复评不把计划中的 artifact、测试或真机证据视为已经存在的事实。
 
 **结论：设计方向有条件通过；只读当前仍应判为 `READ_ONLY_BLOCKED`，不可进入 W1，也不应
 对外宣称支持 Probe 之后的受控写执行。RKB 本身不承担写操作。**

@@ -1,4 +1,4 @@
-<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-02; last_synced_commit: 300078e7e6b83ddaa2081fe9753e3e09af6ffb17 -->
+<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-04; last_synced_commit: c05ab27e62b4d61351d99a711be930f6a7abc27b -->
 
 # Rolo v2 工程状态
 

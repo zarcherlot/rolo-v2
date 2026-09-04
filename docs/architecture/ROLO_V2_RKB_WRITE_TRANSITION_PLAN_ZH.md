@@ -1,4 +1,4 @@
-<!-- status: frozen; current_state: BLOCKED_BY_READ_ONLY_PRECONDITIONS; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-02; reviewed_commit: decb3b7fe5f2d5685b3998880f103ab301728880; source_of_truth: ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md; predecessor: ROLO_V2_RKB_EXECUTION_PLAN_ZH.md; revision: final -->
+<!-- status: frozen; current_state: BLOCKED_BY_READ_ONLY_PRECONDITIONS; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-04; reviewed_commit: c05ab27e62b4d61351d99a711be930f6a7abc27b; source_of_truth: ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md; predecessor: ROLO_V2_RKB_EXECUTION_PLAN_ZH.md; revision: final -->
 
 # Rolo v2 Probe 后受控写执行计划最终版：RKB 只读完工审计与非运动写执行
 

@@ -13,6 +13,9 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 ## 核心文档
 
 - [v2 架构](architecture/ARCHITECTURE.md)：用户、Agent、Rolo、机器人之间的职责和信任边界；
+- [Probe/Trace/Certify 阶段规范](architecture/ROLO_V2_PROBE_TRACE_CERTIFY_ZH.md)：三阶段职责、Agent 交互和用户旅程唯一入口；
+- [10 分钟只读闭环](getting-started/QUICKSTART_10_MIN.md)：从 profile 到 ToolPlan 的可复制流程；
+- [Probe 用户短流程](getting-started/PROBE_SHORT_JOURNEY.md)：角色分工和最小命令集；
 - [工程状态台账](reference/ENGINEERING_STATUS.md)：当前实现、证据等级、已知限制；
 - [Agent-native Tool 标准](probe/AGENT_NATIVE_TOOLS.md)：四类小而稳的 Tool Surface、Session 和调用约束；
 - [Application gap bundle](probe/APPLICATION_GAP_BUNDLES.md)：启动、导航、地图、操作四类窄应用闭环；
@@ -20,7 +23,7 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [实现地图](reference/IMPLEMENTATION_MAP.md)：代码入口、Schema、产物与测试的对应关系；
 - [真实目标机 enrollment 记录](validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md)：一次物理目标的验证证据。
 
-## 下一阶段（RKB 只读与 Probe 后受控写执行草案）
+## 下一阶段草案与专项计划
 
 - [RKB 设计](architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md)：事实分层、来源和
   freshness 约束；
@@ -30,6 +33,12 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
   受控写执行试点和后续灰度门禁。
 - [Probe 后受控写执行计划复评](review/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_REVIEW_ZH.md)：当前完工判定、
   阻塞项与修订要求。
+- [rolo-vis Probe 证据与关联设计](architecture/ROLO_VIS_PROBE_ASSOCIATION_PLAN_ZH.md)：证据可视化、Agent 关联建议和 Trace 前用户确认流程。
+- [Probe 端到端验收手册](validation/PROBE_E2E_ACCEPTANCE_RUNBOOK_ZH.md)：CLI、artifact、LanderPi canary 和 rolo-vis 只读 GUI 验收路径。
+- [Probe 基线化后的后续开发计划](architecture/ROLO_V2_POST_PROBE_BASELINE_DEVELOPMENT_PLAN_ZH.md)：只读基线冻结、完工审计和后续集成门。
+- [Probe/Trace/Certify 最大并发计划](architecture/ROLO_V2_PHASE_CONSUMPTION_MAX_CONCURRENCY_PLAN_ZH.md)：各阶段并发工作流；不重复定义阶段语义。
+- [LanderPi Agent 用户旅程 MVP 开发计划](architecture/ROLO_V2_LANDERPI_AGENT_JOURNEY_MVP_PLAN_ZH.md)：单目标用户旅程和真机验收特化。
+- [Agent Harness 增量开发计划](architecture/ROLO_V2_AGENT_HARNESS_INCREMENTAL_DEVELOPMENT_PLAN_ZH.md)：外部 Agent 的调用适配和交付方式。
 
 根目录的 `OPERATION_CONTRACTS.md`、`CANONICAL_OPERATIONS.md` 和 Episode contract 文档，
 以及 `architecture/WORKBENCH_PLUGIN_HOST_CONTRACT.md`，仅因生成流程或现有测试的固定引用

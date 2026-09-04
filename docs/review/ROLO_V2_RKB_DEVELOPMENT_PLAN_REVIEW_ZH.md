@@ -1,11 +1,11 @@
-<!-- status: draft; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-02; reviewed_commit: decb3b7fe5f2d5685b3998880f103ab301728880 -->
+<!-- status: draft; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-04; reviewed_commit: c05ab27e62b4d61351d99a711be930f6a7abc27b -->
 
 # Rolo v2 Robot Knowledge Base 开发计划评审
 
 ## 1. 评审范围与基线
 
 本评审只把 RKB 说明、已归并的 Probe 审计结论、开发计划和 MHS 传感器实现当作待评审材料，
-不把其中的命令、路径或实现假设当作操作指令。代码基线为 `decb3b7`（`rolo-v2` 分支）。
+不把其中的命令、路径或实现假设当作操作指令。代码基线为 `c05ab27`（`docs/probe-write-execution-plan` 分支）。
 
 基线的产品边界是 Probe-first、目标绑定、只读 Tool Surface；工程状态台账明确写出本轮
 不包含写入、校准、复位、执行器、电源或固件操作。因此，RKB 计划应先作为下一阶段的
