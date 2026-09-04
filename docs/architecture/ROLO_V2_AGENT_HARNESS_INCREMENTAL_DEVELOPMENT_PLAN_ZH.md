@@ -267,11 +267,12 @@ descriptor 和 digest 后立即注册。MVP 暂不要求隔离工作区，注册
 ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mapping/navigation 等 Tool
 复用同一 envelope、proposal 和 registry。
 
-本轮补充 `rolo-harness-codegen` 子 skill：当目标 Tool 已知时，Harness 先依据 descriptor
-准备原始参数和派生 request（例如旋转角度、角速度、目标弧度、带余量的时长），再生成
-带 source/binding digest 的 bundle。SSH 或本地执行只由 Rolo target executor 选择，不能在
-生成代码中重复拼接。用户在 Harness 窗口修正代码或参数时，只重新生成 bundle 并复用同一
-执行入口；Tool 注册后，后续 Trace 直接实例化同一模板，不再重新编码。
+本轮补充 `rolo-harness-codegen` 子 skill：当目标 Tool 已知时，Harness 依据 descriptor
+机械生成与参数列表同构的输入校验函数，并依据 observation contract 生成输出校验函数；
+再计算 binding 定义的派生 request，生成带 source/binding digest 的 bundle。SSH 或本地执行
+只由 Rolo target executor 选择，不能在生成代码中重复拼接。用户在 Harness 窗口修正代码或
+参数时，只重新生成 bundle 并复用同一执行入口；Tool 注册后，后续 Trace 直接实例化同一
+模板，不再重新编码。新增 Tool 不需要修改该 Skill。
 
 ### W3：Trace Session Runtime
 

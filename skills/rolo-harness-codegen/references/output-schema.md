@@ -1,40 +1,43 @@
-# Harness code generation output
+# Generic Harness code generation output
 
-The skill emits one JSON object with schema identifier `rolo-harness-code-bundle/v1` and these
-additional generation fields:
+The generator emits a surrounding artifact with schema identifier
+`rolo-harness-codegen-artifact/v1`. Its `bundle` is the existing
+`rolo-harness-code-bundle/v1` consumed by Rolo.
 
 ```json
 {
-  "schema_version": "rolo-harness-code-bundle/v1",
-  "tool_id": "app.base.rotate",
-  "target_id": "mentorpi",
-  "evidence_refs": ["target-evidence:<sha256>"],
+  "schema_version": "rolo-harness-codegen-artifact/v1",
+  "target_id": "<target>",
+  "tool_id": "<descriptor.tool_id>",
+  "evidence_refs": ["<evidence id>"],
+  "descriptor_sha256": "<sha256>",
   "binding_sha256": "<sha256>",
-  "arguments": {"angle_degrees": 360, "max_speed_rad_s": 0.2},
-  "request": {
-    "command_endpoint": "/cmd_vel",
-    "feedback_endpoints": ["/odom_raw", "/odom_rf2o"],
-    "angular_speed_rad_s": 0.2,
-    "goal_yaw_rad": 6.283185307179586,
-    "duration_s": 47.1238898038469
+  "arguments": {"<parameter.name>": "<typed value>"},
+  "input_contract": {
+    "parameters": ["<descriptor.parameters entries>"]
   },
-  "runtime": "python",
-  "entrypoint": "main",
-  "source": "<generated source>",
-  "source_sha256": "<sha256>",
-  "expected_observation": {
-    "feedback": "odometry",
-    "stop": "zero_velocity",
-    "angle_tolerance_degrees": 3
+  "observation_contract": {
+    "fields": ["status", "<declared field>"]
+  },
+  "derived_request": {"<binding-defined key>": "<value>"},
+  "bundle": {
+    "schema_version": "rolo-harness-code-bundle/v1",
+    "tool_id": "<descriptor.tool_id>",
+    "runtime": "python",
+    "entrypoint": "execute",
+    "source": "<generated function source>",
+    "source_sha256": "<sha256>",
+    "request": {"<validated parameters and derived values>": "..."}
   }
 }
 ```
 
-`source_sha256` is the digest of `source`; `binding_sha256` is the digest of the typed binding.
-`arguments` are original user values and `request` is the derived target-bound invocation. The
-generated object is an input to Rolo's existing `HarnessCodeBundle`; fields outside that runtime
-model belong in the surrounding generation artifact and must not be interpolated into shell text.
+The generator must preserve descriptor parameter entries verbatim in `input_contract` and emit an
+output validator for every `observation_contract.fields` entry. `arguments` contain the user's
+original values; `derived_request` contains only values computed by the typed binding. The bundle
+remains compatible with `HarnessCodeBundle`; surrounding fields are not interpolated into shell or
+argv text.
 
-For a different Tool, keep the same envelope and replace only the typed argument schema, primitive
-template and expected observation contract. Missing evidence or a descriptor mismatch is a
-`CODEGEN_INPUT_GAP`, never a guessed implementation.
+If a parameter cannot be represented by the declared descriptor kind, or the observation contract is
+missing, emit `CODEGEN_INPUT_GAP` and no executable bundle. A successful JSON shape check does not
+prove target capability; Probe evidence and Rolo registration validation remain authoritative.
