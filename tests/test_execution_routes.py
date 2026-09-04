@@ -27,7 +27,7 @@ def test_broker_requires_registered_provider_handler(tmp_path) -> None:
     registry = ExecutionRouteRegistry(tmp_path)
     registry.register(_route())
     broker = RoloRouteBroker(registry)
-    result = broker.invoke(target_id="mentorpi", route_id="base.motion.velocity", arguments={})
+    result = broker.invoke(target_id="mentorpi", route_id="base.motion.velocity", arguments={"angle_degrees": 15})
     assert result["status"] == "BLOCKED"
     assert result["error"] == "ROUTE_PROVIDER_UNAVAILABLE"
 
