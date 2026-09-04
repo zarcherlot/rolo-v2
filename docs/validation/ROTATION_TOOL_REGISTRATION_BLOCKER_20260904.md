@@ -99,3 +99,11 @@ source hash、binding 和参数的临时代码包。
 因此当前 LanderPi 仍需提供普通用户 SSH 登录和目标端 Python/驱动依赖；在这些条件满足前，
 任何旋转请求都明确返回 BLOCKED；普通 SSH 登录成功后，目标运行时仍只能执行
 Rolo 生成的 Harness bundle，不能把 SSH 原始命令当作任意 shell 执行。
+
+## 真机 MVP 完成
+
+2026-09-04 已通过普通 `pi` SSH 登录，在 `MentorPi` 容器内传输并执行 Harness 代码完成
+一次真实旋转：请求 `15°`、`0.2 rad/s`，使用 `/cmd_vel` 发布，`/odom_raw` 反馈；
+实测 `14.2284°`，误差 `-0.7716°`，运动耗时 `1.2411s`，已发送零速度并观测最终速度
+`0.0`。执行证据保存在 `artifacts/landerpi-rotation-mvp-20260904.json`，临时 Harness
+已从目标主机和容器清理。
