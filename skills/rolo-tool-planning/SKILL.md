@@ -34,13 +34,17 @@ a bounded Probe gap path, where Rolo probes, verifies, conforms, and publishes o
 
 When a capability is absent, the harness owns an interactive coding loop with
 the user. Request `rolo probe-analysis-input --evidence <bundle>`, inspect its
-route and evidence references, and implement the adapter in the current
-harness workspace. Revise it with the user's feedback and emit a typed
-`rolo-tool-registration-proposal/v1`; submit it with
+software-stack observations and evidence references, and implement the adapter
+in the current harness workspace. For a write-capable application Tool, emit an
+evidence-bound `ExecutionBinding` describing the observed transport, bounded
+parameters, feedback and stop strategy. Revise it with the user's feedback and
+emit a typed `rolo-tool-registration-proposal/v1`; submit it with
 `rolo register-tool --proposal <proposal> --evidence <bundle>`.
 
-Rolo validates target identity, evidence references, descriptor schema, risk and
-digests, then persists the registered application Tool. The harness
+Rolo validates target identity, evidence references, binding endpoints against
+Probe observations, descriptor schema, risk and digests, then persists the
+registered application Tool. No pre-existing route is required; transport
+execution remains inside Rolo's typed provider boundary. The harness
 conversation is the MVP review loop, so there is no second rolo-vis approval
 step. Every registered Tool remains callable only through a target-bound Rolo
 session and typed ToolPlan. The same protocol applies to rotation, mapping,

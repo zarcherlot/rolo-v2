@@ -29,10 +29,12 @@ from .contracts import (
     TraceSessionRequest,
 )
 from .probe_registration import (
+    ExecutionBinding,
     ProbeAnalysisInput,
     ToolRegistrationProposal,
     ToolRegistrationResult,
     build_probe_analysis_input,
+    load_registered_bindings,
     load_registered_descriptors,
     register_tool_proposal,
 )
@@ -73,9 +75,11 @@ __all__ = [
     "assess_rotation_readiness",
     "rotation_tool_proposal",
     "ProbeAnalysisInput",
+    "ExecutionBinding",
     "ToolRegistrationProposal",
     "ToolRegistrationResult",
     "build_probe_analysis_input",
     "register_tool_proposal",
     "load_registered_descriptors",
+    "load_registered_bindings",
 ]

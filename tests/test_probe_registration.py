@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from rolo.agent_tools.native_tools import AgentNativeToolDescriptor, NativeToolInvocation, NativeToolParameter
 from rolo.mvp.probe_registration import (
+    ExecutionBinding,
     ToolRegistrationProposal,
     build_probe_analysis_input,
     load_registered_descriptors,
@@ -61,6 +62,42 @@ def test_registration_persists_callable_descriptor_and_reloads(tmp_path) -> None
     loaded = load_registered_descriptors(tmp_path, "mentorpi")
     assert [item.tool_id for item in loaded] == ["app.base.rotate"]
     assert loaded[0].access == "experimental_write"
+
+
+def test_binding_registration_requires_observed_command(tmp_path) -> None:
+    descriptor = _descriptor()
+    evidence = "target-evidence:abc"
+    proposal = ToolRegistrationProposal(
+        target_id="mentorpi",
+        tool_id=descriptor.tool_id,
+        evidence_refs=[evidence],
+        descriptor=descriptor,
+        implementation="binding",
+        binding=ExecutionBinding(
+            kind="ros2_topic",
+            command_endpoint="/cmd_vel",
+            interface_type="geometry_msgs/msg/Twist",
+            stop_strategy="zero_velocity",
+            evidence_refs=[evidence],
+        ),
+    )
+    blocked = register_tool_proposal(
+        proposal,
+        target_id="mentorpi",
+        evidence_refs={evidence},
+        observed_route_ids={"ros_topic:/odom"},
+        registry_root=tmp_path,
+    )
+    assert blocked.status == "BLOCKED"
+    assert "not observed" in blocked.limitations[0]
+    registered = register_tool_proposal(
+        proposal,
+        target_id="mentorpi",
+        evidence_refs={evidence},
+        observed_route_ids={"ros_topic:/cmd_vel"},
+        registry_root=tmp_path,
+    )
+    assert registered.status == "REGISTERED"
 
 
 def test_registration_blocks_unknown_evidence(tmp_path) -> None:

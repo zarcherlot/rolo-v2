@@ -553,10 +553,16 @@ def register_tool(
     try:
         bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
         parsed = ToolRegistrationProposal.model_validate_json(proposal.read_text(encoding="utf-8"))
+        observed_route_ids = {
+            route.resource_id
+            for probe_result in bundle.probes.values()
+            for route in observed_probe_routes(probe_result)
+        }
         result = register_tool_proposal(
             parsed,
             target_id=bundle.robot_id,
             evidence_refs={f"target-evidence:{bundle.payload_sha256}"},
+            observed_route_ids=observed_route_ids,
             registry_root=get_settings().rolo_config_dir / "registered-tools",
         )
     except (OSError, ValueError) as exc:

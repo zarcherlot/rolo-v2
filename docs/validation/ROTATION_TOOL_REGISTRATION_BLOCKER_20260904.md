@@ -53,9 +53,13 @@ Harness 可在自己的交互窗口中生成和修改 adapter，再通过
 `d8c2f83e4c398c62576ce990df2afa31ef556bf27f9f0652a22c25dac90cea20`，并观察到
 `ros_topic:/cmd_vel`、`ros_topic:/controller/cmd_vel` 和 `ros_topic:/odom`。
 
-使用该 evidence 在 workspace registry 中生成并注册了 `app.base.rotate` proposal，
-证明了 proposal 校验、digest 和 descriptor reload 路径。真实设备执行没有伪造为成功：
-当前注册 adapter 仍是直接通过 ROS CLI 发送 `cmd_vel` 的实验实现，尚未接入允许的
-Rolo/MHS driver route；auto-review 因此拒绝了向本机 Rolo state registry 持久化并执行
-该运动 Tool。下一步必须把 application adapter 接到已注册的 target execution route，
-再进行现场旋转验证。
+本轮将 proposal 调整为 evidence-bound `ExecutionBinding`：Harness 只提交 ROS 2
+接口、`/cmd_vel`、反馈 topic、停止策略和参数映射，Rolo 根据新鲜 Probe evidence
+校验 command endpoint 是否真实观测到，再将 binding 注册到 application catalog。
+它不要求预先存在 route，也不允许 proposal 携带 Python、shell 或任意 argv。
+
+最新 LanderPi Probe evidence digest 为
+`6cb678bd7145417d9373aeddc68db2d9ae2d4ea33e17b405cbc71765744787e2`；`/cmd_vel`、
+`/controller/cmd_vel`、`/odom_raw` 和 `/odom_rf2o` 均出现在 ROS 运行时图中，但
+provider identity 和稳定性证据仍不完整。因此本轮已完成 binding 发现和注册校验，
+真实旋转尚未执行，避免把 topic 观测误报成可控能力。
