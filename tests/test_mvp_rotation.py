@@ -7,7 +7,7 @@ import pytest
 from rolo.agent_tools.conformance import ToolConformanceCheck, ToolConformanceReport
 from rolo.agent_tools.native_tools import AgentNativeToolDescriptor, NativeToolParameter
 from rolo.agent_tools.session import native_catalog_sha256
-from rolo.mvp import RotationDebugRequest, assess_rotation_readiness
+from rolo.mvp import RotationDebugRequest, assess_rotation_readiness, rotation_tool_proposal
 from rolo.mvp.catalog import build_target_catalog
 from rolo.mvp.contracts import SessionState, TraceSessionRequest
 from rolo.mvp.trace import TraceService
@@ -81,3 +81,11 @@ def test_supervised_trace_can_invoke_registered_experimental_write_tool() -> Non
     result = service.execute(session.session_id, [{"tool_id": descriptor.tool_id, "arguments": {"angle_degrees": 90}}])
     assert result.state == SessionState.COMPLETED
     assert result.calls == 1
+
+
+def test_rotation_tool_proposal_is_generic_registered_adapter() -> None:
+    proposal = rotation_tool_proposal(target_id="mentorpi", evidence_ref="target-evidence:" + "a" * 64)
+    assert proposal.tool_id == "app.base.rotate"
+    assert proposal.descriptor.access == "experimental_write"
+    assert "execute" in proposal.descriptor.variants
+    assert proposal.descriptor.variants["execute"].argv_template[:2] == ["python3", "-c"]

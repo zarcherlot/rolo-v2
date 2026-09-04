@@ -55,8 +55,15 @@ def persist_conformance_artifact(report: ToolConformanceReport, path: Path) -> s
 def conform_tool_surface(
     session: NativeToolSessionDescriptor,
     descriptors: list[AgentNativeToolDescriptor],
+    *,
+    allow_experimental_write: bool = False,
 ) -> ToolConformanceReport:
-    """Verify that the session and every published descriptor are safe to consume."""
+    """Verify that the session and every published descriptor are safe to consume.
+
+    The default remains the read-only Probe surface.  A Probe-registered
+    application surface may opt into experimental writes after its own
+    registration contract has been validated.
+    """
 
     checks: list[ToolConformanceCheck] = []
     actual_digest = native_catalog_sha256(descriptors)
@@ -90,7 +97,7 @@ def conform_tool_surface(
     )
     for descriptor in descriptors:
         valid = (
-            descriptor.access == "read"
+            (descriptor.access == "read" or (allow_experimental_write and descriptor.access == "experimental_write"))
             and descriptor.argv_template
             and descriptor.argv_template[0] == descriptor.executable
             and all("{" not in item and "}" not in item for item in descriptor.argv_template)

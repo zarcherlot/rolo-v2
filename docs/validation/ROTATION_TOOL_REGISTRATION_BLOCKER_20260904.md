@@ -41,3 +41,21 @@ digest 为 `2e2db99d04e6d93a418514c1bd598f0bce52ba63023cf97f85eeb3491ae48de4`。
 观察到对应 driver/provider、资源绑定、参数边界和停止路径。随后才能生成
 `experimental_write=true`、`agent_callable=true` 的旋转 Tool；Trace 随即可以在
 `SUPERVISED_FIELD_DEBUG` 下直接调用它。
+
+## Probe Harness registration slice
+
+本次开发已补齐通用的 `rolo-probe-analysis-input/v1` →
+`rolo-tool-registration-proposal/v1` → registered application catalog 链路。
+Harness 可在自己的交互窗口中生成和修改 adapter，再通过
+`rolo register-tool --proposal ... --evidence ...` 提交；MVP 不增加第二个用户确认门。
+
+最新 LanderPi Probe 已成功刷新，evidence digest 为
+`d8c2f83e4c398c62576ce990df2afa31ef556bf27f9f0652a22c25dac90cea20`，并观察到
+`ros_topic:/cmd_vel`、`ros_topic:/controller/cmd_vel` 和 `ros_topic:/odom`。
+
+使用该 evidence 在 workspace registry 中生成并注册了 `app.base.rotate` proposal，
+证明了 proposal 校验、digest 和 descriptor reload 路径。真实设备执行没有伪造为成功：
+当前注册 adapter 仍是直接通过 ROS CLI 发送 `cmd_vel` 的实验实现，尚未接入允许的
+Rolo/MHS driver route；auto-review 因此拒绝了向本机 Rolo state registry 持久化并执行
+该运动 Tool。下一步必须把 application adapter 接到已注册的 target execution route，
+再进行现场旋转验证。

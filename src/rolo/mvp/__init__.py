@@ -28,7 +28,15 @@ from .contracts import (
     TraceSession,
     TraceSessionRequest,
 )
-from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness
+from .probe_registration import (
+    ProbeAnalysisInput,
+    ToolRegistrationProposal,
+    ToolRegistrationResult,
+    build_probe_analysis_input,
+    load_registered_descriptors,
+    register_tool_proposal,
+)
+from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness, rotation_tool_proposal
 from .trace import TraceService
 
 __all__ = [
@@ -63,4 +71,11 @@ __all__ = [
     "RotationDebugAssessment",
     "RotationDebugRequest",
     "assess_rotation_readiness",
+    "rotation_tool_proposal",
+    "ProbeAnalysisInput",
+    "ToolRegistrationProposal",
+    "ToolRegistrationResult",
+    "build_probe_analysis_input",
+    "register_tool_proposal",
+    "load_registered_descriptors",
 ]

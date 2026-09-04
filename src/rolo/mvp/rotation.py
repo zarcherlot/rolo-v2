@@ -4,9 +4,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from rolo.agent_tools.native_tools import AgentNativeToolDescriptor, NativeToolInvocation, NativeToolParameter
 from rolo.core.models import DiscoveryStatus
 from rolo.stages.probe.routes import observed_probe_routes
 from rolo.stages.probe.target_evidence import TargetEvidenceBundle
+
+from .probe_registration import ToolRegistrationProposal
 
 
 class RotationDebugRequest(BaseModel):
@@ -71,4 +74,68 @@ def assess_rotation_readiness(bundle: TargetEvidenceBundle) -> RotationDebugAsse
     )
 
 
-__all__ = ["RotationDebugAssessment", "RotationDebugRequest", "assess_rotation_readiness"]
+_ROTATION_RUNTIME = "\n".join(
+    [
+        "import json, math, subprocess, sys, time",
+        "a = float(sys.argv[1]); s = float(sys.argv[2])",
+        "if not -180.0 < a < 180.0 or not 0.0 < s <= 1.0: raise SystemExit('rotation bounds')",
+        "z = math.copysign(s, a); duration = abs(math.radians(a)) / s",
+        "end = time.monotonic() + duration",
+        "msg = lambda v: str(dict(linear=dict(x=0.0, y=0.0, z=0.0), angular=dict(z=v)))",
+        "while time.monotonic() < end:",
+        "    subprocess.run(['ros2', 'topic', 'pub', '--once', '/cmd_vel', 'geometry_msgs/msg/Twist', msg(z)], check=False)",
+        "    time.sleep(0.1)",
+        "subprocess.run(['ros2', 'topic', 'pub', '--once', '/cmd_vel', 'geometry_msgs/msg/Twist', msg(0.0)], check=False)",
+        "print(json.dumps(dict(status='SUCCEEDED', angle_degrees=a, duration_s=duration)))",
+    ]
+)
+
+
+def rotation_tool_proposal(*, target_id: str, evidence_ref: str) -> ToolRegistrationProposal:
+    """Build the generic application adapter used by the rotation MVP.
+
+    Future tools use the same proposal/descriptor contract and can supply a
+    different fixed runtime adapter and parameter schema.
+    """
+
+    descriptor = AgentNativeToolDescriptor(
+        tool_id="app.base.rotate",
+        family="application",
+        execution_path="DIRECT_RUNNER",
+        executable="python3",
+        argv_template=["python3"],
+        access="experimental_write",
+        risk="R3",
+        max_duration_s=120,
+        max_output_bytes=100_000,
+        evidence_kind="application_rotation",
+        parameters=[
+            NativeToolParameter(
+                name="angle_degrees",
+                kind="token",
+                pattern=r"-?(?:[0-9]{1,2}(?:\.[0-9]+)?|1[0-7][0-9](?:\.[0-9]+)?)",
+            ),
+            NativeToolParameter(
+                name="max_speed_rad_s",
+                kind="token",
+                pattern=r"(?:0(?:\.[0-9]+)?|1(?:\.0)?)",
+            ),
+        ],
+        variants={
+            "execute": NativeToolInvocation(
+                executable="python3",
+                argv_template=["python3", "-c", _ROTATION_RUNTIME, "{angle_degrees}", "{max_speed_rad_s}"],
+                required_parameters=["angle_degrees", "max_speed_rad_s"],
+            )
+        },
+    )
+    return ToolRegistrationProposal(
+        target_id=target_id,
+        tool_id=descriptor.tool_id,
+        evidence_refs=[evidence_ref],
+        descriptor=descriptor,
+        harness_notes="MVP timed cmd_vel adapter; add odometry/IMU feedback before claiming angle accuracy.",
+    )
+
+
+__all__ = ["RotationDebugAssessment", "RotationDebugRequest", "assess_rotation_readiness", "rotation_tool_proposal"]
