@@ -46,7 +46,7 @@ class ExecutionBinding(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schema_version: Literal["rolo-execution-binding/v1"] = "rolo-execution-binding/v1"
-    kind: Literal["ros2_topic"]
+    kind: str = Field(pattern=r"^[a-z][a-z0-9_.-]{1,63}$")
     command_endpoint: str = Field(pattern=r"^/[A-Za-z0-9_./-]{1,127}$")
     interface_type: str = Field(min_length=1, max_length=128)
     feedback_endpoints: list[str] = Field(default_factory=list, max_length=8)
@@ -67,7 +67,16 @@ class ExecutionBinding(BaseModel):
 
     @property
     def command_resource_id(self) -> str:
-        return f"ros_topic:{self.command_endpoint}"
+        prefix = "ros_topic" if self.kind == "ros2_topic" else self.kind
+        return f"{prefix}:{self.command_endpoint}"
+
+    def digest(self) -> str:
+        """Return the stable digest submitted by Harness for this binding."""
+
+        encoded = json.dumps(
+            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        )
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 class ToolRegistrationProposal(BaseModel):
@@ -83,6 +92,10 @@ class ToolRegistrationProposal(BaseModel):
     implementation: Literal["descriptor", "binding"] = "descriptor"
     binding: ExecutionBinding | None = None
     code_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    binding_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    codegen_artifact_ref: str | None = Field(default=None, max_length=512)
+    input_contract: dict[str, Any] | None = None
+    observation_contract: dict[str, Any] | None = None
     status: Literal["PROPOSED", "REGISTERED", "BLOCKED"] = "PROPOSED"
     harness_notes: str = Field(default="", max_length=4_000)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -101,6 +114,23 @@ class ToolRegistrationProposal(BaseModel):
             missing_binding_evidence = sorted(set(self.binding.evidence_refs) - set(self.evidence_refs))
             if missing_binding_evidence:
                 raise ValueError(f"binding references evidence outside proposal: {missing_binding_evidence}")
+            if self.binding_digest is not None and self.binding_digest != self.binding.digest():
+                raise ValueError("binding_digest does not match binding")
+        codegen_fields = (self.codegen_artifact_ref, self.input_contract, self.observation_contract)
+        if any(item is not None for item in codegen_fields) and not all(item is not None for item in codegen_fields):
+            raise ValueError("codegen_artifact_ref, input_contract and observation_contract must be supplied together")
+        if self.input_contract is not None:
+            parameters = self.input_contract.get("parameters")
+            if not isinstance(parameters, list):
+                raise ValueError("input_contract.parameters must be a list")
+            expected_names = [item.name for item in self.descriptor.parameters]
+            actual_names = [item.get("name") for item in parameters if isinstance(item, dict)]
+            if actual_names != expected_names:
+                raise ValueError("input_contract.parameters must preserve descriptor parameter order")
+        if self.observation_contract is not None:
+            fields = self.observation_contract.get("fields")
+            if not isinstance(fields, list) or not fields or "status" not in fields or len(fields) != len(set(fields)):
+                raise ValueError("observation_contract.fields must be unique and include status")
         if not self.evidence_refs:
             raise ValueError("registration requires at least one evidence reference")
         return self
@@ -200,10 +230,11 @@ def register_tool_proposal(
                 descriptor_digest=_descriptor_digest(proposal.descriptor),
                 limitations=[f"binding command endpoint was not observed by Probe: {proposal.binding.command_resource_id}"],
             )
+        prefix = "ros_topic" if proposal.binding.kind == "ros2_topic" else proposal.binding.kind
         missing_feedback = sorted(
-            f"ros_topic:{endpoint}"
+            f"{prefix}:{endpoint}"
             for endpoint in proposal.binding.feedback_endpoints
-            if f"ros_topic:{endpoint}" not in observed_route_ids
+            if f"{prefix}:{endpoint}" not in observed_route_ids
         )
         if missing_feedback:
             return ToolRegistrationResult(

@@ -7,6 +7,7 @@ registration, a frozen Tool Surface, and execution of digest-bound plans.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -19,6 +20,7 @@ from rolo.commands.common import emit
 from rolo.commands.lifecycle import run_probe_start
 from rolo.core.artifacts import ArtifactStore
 from rolo.core.config import get_settings
+from rolo.mvp.binding_dispatch import ApplicationBindingDispatcher
 from rolo.mvp.probe_registration import (
     ToolRegistrationProposal,
     build_probe_analysis_input,
@@ -646,13 +648,16 @@ def execute_rotation(
             if connection.state != TargetConnectionState.READY:
                 result = {"status": "BLOCKED", "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE", "motion_started": False}
             else:
-                result = RosBindingExecutor(target_executor).rotate(
-                    registered.binding,
-                    {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
+                # Dispatch through the generic application binding registry;
+                # ROS 2 is only the provider currently used by the rotation MVP.
+                dispatcher = ApplicationBindingDispatcher()
+                dispatcher.register("ros2_topic", RosBindingExecutor(target_executor).rotate)
+                result = dispatcher.execute(
+                    registered.binding, {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s}
                 )
         except ValueError as exc:
             # Missing or invalid execution transport is a deterministic
-            # capability blocker.  Never retry it through the Collector path.
+            # capability blocker.  Do not fall back to an observation-only path.
             result = {
                 "status": "BLOCKED",
                 "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE",
@@ -664,6 +669,86 @@ def execute_rotation(
         evidence_payload["result"] = result
         evidence_payload["completed_at"] = datetime.now(timezone.utc).isoformat()
         store.write_json(relative, evidence_payload)
+        emit({"status": result.get("status", "UNKNOWN"), "evidence_ref": f"artifact://{relative}", "result": result})
+        if result.get("status") != "SUCCEEDED":
+            raise typer.Exit(code=2)
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
+@app.command("invoke-tool")
+def invoke_tool(
+    profile: Annotated[str, typer.Option("--profile", "--robot")],
+    proposal: Annotated[Path, typer.Option("--proposal")],
+    evidence: Annotated[Path, typer.Option("--evidence")],
+    arguments: Annotated[Path, typer.Option("--arguments", help="JSON object with descriptor-defined arguments")],
+    safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
+    timeout: Annotated[float, typer.Option("--timeout", min=10.0, max=300.0)] = 120.0,
+) -> None:
+    """Invoke any registered binding through the provider dispatcher.
+
+    The rotation command remains as a convenience wrapper.  This generic
+    entrypoint is the contract used by future non-ROS application providers.
+    """
+    if not safety_confirmed:
+        emit({"status": "BLOCKED", "reason": "physical safety confirmation is required"})
+        raise typer.Exit(code=2)
+    try:
+        bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
+        if bundle.robot_id != profile:
+            raise ValueError("evidence target does not match profile")
+        supplied = ToolRegistrationProposal.model_validate_json(proposal.read_text(encoding="utf-8"))
+        proposals = load_registered_proposals(get_settings().rolo_config_dir / "registered-tools", profile)
+        registered = next((item for item in proposals if item.tool_id == supplied.tool_id), None)
+        if registered is None or registered.digest() != supplied.digest():
+            raise ValueError("supplied proposal differs from registered Tool")
+        if registered.implementation != "binding" or registered.binding is None:
+            raise ValueError("registered Tool does not provide an executable binding")
+        try:
+            call_arguments = json.loads(arguments.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError("arguments must contain a JSON object") from exc
+        if not isinstance(call_arguments, dict):
+            raise ValueError("arguments must contain a JSON object")
+        deployment = load_deployment(get_settings().rolo_config_dir / "target-evidence" / f"{profile}.json")
+        verify_evidence_bundle(bundle, deployment=deployment)
+        expected_ref = f"target-evidence:{bundle.payload_sha256}"
+        if expected_ref not in registered.evidence_refs or expected_ref not in registered.binding.evidence_refs:
+            raise ValueError("registered Tool binding is stale for this Probe evidence")
+        routes = {route.resource_id: route for probe in bundle.probes.values() for route in observed_probe_routes(probe)}
+        command = routes.get(registered.binding.command_resource_id)
+        if command is None or command.interface_type != registered.binding.interface_type:
+            raise ValueError("Tool command binding differs from Probe observations")
+        target_executor = create_profile_target_executor(
+            profile,
+            config_root=get_settings().rolo_config_dir,
+            timeout_s=timeout,
+            purpose="execution",
+        )
+        connection = target_executor.inspect()
+        if connection.state != TargetConnectionState.READY:
+            result = {"status": "BLOCKED", "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE", "motion_started": False}
+        else:
+            dispatcher = ApplicationBindingDispatcher()
+            dispatcher.register("ros2_topic", RosBindingExecutor(target_executor).rotate)
+            result = dispatcher.execute(registered.binding, call_arguments)
+        run_id = uuid4().hex
+        relative = f"application/{profile}/invocations/{run_id}.json"
+        ArtifactStore(get_settings().rolo_artifact_dir).write_json(
+            relative,
+            {
+                "schema_version": "rolo-application-tool-execution-evidence/v1",
+                "target_id": profile,
+                "tool_id": registered.tool_id,
+                "run_id": run_id,
+                "proposal_digest": registered.digest(),
+                "probe_evidence_ref": expected_ref,
+                "safety_confirmed": safety_confirmed,
+                "arguments": call_arguments,
+                "result": result,
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
         emit({"status": result.get("status", "UNKNOWN"), "evidence_ref": f"artifact://{relative}", "result": result})
         if result.get("status") != "SUCCEEDED":
             raise typer.Exit(code=2)

@@ -49,7 +49,7 @@ Certify 是可独立调用的产品入口，不是强制流水线。
 | 自主诊断 | 当前无 Trace runtime | 诊断上下文、恢复 proposal、有限重试和停止/取消 |
 | Certify | 当前无测试 runner | suite schema、runner、expected/actual matcher、报告 |
 | rolo-vis | Workbench host/read-only API 已有 | Trace timeline、诊断和 Certify 结果视图 |
-| LanderPi | enrollment、Probe、RKB/MHS observer 已有 | 真实建图 Tool/MHS 发现、现场实验运行和 10 条用例 |
+| LanderPi | enrollment、Probe、RKB/MHS observer 已有 | 真实旋转 Tool 发现/生成、现场实验运行和 10 条旋转用例 |
 
 ## 3. Rolo v2 如何交付给 Agent harness
 
@@ -311,7 +311,7 @@ ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mappin
 - 现场 JSONL 审计；
 - 禁止任意 shell/topic/argv。
 
-验收：LanderPi 现场安全员在场时完成一次注册建图操作；异常时能停止并保留完整调用证据。
+验收：LanderPi 现场安全员在场时完成一次注册旋转操作；异常时能停止并保留完整调用证据。
 
 ### W6：Certify Runner
 
@@ -324,7 +324,7 @@ ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mappin
 - PASS/FAIL/BLOCKED/UNKNOWN；
 - JSON、Markdown 报告和 artifact index。
 
-验收：用户明确触发 Certify 后，固定 10 条建图用例逐条执行；不允许 Agent 修改用例或跳过未通过项。
+验收：用户明确触发 Certify 后，固定 10 条旋转用例逐条执行；不允许 Agent 修改用例或跳过未通过项。
 
 ### W7：rolo-vis-v2 观测集成
 
@@ -344,13 +344,13 @@ ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mappin
 开发：
 
 - LanderPi profile 和新鲜 Probe；
-- 真实建图 Tool 发现/绑定；
+- 真实旋转 Tool 发现/生成/绑定；
 - 10 条测试数据；
 - 故障注入；
 - 一键 runbook；
 - artifact index、回放和 release checklist。
 
-验收：从 profile 到 Trace 建图、诊断、Certify 报告完整运行一次，并能复核所有 digest。
+验收：从 profile 到 Trace 旋转、诊断、Certify 报告完整运行一次，并能复核所有 digest。
 
 ### W9：CI、Replay 和兼容性
 
@@ -404,7 +404,7 @@ Day 0：W0 Contract + Intent Matrix Freeze
 | I0 Contract + Skill | W0、W0.5 | schema、意图路由、拒绝码、安装和版本规则冻结 |
 | I1 Probe Analysis | W1、W2、W2.5 | collect、analysis、follow-up、proposal validation 和确认闭环通过 |
 | I2 Offline Trace | W1、W2、W3、W4 | fixture 成功/诊断/阻塞 replay 全部通过 |
-| I3 LanderPi Trace | I2、W5、W8 | 真机完成建图或有证据地 BLOCKED；无伪造能力 |
+| I3 LanderPi Trace | I2、W5、W8 | 真机完成旋转或有证据地 BLOCKED；无伪造能力 |
 | I4 Certify/UI | W6、W7、I3 | 用户明确触发后 10 条用例报告和 UI 视图一致 |
 | I5 Release | W9、I4 | runbook、artifact index、回滚和限制说明齐全 |
 
@@ -451,8 +451,8 @@ proposal 或 `next_tool_call` 都必须再次由 Rolo 校验，提示词本身�
 | Skill bootstrap | Agent 能安装/升级 Rolo、完成 preflight 并验证 contract version |
 | 新鲜 Probe + 目录读取 | Agent 得到 target/tool/RKB/MHS 结构化 envelope |
 | Probe 分析循环 | Codex 能消费 evidence、请求 bounded follow-up、提交并获得用户确认的关联 |
-| 未发现建图 Tool | Agent 停止并输出 `BLOCKED: capability not observed` |
-| 正常建图 | Trace 完成，产生 run、episode、evidence 和结果 artifact |
+| 未发现旋转 Tool | Agent 停止并输出 `BLOCKED: capability not observed` |
+| 正常旋转 | Trace 完成，产生 run、episode、evidence 和结果 artifact |
 | Middleware 故障 | Agent 读取 RKB，调用已注册诊断/恢复 Tool，有限重试 |
 | 不可恢复故障 | 输出 BLOCKED/UNKNOWN，不宣称成功 |
 | 现场实验操作 | 有安全员在场、参数/TTL/停止/读回/审计齐全 |

@@ -73,8 +73,8 @@ class RosBindingExecutor:
                     'max_speed_rad_s': speed,
                 }
             else:
-                # Kept for deterministic local/unit fakes; production SSH
-                # execution always uses the separate forced-command channel.
+                # Kept for deterministic local/unit fakes; production may use
+                # the ordinary profile SSH transport or a local executor.
                 request['runtime_sha256'] = runtime_digest
                 completed = self.target_executor.run_bound(
                     ['python3', '-c', runtime, json.dumps(request, separators=(',', ':'))],

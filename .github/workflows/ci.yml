@@ -136,7 +136,7 @@ jobs:
       - name: Run offline MVP replay and artifact checks
         run: uv run pytest -q tests/test_mvp_journey.py tests/test_mvp_release_gate.py
       - name: Execute release gate entrypoint
-        run: uv run python scripts/mvp_release_gate.py --suite examples/mapping-10.json --output-dir .mvp-release-gate
+        run: uv run python scripts/mvp_release_gate.py --suite examples/chassis-rotation-10.json --output-dir .mvp-release-gate
       - name: Upload replay evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

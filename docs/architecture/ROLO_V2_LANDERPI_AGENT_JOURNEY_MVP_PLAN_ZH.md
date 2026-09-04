@@ -23,19 +23,19 @@
 | HTTP/API | `/v1/features`、robots、RKB、MHS、tools、episodes；loopback runtime | 可作为外部 Agent adapter 的第一版接口 |
 | Workbench host | `/workbench/`、`/rolo-api/*` 同源适配和插件校验；未挂包时 503 | 需补最小 rolo-vis-v2 前端，作为可选观测面，不做写授权面 |
 | Trace/Certify | main 台账明确“不属于本轮交付”；无任务会话、自诊断循环、测试执行器 | MVP 的主要新增范围 |
-| LanderPi 应用建图 | 当前 application operation 是 route-level candidate，台账记录当前目标未观测到 map route | 必须先用 Probe 真实发现并绑定建图工具；发现不到则 MVP 进入 BLOCKED，不得硬编码为事实 |
+| LanderPi 底盘旋转 | 当前 application operation 是 route-level candidate，旋转 Tool 由 Probe + Harness 发现、生成并注册 | 必须先用 Probe 观察软件栈，再由 Harness 生成 evidence-bound 旋转 Tool；发现不到则 MVP 进入 BLOCKED，不得硬编码为事实 |
 
 ## 2. MVP 用户旅程和完成定义
 
-### 2.1 用户下发的两条典型指令
+### 2.1 用户下发的两条典型指令（当前旋转 MVP）
 
 Trace：
 
-> 调用已经注册的 rolo 工具，在当前环境内完成建图，过程中若遇到系统问题，自行诊断并尝试解决。
+> 调用已经注册的 rolo 工具，在当前环境内完成地盘旋转，过程中若遇到系统问题，自行诊断并尝试解决。
 
 Certify：
 
-> 帮我执行建图的 10 条测试用例，数据路径为 `/opt/rolo/cases/mapping-10.json`，在
+> 帮我执行地盘旋转的 10 条测试用例，数据路径为 `/opt/rolo/cases/chassis-rotation-10.json`，在
 > `/opt/rolo/reports/` 输出测试报告。
 
 ### 2.2 Codex 调用流程
@@ -78,7 +78,7 @@ Codex 加载 rolo skill
    审计。不得开放任意 shell、任意 topic/argv 或无限重试。
 5. Trace 遇到失败时至少执行一次有证据约束的诊断/恢复尝试；无法解决时输出
    `BLOCKED`/`UNKNOWN`，说明尝试、证据和下一步，不得把猜测写成事实。
-6. 用户明确触发 Certify 时，Certify 能读取固定的 10 条建图用例，逐条调用注册 Tool，输出每条的 expected/actual、
+6. 用户明确触发 Certify 时，Certify 能读取固定的 10 条旋转用例，逐条调用注册 Tool，输出每条的 expected/actual、
    状态（PASS/FAIL/BLOCKED/UNKNOWN）、证据 ID、耗时、artifact digest 和汇总结论。
 7. Probe、Trace 或 Certify 任一独立旅程都可在 LanderPi 真机重复；可从 Agent 对话和 rolo-vis-v2 看到运行状态、工具调用、
    诊断尝试和最终报告；所有产物可按 digest 重放或审计。
@@ -99,7 +99,7 @@ artifact 开工，避免等待 LanderPi 空闲。
 | W4 Trace runtime | task session、计划执行、Tool call、读回、错误分类、自诊断/恢复 proposal、有限重试、停止/取消、Episode evidence | Trace state machine、audit JSONL、evidence bundle、replay fixture | W0、W1、W2 | 与 W5/W6 并行；集成时依赖 W2 |
 | W5 Certify runner | test catalog loader、setup/teardown、逐例执行、expected/actual matcher、失败分类、报告和 artifact index | 10-case suite、JSON/Markdown/HTML report、JUnit 可选导出 | W0、W1、W2 | 与 W4/W6 并行；只在用户触发时运行 |
 | W6 rolo-vis-v2 MVP | 目标/新鲜度、Tool/MHS/RKB 目录、Probe proposal/确认、Trace live timeline、诊断尝试、Certify 报告和证据详情；只读观察，不成为写授权面 | Workbench plugin package、UI contract tests、截图验收 | W0、现有 Workbench host | 与 W1/W2/W3/W4/W5 并行 |
-| W7 LanderPi enablement | 真机 enrollment、vendor/fixture MHS 映射、建图 Tool 发现和绑定、现场安全检查、故障注入、数据与报告路径 | LanderPi profile、MHS/Tool fixture、10-case data、现场 runbook、真机 artifacts | W0；硬件可用后接入 | 与 W1/W3/W4/W5/W8 并行 |
+| W7 LanderPi enablement | 真机 enrollment、Probe 发现并绑定旋转 Tool、现场安全检查、故障注入、数据与报告路径 | LanderPi profile、Tool fixture、10-case data、现场 runbook、真机 artifacts | W0；硬件可用后接入 | 与 W1/W3/W4/W5/W8 并行 |
 | W8 测试/发布/观测 | CI 合约测试、离线 replay、LanderPi canary、日志/指标、artifact 签名和版本兼容 | CI job、release checklist、MVP evidence index、回滚脚本 | W0 | 与所有工作流并行 |
 
 ### 3.1 依赖图
@@ -122,12 +122,12 @@ Probe、Trace、Certify 分别有独立集成门，不要求一次旅程全部�
 | 里程碑 | 目标 | 通过条件 | 集成门 |
 |---|---|---|---|
 | M0：契约与意图冻结 | 统一 Codex→Rolo 的输入输出和命令路由 | schema、状态机、intent matrix、10-case 格式、模式边界和拒绝码评审通过 | G0：不再新增破坏性字段 |
-| M1：Probe baseline on main | 在 LanderPi 复验现有基线 | enrollment、fresh Probe、RKB typed read、MHS observer、Tool Surface artifact 齐全；无 map Tool 则明确 BLOCKED | G1：目录只消费证据，不填充厂商 MHS |
+| M1：Probe baseline on main | 在 LanderPi 复验现有基线 | enrollment、fresh Probe、RKB typed read、MHS observer、Tool Surface artifact 齐全；无旋转 Tool 则明确 BLOCKED | G1：目录只消费证据，不填充厂商 MHS |
 | M2：rolo skill/caller | Codex 能安装 Rolo 并按意图调用独立入口 | skill bootstrap、Probe/Trace/Tool Invoke/Certify 路由和 JSON contract 通过；Rolo 不反向调用 Codex | G2：调用方向固定为 Codex→Rolo |
 | M3：Probe Agent analysis | Probe 证据可被 Codex 分析并关联 | collect→analysis proposal→follow-up probe→proposal validation→用户确认闭环通过 | G3：proposal 不能创建未观测事实 |
-| M4：Trace offline/fixture | 无硬件也能证明执行和自诊断状态机 | fixture 上完成成功、工具失败→诊断→恢复、不可恢复→BLOCKED 三条 replay | G4：审计和 evidence 完整 |
-| M5：Trace LanderPi field MVP | 真机完成一次 Trace 任务 | 现场模式下调用真实注册 Tool，完成或明确阻塞；写/运动操作均有超时、停止、读回和审计 | G5：安全员在场，非 unattended |
-| M6：Certify LanderPi | 用户明确触发时真机执行 10 条测试 | 10 条均有独立结果和 evidence/artifact digest，报告可读、可机器解析 | G6：Certify 可独立运行，不是必经步骤 |
+| M4：Trace offline/fixture | 无硬件也能证明旋转执行和自诊断状态机 | fixture 上完成成功、工具失败→诊断→恢复、不可恢复→BLOCKED 三条 replay | G4：审计和 evidence 完整 |
+| M5：Trace LanderPi field MVP | 真机完成一次旋转 Trace 任务 | 现场模式下调用真实注册旋转 Tool，完成或明确阻塞；写/运动操作均有超时、停止、读回和审计 | G5：安全员在场，非 unattended |
+| M6：Certify LanderPi | 用户明确触发时真机执行 10 条旋转测试 | 10 条均有独立结果和 evidence/artifact digest，报告可读、可机器解析 | G6：Certify 可独立运行，不是必经步骤 |
 | M7：rolo-vis journey | 观测面可见已调用的入口和结果 | UI 能显示 Probe proposal/确认、Trace timeline、Certify 报告和证据详情；刷新后状态一致 | G7：UI 无独立写权限 |
 | M8：MVP release | 一键重复任一用户意图旅程 | `landerpi-mvp-journey` runbook 可分别运行 Probe、Trace 或 Certify；CI、真机 artifact index、回滚和已知限制齐全 | R1：发布候选 |
 
