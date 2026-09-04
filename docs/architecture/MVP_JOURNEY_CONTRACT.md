@@ -22,9 +22,11 @@ Agent, Trace, and Certify consumers.  The machine readable models live in
 ## Trace modes and refusal codes
 
 `OBSERVATION_ONLY` permits read tools. `SUPERVISED_FIELD_DEBUG` additionally
-permits Probe registered `experimental_write` tools when an operator identity
-and safety confirmation are present. `UNATTENDED_REMOTE` is blocked in this
-MVP. Implementations use these stable refusal codes:
+permits Probe registered `experimental_write` tools, including write and motion
+operations, when the user task, operator identity, and safety confirmation are
+present. The MVP does not require an R1 pilot or a separate R3 canary contract;
+the registered Tool remains the only execution path. `UNATTENDED_REMOTE` is
+blocked in this MVP. Implementations use these stable refusal codes:
 
 `TRACE_BLOCKED`, `CAPABILITY_NOT_OBSERVED`, `TOOL_NOT_CALLABLE`,
 `WRITE_MODE_REQUIRED`, `SESSION_EXPIRED`, `TRACE_BUDGET_EXHAUSTED`, and

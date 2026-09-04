@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from rolo.core.models import DiscoveryStatus
 from rolo.stages.probe.routes import observed_probe_routes
@@ -24,12 +24,6 @@ class RotationDebugRequest(BaseModel):
     timeout_s: float = Field(gt=0.0, le=30.0)
     direction: Literal["left", "right"]
     dry_run: bool = True
-
-    @model_validator(mode="after")
-    def require_dry_run_by_default(self) -> RotationDebugRequest:
-        if not self.dry_run:
-            raise ValueError("physical rotation requires the separate R3 canary contract")
-        return self
 
 
 class RotationDebugAssessment(BaseModel):

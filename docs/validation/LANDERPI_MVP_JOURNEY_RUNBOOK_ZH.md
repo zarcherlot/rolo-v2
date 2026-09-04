@@ -12,8 +12,8 @@ authority: guide
    `rolo probe target-evidence preflight --robot-id mentorpi` 或 `collect` 验证 pinned
    collector，不要为通过通用检查而移除强制命令限制。
 3. 通过 `register_catalog` 或 HTTP adapter 发布 `TargetCatalog`。先运行旋转只读预检，确认
-   `/cmd_vel`/`/odom` 路由和目标证据 digest 一致。如果目录没有经过独立授权的
-   `agent_callable=true` 旋转写工具，任何旋转 Trace 创建会返回
+   `/cmd_vel`/`/odom` 路由和目标证据 digest 一致。如果目录没有目标绑定、已注册且
+   `agent_callable=true` 的旋转实验性 Tool，任何旋转 Trace 创建会返回
    `BLOCKED: physical rotation capability not observed`，现场流程必须停止。
    预检命令为 `python scripts/rotation_mvp_readiness.py --evidence <verified-bundle.json>`；
    返回 `READY_FOR_SUPERVISED_REVIEW` 只表示允许进入人工复核，不会驱动底盘。
@@ -26,5 +26,5 @@ authority: guide
 7. 归档 `.rolo/mvp/<run_id>/` 下的 session、events、evidence、报告和索引，用 SHA-256
    校验回放；所有 UNKNOWN、BLOCKED、重试和人工介入均保留在报告中。
 
-该走查只适用于有人在场的实验调试窗口，不构成功能安全或无人值守授权。当前旋转实现只生成
-有界 dry-run 计划和读回要求，不直接发布 `/cmd_vel` 或调用执行器。
+该走查只适用于有人在场的实验调试窗口，不构成功能安全或无人值守授权。旋转动作只能经已注册
+的实验性 Tool 进入 MHS driver；Rolo 不开放任意 Shell、topic publish、argv 或底层旁路。
