@@ -49,8 +49,8 @@ class MvpModel(BaseModel):
 
 class CatalogTool(MvpModel):
     schema_version: Literal["rolo-mvp-tool-catalog-entry/v1"] = "rolo-mvp-tool-catalog-entry/v1"
-    tool_id: str = Field(min_length=1, max_length=128)
-    target_id: str = Field(min_length=1, max_length=128)
+    tool_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     state: ToolState = ToolState.DISCOVERED_UNVERIFIED
     agent_callable: bool = False
     access: Literal["read", "experimental_write"] = "read"
@@ -94,7 +94,7 @@ class RkbModelRef(MvpModel):
 
 class TargetCatalog(MvpModel):
     schema_version: Literal["rolo-mvp-target-catalog/v1"] = "rolo-mvp-target-catalog/v1"
-    target_id: str = Field(min_length=1, max_length=128)
+    target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     target_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     snapshot_digest: str = Field(pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     generated_at: datetime
@@ -129,7 +129,7 @@ class TargetCatalog(MvpModel):
 
 class TraceSessionRequest(MvpModel):
     schema_version: Literal["rolo-mvp-trace-session-request/v1"] = "rolo-mvp-trace-session-request/v1"
-    target_id: str = Field(min_length=1, max_length=128)
+    target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     catalog_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     task: str = Field(min_length=1, max_length=2_000)
     mode: RunMode = RunMode.OBSERVATION_ONLY
@@ -148,7 +148,7 @@ class TraceSessionRequest(MvpModel):
 
 
 class TraceCall(MvpModel):
-    tool_id: str = Field(min_length=1, max_length=128)
+    tool_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     arguments: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -188,7 +188,7 @@ class TraceSession(MvpModel):
 class CertificationCase(MvpModel):
     case_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")
     description: str = Field(min_length=1, max_length=500)
-    tool_id: str = Field(min_length=1, max_length=128)
+    tool_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     arguments: dict[str, Any] = Field(default_factory=dict)
     expected: Any = None
     timeout_s: float = Field(default=30, gt=0, le=300)

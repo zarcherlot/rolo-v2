@@ -155,7 +155,7 @@ class TraceService:
     def _invoke(self, session: TraceSession, call: TraceCall) -> Any:
         self._check_live(session)
         descriptor = next((item for item in self.catalog.tools if item.tool_id == call.tool_id), None)
-        if descriptor is None or not descriptor.agent_callable:
+        if descriptor is None or descriptor.target_id != session.target_id or not descriptor.agent_callable:
             session.state = SessionState.BLOCKED
             self._event(session, SessionState.BLOCKED, "TOOL_NOT_CALLABLE", tool_id=call.tool_id, error_code="TOOL_NOT_CALLABLE")
             raise ValueError("TRACE_BLOCKED: tool is not callable in the Probe catalog")
@@ -204,7 +204,7 @@ class TraceService:
 
     @staticmethod
     def _succeeded(result: Any) -> bool:
-        return isinstance(result, Mapping) and str(result.get("status", "SUCCEEDED")).upper() in {"SUCCEEDED", "SUCCESS", "PASS"}
+        return isinstance(result, Mapping) and str(result.get("status", "")).upper() in {"SUCCEEDED", "SUCCESS", "PASS"}
 
     def _mapping_tool(self) -> CatalogTool | None:
         return next((item for item in self.catalog.tools if item.agent_callable and ("map" in item.tool_id.lower() or "mapping" in item.tool_id.lower())), None)
