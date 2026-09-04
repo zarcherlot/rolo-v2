@@ -34,6 +34,8 @@ def test_inventory_creates_unverified_candidates_and_read_only_providers(tmp_pat
     assert len(candidates) == 6  # compute + thermal + three device nodes + USB
     assert {candidate.discovery_status for candidate in candidates} == {"DISCOVERED_UNVERIFIED"}
     providers = inventory.providers()
-    thermal = next(provider for candidate, provider in providers if "thermal_zone0" in candidate.source)
+    thermal = next(
+        provider for candidate, provider in providers if "thermal_zone0" in candidate.source
+    )
     assert thermal.read().status == MhsStatus.AVAILABLE
     assert thermal.invoke("reset").status == MhsStatus.UNAVAILABLE

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 
 from rolo.mhs_hardware import (
     MhsChannel,
+    MhsCommandDescriptor,
     MhsDeviceClass,
     MhsDeviceManifest,
     MhsDeviceProvider,
-    MhsCommandDescriptor,
     MhsStatus,
 )
 
