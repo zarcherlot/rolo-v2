@@ -30,8 +30,8 @@ input  = {parameter.name: value for parameter in descriptor.parameters}
 output = {field: value for field in observation_contract.fields}
 ```
 
-The generated source must expose the canonical entrypoint
-`execute(request: Mapping[str, Any]) -> Mapping[str, Any]`. At the boundary it must:
+The repository helper `rolo.mvp.harness_codegen.generate_contract_source` emits the canonical
+entrypoint `execute(request: Mapping[str, Any]) -> Mapping[str, Any]`. At the boundary it must:
 
 1. reject unknown or missing keys according to `descriptor.parameters`;
 2. validate each value using its declared kind (`token`, `enum`, `integer`, `path`), choices,

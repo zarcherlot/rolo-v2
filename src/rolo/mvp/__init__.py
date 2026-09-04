@@ -29,6 +29,7 @@ from .contracts import (
     TraceSessionRequest,
 )
 from .harness_execution import HarnessCodeBundle, HarnessCodeExecutor, build_python_launcher, make_code_bundle
+from .harness_codegen import generate_contract_source
 from .probe_registration import (
     ExecutionBinding,
     ProbeAnalysisInput,
@@ -82,6 +83,7 @@ __all__ = [
     "HarnessCodeExecutor",
     "build_python_launcher",
     "make_code_bundle",
+    "generate_contract_source",
     "ProbeAnalysisInput",
     "ExecutionBinding",
     "ToolRegistrationProposal",
