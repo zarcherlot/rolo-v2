@@ -60,6 +60,24 @@ def execute_trace(session_id: str, target_id: str, calls: list[TraceCall]) -> di
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@router.post("/invoke")
+def invoke_tool(payload: dict[str, Any]) -> dict[str, Any]:
+    session_id = payload.get("session_id")
+    tool_id = payload.get("tool_id")
+    arguments = payload.get("arguments", {})
+    if not isinstance(session_id, str) or not isinstance(tool_id, str) or not isinstance(arguments, dict):
+        raise HTTPException(status_code=422, detail="session_id, tool_id, and object arguments are required")
+    for service in _services.values():
+        if session_id in service.sessions:
+            try:
+                session = service.execute(session_id, [TraceCall(tool_id=tool_id, arguments=arguments)])
+            except (KeyError, ValueError) as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            event = session.events[-1] if session.events else None
+            return event.result if event and isinstance(event.result, dict) else {"status": session.state.value}
+    raise HTTPException(status_code=404, detail="session not found")
+
+
 @router.get("/runs/{run_id}")
 def get_run(run_id: str, target_id: str | None = None) -> dict[str, Any]:
     services = [_services[target_id]] if target_id in _services else list(_services.values()) if target_id is None else []
