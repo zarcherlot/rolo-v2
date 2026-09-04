@@ -42,6 +42,39 @@ class TraceService:
         self.clock = clock or _now
         self.sessions: dict[str, TraceSession] = {}
 
+    @classmethod
+    def from_registered_tools(
+        cls,
+        catalog: TargetCatalog,
+        *,
+        registry_root: Path,
+        target_executor: Any,
+        artifact_root: Path | None = None,
+        clock: Callable[[], datetime] | None = None,
+    ) -> TraceService:
+        """Build a Trace service that reconstructs registered Harness artifacts."""
+
+        from .binding_dispatch import RegisteredCodegenInvoker
+
+        codegen = RegisteredCodegenInvoker(registry_root, catalog.target_id, target_executor)
+        from .binding_dispatch import ApplicationBindingDispatcher
+        from .ros_binding import RosBindingExecutor
+
+        bindings = {item.tool_id: item.binding for item in catalog.tools if getattr(item, "binding", None)}
+        dispatcher = ApplicationBindingDispatcher()
+        dispatcher.register("ros2_topic", RosBindingExecutor(target_executor).rotate)
+
+        def invoke(tool_id: str, arguments: Mapping[str, Any], session_id: str) -> Any:
+            result = codegen.invoke(tool_id, arguments, session_id)
+            if result.get("error") != "CODEGEN_ARTIFACT_UNAVAILABLE":
+                return result
+            binding = bindings.get(tool_id)
+            if binding is not None:
+                return dispatcher.execute(binding, arguments)
+            return {"status": "BLOCKED", "error": "REGISTERED_EXECUTOR_UNAVAILABLE", "tool_id": tool_id}
+
+        return cls(catalog, invoke, artifact_root=artifact_root, clock=clock)
+
     def create_session(self, request: TraceSessionRequest) -> TraceSession:
         if request.target_id != self.catalog.target_id or request.catalog_digest != self.catalog.digest:
             raise ValueError("TRACE_BLOCKED: target or catalog digest does not match Probe catalog")

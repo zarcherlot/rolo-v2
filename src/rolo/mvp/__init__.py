@@ -38,6 +38,7 @@ from .probe_registration import (
     ToolRegistrationResult,
     build_probe_analysis_input,
     load_registered_bindings,
+    load_registered_codegen_artifact,
     load_registered_descriptors,
     load_registered_proposals,
     register_tool_proposal,
@@ -96,5 +97,6 @@ __all__ = [
     "register_tool_proposal",
     "load_registered_descriptors",
     "load_registered_bindings",
+    "load_registered_codegen_artifact",
     "load_registered_proposals",
 ]

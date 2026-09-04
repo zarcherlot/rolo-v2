@@ -94,6 +94,7 @@ class ToolRegistrationProposal(BaseModel):
     code_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     binding_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     codegen_artifact_ref: str | None = Field(default=None, max_length=512)
+    codegen_artifact: dict[str, Any] | None = None
     input_contract: dict[str, Any] | None = None
     observation_contract: dict[str, Any] | None = None
     status: Literal["PROPOSED", "REGISTERED", "BLOCKED"] = "PROPOSED"
@@ -131,6 +132,14 @@ class ToolRegistrationProposal(BaseModel):
             fields = self.observation_contract.get("fields")
             if not isinstance(fields, list) or not fields or "status" not in fields or len(fields) != len(set(fields)):
                 raise ValueError("observation_contract.fields must be unique and include status")
+        if self.codegen_artifact is not None:
+            if self.codegen_artifact.get("tool_id") != self.tool_id or self.codegen_artifact.get("target_id") != self.target_id:
+                raise ValueError("codegen_artifact target/tool does not match proposal")
+            bundle = self.codegen_artifact.get("bundle")
+            if not isinstance(bundle, dict) or bundle.get("tool_id") != self.tool_id:
+                raise ValueError("codegen_artifact.bundle is missing or mismatched")
+            if self.codegen_artifact_ref is None:
+                raise ValueError("codegen_artifact requires codegen_artifact_ref")
         if not self.evidence_refs:
             raise ValueError("registration requires at least one evidence reference")
         return self
@@ -250,6 +259,13 @@ def register_tool_proposal(
     path = target_dir / f"{proposal.tool_id}.json"
     payload = proposal.model_copy(update={"status": "REGISTERED"}).model_dump(mode="json")
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if proposal.codegen_artifact is not None:
+        artifact_dir = target_dir / "generated"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_path = artifact_dir / f"{proposal.tool_id}.json"
+        artifact_path.write_text(
+            json.dumps(proposal.codegen_artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
     return ToolRegistrationResult(
         target_id=target_id,
         tool_id=proposal.tool_id,
@@ -314,6 +330,20 @@ def load_registered_proposals(registry_root: Path, target_id: str) -> list[ToolR
     return proposals
 
 
+def load_registered_codegen_artifact(
+    registry_root: Path, target_id: str, tool_id: str
+) -> dict[str, Any] | None:
+    """Load the immutable Harness artifact paired with a registered proposal."""
+
+    path = registry_root / target_id / "generated" / f"{tool_id}.json"
+    if path.is_symlink() or not path.is_file():
+        return None
+    artifact = json.loads(path.read_text(encoding="utf-8"))
+    if artifact.get("target_id") != target_id or artifact.get("tool_id") != tool_id:
+        raise ValueError("registered codegen artifact identity mismatch")
+    return artifact
+
+
 __all__ = [
     "ExecutionBinding",
     "ProbeAnalysisInput",
@@ -324,4 +354,5 @@ __all__ = [
     "load_registered_descriptors",
     "load_registered_bindings",
     "load_registered_proposals",
+    "load_registered_codegen_artifact",
 ]

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from .probe_registration import ExecutionBinding
+from .harness_execution import HarnessCodeExecutor, make_code_bundle
+from .probe_registration import ExecutionBinding, load_registered_codegen_artifact
 
 BindingHandler = Callable[[ExecutionBinding, Mapping[str, Any]], dict[str, Any]]
 
@@ -49,4 +51,36 @@ class ApplicationBindingDispatcher:
         return handler(binding, arguments)
 
 
-__all__ = ["ApplicationBindingDispatcher", "BindingHandler"]
+class RegisteredCodegenInvoker:
+    """Reconstruct and execute a registered Harness function for Trace."""
+
+    def __init__(self, registry_root: Any, target_id: str, target_executor: Any) -> None:
+        self.registry_root = registry_root
+        self.target_id = target_id
+        self.target_executor = target_executor
+
+    def invoke(self, tool_id: str, arguments: Mapping[str, Any], session_id: str) -> dict[str, Any]:
+        del session_id
+        artifact = load_registered_codegen_artifact(self.registry_root, self.target_id, tool_id)
+        if artifact is None:
+            return {"status": "BLOCKED", "error": "CODEGEN_ARTIFACT_UNAVAILABLE"}
+        bundle_payload = artifact.get("bundle")
+        if not isinstance(bundle_payload, Mapping):
+            return {"status": "BLOCKED", "error": "CODEGEN_ARTIFACT_INVALID"}
+        try:
+            source = str(bundle_payload["source"])
+            declared_digest = bundle_payload.get("source_sha256")
+            if declared_digest and hashlib.sha256(source.encode("utf-8")).hexdigest() != declared_digest:
+                return {"status": "BLOCKED", "error": "CODEGEN_ARTIFACT_DIGEST_MISMATCH"}
+            bundle = make_code_bundle(
+                tool_id=tool_id,
+                source=source,
+                request=dict(arguments),
+                entrypoint=str(bundle_payload.get("entrypoint", "execute")),
+            )
+            return HarnessCodeExecutor(self.target_executor).execute(bundle, timeout_s=120)
+        except (KeyError, TypeError, ValueError) as exc:
+            return {"status": "BLOCKED", "error": "CODEGEN_ARTIFACT_INVALID", "detail": str(exc)[:240]}
+
+
+__all__ = ["ApplicationBindingDispatcher", "BindingHandler", "RegisteredCodegenInvoker"]
