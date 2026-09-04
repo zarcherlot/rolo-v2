@@ -26,8 +26,10 @@ from .rkb import (
     ReadOnlyKnowledgeBase,
     RKBStore,
 )
+from .mvp.http import router as mvp_router
 
 app = FastAPI(title="rolo v2 read-only API", version="0.38.0")
+app.include_router(mvp_router)
 API_FEATURES = (
     "rkb.read-model/v1",
     "mhs.inventory-read-model/v1",

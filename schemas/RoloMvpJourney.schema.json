@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mvp-journey/v1",
+  "title": "Rolo LanderPi Agent Journey MVP",
+  "type": "object",
+  "required": ["target_id", "catalog_digest", "session_id", "mode"],
+  "properties": {
+    "target_id": {"type": "string", "minLength": 1},
+    "catalog_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "session_id": {"type": "string", "minLength": 1},
+    "mode": {"enum": ["OBSERVATION_ONLY", "SUPERVISED_FIELD_DEBUG", "UNATTENDED_REMOTE"]}
+  },
+  "additionalProperties": true
+}
