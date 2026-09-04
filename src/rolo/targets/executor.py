@@ -7,9 +7,10 @@ import platform
 import re
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from rolo.target_ref import LocalTargetRef, SshTargetRef, TargetRef
 from rolo.targets.models import (
@@ -47,16 +48,21 @@ class CommandResult:
 
 
 class CommandRunner(Protocol):
-    def run(self, argv: list[str], *, timeout_s: float) -> CommandResult: ...
+    def run(
+        self, argv: list[str], *, timeout_s: float, input_data: bytes | None = None
+    ) -> CommandResult: ...
 
 
 class SubprocessCommandRunner:
     """Run fixed executor argv without a shell or interactive input."""
 
-    def run(self, argv: list[str], *, timeout_s: float) -> CommandResult:
+    def run(
+        self, argv: list[str], *, timeout_s: float, input_data: bytes | None = None
+    ) -> CommandResult:
         completed = subprocess.run(
             argv,
-            stdin=subprocess.DEVNULL,
+            input=input_data.decode("utf-8") if input_data is not None else None,
+            stdin=subprocess.DEVNULL if input_data is None else None,
             capture_output=True,
             check=False,
             text=True,
@@ -99,8 +105,9 @@ def _blocked_plan(
 
 
 class LocalTargetExecutor:
-    def __init__(self, target: LocalTargetRef) -> None:
+    def __init__(self, target: LocalTargetRef, *, runner: CommandRunner | None = None) -> None:
         self.target = target
+        self.runner = runner or SubprocessCommandRunner()
 
     def inspect(self) -> TargetConnectionAssessment:
         workspace_accessible = self.target.workspace.is_dir() and os.access(
@@ -147,6 +154,15 @@ class LocalTargetExecutor:
         ros_setup_files: tuple[str, ...] = (),
     ) -> CommandResult:
         raise ValueError("local bound execution is not available through this target executor")
+
+    def run_transient_code(self, source: str, *, timeout_s: float) -> CommandResult:
+        if not source or "\x00" in source:
+            raise ValueError("transient code must be non-empty and NUL-free")
+        if not 1 <= timeout_s <= 300:
+            raise ValueError("transient code timeout must be between 1 and 300 seconds")
+        return self.runner.run(
+            [sys.executable, "-"], timeout_s=timeout_s, input_data=source.encode("utf-8")
+        )
 
 
 class SshTargetExecutor:
@@ -310,6 +326,18 @@ class SshTargetExecutor:
             return self.runner.run(self._ssh_argv(["bash", "--noprofile", "--norc", "-c", command]), timeout_s=command_timeout)
         return self.runner.run(self._ssh_argv(remote_argv), timeout_s=command_timeout)
 
+    def run_transient_code(self, source: str, *, timeout_s: float) -> CommandResult:
+        if not source or "\x00" in source:
+            raise ValueError("transient code must be non-empty and NUL-free")
+        if not 1 <= timeout_s <= 300:
+            raise ValueError("transient code timeout must be between 1 and 300 seconds")
+        # Source arrives through stdin and is never shell text.
+        return self.runner.run(
+            self._ssh_argv(["python3", "-"]),
+            timeout_s=timeout_s,
+            input_data=source.encode("utf-8"),
+        )
+
     @staticmethod
     def _failure_detail(result: CommandResult) -> str:
         return result.stderr.strip() or result.stdout.strip() or f"SSH exited {result.returncode}"
@@ -437,7 +465,7 @@ def create_target_executor(
     if isinstance(target, LocalTargetRef):
         if known_hosts is not None or identity_file is not None:
             raise ValueError("local target inspection does not accept SSH transport options")
-        return LocalTargetExecutor(target)
+        return LocalTargetExecutor(target, runner=runner)
     return SshTargetExecutor(
         target,
         known_hosts=known_hosts,
@@ -455,6 +483,7 @@ def create_profile_target_executor(
     config_root: Path,
     timeout_s: float = 10.0,
     runner: CommandRunner | None = None,
+    purpose: Literal["collector", "execution"] = "collector",
 ) -> TargetExecutor:
     """Build a connector from one persisted profile without exposing secrets.
 
@@ -463,6 +492,11 @@ def create_profile_target_executor(
     once here, so callers only provide a profile id and never choose an SSH
     identity ad hoc.
     """
+
+    if purpose == "execution":
+        return create_profile_execution_target_executor(
+            profile_id, config_root=config_root, timeout_s=timeout_s, runner=runner
+        )
 
     from rolo.stages.probe.target_evidence import load_deployment, verify_ssh_transport_pins
     from rolo.targets.credentials import PinnedCredentialBroker
@@ -490,7 +524,11 @@ def create_profile_target_executor(
     verify_ssh_transport_pins(deployment)
     credential = PinnedCredentialBroker().resolve(
         profile.credential,
-        identity_file=Path(deployment.ssh_identity_file) if deployment.ssh_identity_file else None,
+        identity_file=(
+            Path(deployment.ssh_identity_file)
+            if deployment.ssh_identity_file and profile.credential.kind != "ssh-agent"
+            else None
+        ),
     )
     return create_target_executor(
         profile.target,
@@ -498,6 +536,54 @@ def create_profile_target_executor(
         identity_file=credential.identity_file,
         ros_setup_files=tuple(item.path for item in deployment.collector.ros_setup_files),
         remote_command_prefix=tuple(profile.remote_command_prefix),
+        timeout_s=timeout_s,
+        runner=runner,
+    )
+
+
+def create_profile_execution_target_executor(
+    profile_id: str,
+    *,
+    config_root: Path,
+    timeout_s: float = 10.0,
+    runner: CommandRunner | None = None,
+) -> TargetExecutor:
+    """Build the normal user SSH connector used by all Rolo stages."""
+    from rolo.targets.credentials import PinnedCredentialBroker
+    from rolo.targets.profiles import TargetProfileStore
+
+    profile = TargetProfileStore(config_root).load(profile_id)
+    if isinstance(profile.target, LocalTargetRef):
+        return create_target_executor(profile.target, timeout_s=timeout_s, runner=runner)
+    credential_ref = profile.credential
+    if profile.host_key is None or profile.host_key.status != "APPROVED":
+        raise ValueError("SSH target profile requires an approved host key")
+    from rolo.stages.probe.target_evidence import load_deployment, verify_ssh_transport_pins
+
+    deployment = load_deployment(
+        config_root.expanduser().resolve() / "target-evidence" / f"{profile_id}.json"
+    )
+    if deployment.mode.value != "remote":
+        raise ValueError("SSH execution requires a remote evidence deployment")
+    verify_ssh_transport_pins(deployment)
+    expected_target = f"{profile.target.user}@{profile.target.host}" if profile.target.user else profile.target.host
+    if deployment.ssh_target != expected_target or (deployment.ssh_port or 22) != (profile.target.port or 22):
+        raise ValueError("target profile and evidence deployment transport do not match")
+    credential = PinnedCredentialBroker().resolve(
+        credential_ref,
+        identity_file=(
+            Path(deployment.ssh_identity_file)
+            if deployment.ssh_identity_file and profile.credential.kind != "ssh-agent"
+            else None
+        ),
+    )
+    return create_target_executor(
+        profile.target,
+        known_hosts=Path(deployment.known_hosts_path or ""),
+        identity_file=credential.identity_file,
+        # The target runtime owns its middleware setup and driver routing.
+        ros_setup_files=(),
+        remote_command_prefix=(),
         timeout_s=timeout_s,
         runner=runner,
     )

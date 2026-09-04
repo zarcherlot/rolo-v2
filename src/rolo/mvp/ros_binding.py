@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from .harness_execution import HarnessCodeExecutor, make_code_bundle
 from .probe_registration import ExecutionBinding
 
 
@@ -39,6 +40,13 @@ class RosBindingExecutor:
         if duration > 10:
             return {'status': 'BLOCKED', 'error': 'MOTION_DURATION_EXCEEDS_10_SECONDS', 'motion_started': False}
         request = {
+            'protocol': 'rolo-harness/v1',
+            'tool_id': 'app.base.rotate',
+            'operation': 'bounded_twist',
+            'binding_sha256': hashlib.sha256(
+                json.dumps(binding.model_dump(mode='json'), sort_keys=True, separators=(',', ':')).encode()
+            ).hexdigest(),
+            'binding': binding.model_dump(mode='json'),
             'command_endpoint': binding.command_endpoint,
             'feedback_endpoints': binding.feedback_endpoints,
             'angular_speed_rad_s': math.copysign(speed, angle),
@@ -48,11 +56,28 @@ class RosBindingExecutor:
         runtime = Path(__file__).with_name('bounded_twist.py').read_text(encoding='utf-8')
         runtime_digest = hashlib.sha256(runtime.encode()).hexdigest()
         try:
-            completed = self.target_executor.run_bound(
-                ['python3', '-c', runtime, json.dumps(request, separators=(',', ':'))],
-                timeout_s=duration + 12,
-                ros_setup_files=self.ros_setup_files,
-            )
+            if hasattr(self.target_executor, 'run_transient_code'):
+                bundle = make_code_bundle(
+                    tool_id='app.base.rotate', source=runtime, request=request
+                )
+                result = HarnessCodeExecutor(self.target_executor).execute(
+                    bundle, timeout_s=duration + 12
+                )
+                return {
+                    **result,
+                    'runtime_sha256': runtime_digest,
+                    'requested_angle_degrees': angle,
+                    'max_speed_rad_s': speed,
+                }
+            else:
+                # Kept for deterministic local/unit fakes; production SSH
+                # execution always uses the separate forced-command channel.
+                request['runtime_sha256'] = runtime_digest
+                completed = self.target_executor.run_bound(
+                    ['python3', '-c', runtime, json.dumps(request, separators=(',', ':'))],
+                    timeout_s=duration + 12,
+                    ros_setup_files=self.ros_setup_files,
+                )
             if completed.returncode != 0:
                 result = {'status': 'UNKNOWN', 'error': 'TARGET_RUNTIME_FAILED', 'returncode': completed.returncode, 'stderr': completed.stderr}
             else:

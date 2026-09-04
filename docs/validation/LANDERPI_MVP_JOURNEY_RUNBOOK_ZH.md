@@ -29,3 +29,22 @@ authority: guide
 
 该走查只适用于有人在场的实验调试窗口，不构成功能安全或无人值守授权。旋转动作只能经已注册
 的实验性 Tool 进入 MHS driver；Rolo 不开放任意 Shell、topic publish、argv 或底层旁路。
+
+## 统一目标授权
+
+MVP 使用一个 SSH key 和一条统一目标连接，同时授权 Probe、Trace、Certify 及已注册 Tool
+执行。目标端可将该 key 强制到统一 dispatcher；dispatcher 根据 typed operation 路由只读
+证据采集或 Harness 执行。目标机无需安装完整 Rolo；只使用已有 runtime/driver，不接受任意
+shell、topic 或 argv。
+
+配置示例：
+
+```text
+rolo target profile init ssh://pi@<host>/home/pi/rolo --robot mentorpi \
+  --credential-ref platform-keychain:mentorpi-collector \
+  --execution-credential-ref platform-keychain:mentorpi-execution
+目标端使用用户已有的普通 SSH 登录配置；Rolo 不生成或安装额外 key。
+```
+
+缺少用户 SSH 登录、目标端 Python 或驱动依赖时，旋转结果必须为
+`BLOCKED: TARGET_EXECUTION_CHANNEL_UNAVAILABLE`，不得回退使用 Collector key。

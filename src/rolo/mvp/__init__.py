@@ -28,6 +28,7 @@ from .contracts import (
     TraceSession,
     TraceSessionRequest,
 )
+from .harness_execution import HarnessCodeBundle, HarnessCodeExecutor, build_python_launcher, make_code_bundle
 from .probe_registration import (
     ExecutionBinding,
     ProbeAnalysisInput,
@@ -77,6 +78,10 @@ __all__ = [
     "assess_rotation_readiness",
     "rotation_tool_proposal",
     "RosBindingExecutor",
+    "HarnessCodeBundle",
+    "HarnessCodeExecutor",
+    "build_python_launcher",
+    "make_code_bundle",
     "ProbeAnalysisInput",
     "ExecutionBinding",
     "ToolRegistrationProposal",

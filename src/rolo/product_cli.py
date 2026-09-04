@@ -46,7 +46,10 @@ from rolo.stages.probe.target_evidence import (
     verify_evidence_bundle,
 )
 from rolo.target_ref import LocalTargetRef, parse_target_ref
-from rolo.targets.executor import create_profile_target_executor, create_target_executor
+from rolo.targets.executor import (
+    create_profile_target_executor,
+    create_target_executor,
+)
 from rolo.targets.models import BootstrapPlanStatus, TargetConnectionState
 from rolo.targets.profiles import CredentialReference, TargetProfileStore
 
@@ -633,7 +636,12 @@ def execute_rotation(
         store = ArtifactStore(get_settings().rolo_artifact_dir)
         store.write_json(relative, evidence_payload)
         try:
-            target_executor = create_profile_target_executor(profile, config_root=get_settings().rolo_config_dir, timeout_s=timeout)
+            target_executor = create_profile_target_executor(
+                profile,
+                config_root=get_settings().rolo_config_dir,
+                timeout_s=timeout,
+                purpose="execution",
+            )
             connection = target_executor.inspect()
             if connection.state != TargetConnectionState.READY:
                 result = {"status": "BLOCKED", "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE", "motion_started": False}
@@ -642,7 +650,16 @@ def execute_rotation(
                     registered.binding,
                     {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
                 )
-        except (OSError, ValueError) as exc:
+        except ValueError as exc:
+            # Missing or invalid execution transport is a deterministic
+            # capability blocker.  Never retry it through the Collector path.
+            result = {
+                "status": "BLOCKED",
+                "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE",
+                "detail": str(exc)[:240],
+                "motion_started": False,
+            }
+        except OSError as exc:
             result = {"status": "UNKNOWN", "error": type(exc).__name__}
         evidence_payload["result"] = result
         evidence_payload["completed_at"] = datetime.now(timezone.utc).isoformat()

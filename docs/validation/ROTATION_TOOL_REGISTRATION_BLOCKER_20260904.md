@@ -89,3 +89,13 @@ payload SHA-256 为 `50e0307950ca6852cf2df80f7df24b746e55f4264f0e8f9e6612248b69f
 里程计可观测，但本轮 /cmd_vel 和 /controller/cmd_vel 未出现在运行时接口证据中。
 注册前校验返回 BLOCKED：binding command endpoint was not observed by Probe。
 本地记录见 artifacts/rotation-registration-check.json；motion_sent=false。
+
+## 统一目标授权调整
+
+MVP 不再引入 Collector/Execution 专用 key。Probe、Trace、Certify 和已注册 Tool 执行均复用
+profile 原有的普通 SSH 登录配置；目标机无需安装完整 Rolo，控制端通过 SSH stdin 传输带有
+source hash、binding 和参数的临时代码包。
+
+因此当前 LanderPi 仍需提供普通用户 SSH 登录和目标端 Python/驱动依赖；在这些条件满足前，
+任何旋转请求都明确返回 BLOCKED；普通 SSH 登录成功后，目标运行时仍只能执行
+Rolo 生成的 Harness bundle，不能把 SSH 原始命令当作任意 shell 执行。
