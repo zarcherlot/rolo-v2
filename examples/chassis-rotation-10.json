@@ -1,0 +1,17 @@
+{
+  "schema_version": "rolo-mvp-certification-suite/v1",
+  "suite_id": "chassis-rotation-10",
+  "target_id": "mentorpi",
+  "cases": [
+    {"case_id": "rotation-01", "description": "inspect base command route", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "cmd_vel"}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-02", "description": "inspect controller command route", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "controller_cmd_vel"}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-03", "description": "read odometry before rotation", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "odom"}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-04", "description": "read raw odometry before rotation", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "odom_raw"}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-05", "description": "inspect transform routes", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "tf"}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-06", "description": "validate bounded angle", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "angle", "angle_degrees": 90}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-07", "description": "validate bounded speed", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "speed", "max_speed_rad_s": 0.4}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-08", "description": "validate timeout and stop window", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "timeout", "timeout_s": 10}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-09", "description": "prepare left rotation dry run", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "plan", "direction": "left", "dry_run": true}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "rotation-10", "description": "prepare right rotation dry run", "tool_id": "native.mvp.rotation.debug", "arguments": {"check": "plan", "direction": "right", "dry_run": true}, "expected": {"status": "SUCCEEDED"}}
+  ]
+}

@@ -74,8 +74,8 @@ def _descriptor(tool_id: str) -> AgentNativeToolDescriptor:
     )
 
 
-def _catalog():
-    descriptors = [_descriptor("native.application.mapping.run")]
+def _catalog(tool_id: str):
+    descriptors = [_descriptor(tool_id)]
     report = ToolConformanceReport(
         target_id="mentorpi",
         session_id="release-gate-replay",
@@ -91,13 +91,13 @@ def _catalog():
     )
 
 
-def run_trace_replay() -> dict[str, str]:
-    catalog = _catalog()
+def run_trace_replay(tool_id: str, *, task: str = "完成建图") -> dict[str, str]:
+    catalog = _catalog(tool_id)
     service = TraceService(catalog, lambda *_: {"status": "SUCCEEDED"})
     success = service.create_session(
-        TraceSessionRequest(target_id="mentorpi", catalog_digest=catalog.digest or "", task="完成建图")
+        TraceSessionRequest(target_id="mentorpi", catalog_digest=catalog.digest or "", task=task)
     )
-    if service.execute(success.session_id, [TraceCall(tool_id="native.application.mapping.run")]).state != SessionState.COMPLETED:
+    if service.execute(success.session_id, [TraceCall(tool_id=tool_id)]).state != SessionState.COMPLETED:
         raise ReleaseGateError("trace success replay did not complete")
 
     attempts = {"count": 0}
@@ -108,13 +108,13 @@ def run_trace_replay() -> dict[str, str]:
 
     flaky = TraceService(catalog, flaky_invoker)
     recovering = flaky.create_session(
-        TraceSessionRequest(target_id="mentorpi", catalog_digest=catalog.digest or "", task="完成建图")
+        TraceSessionRequest(target_id="mentorpi", catalog_digest=catalog.digest or "", task=task)
     )
     recovered = flaky.execute(
         recovering.session_id,
-        [TraceCall(tool_id="native.application.mapping.run")],
-        diagnose=lambda *_: TraceCall(tool_id="native.application.mapping.run"),
-        recover=lambda *_: TraceCall(tool_id="native.application.mapping.run"),
+        [TraceCall(tool_id=tool_id)],
+        diagnose=lambda *_: TraceCall(tool_id=tool_id),
+        recover=lambda *_: TraceCall(tool_id=tool_id),
     )
     if recovered.state != SessionState.COMPLETED or not any(e.event == "RECOVERY_ATTEMPT" for e in recovered.events):
         raise ReleaseGateError("trace diagnosis/recovery replay did not complete")
@@ -139,7 +139,8 @@ def run_release_gate(suite_path: Path, output_dir: Path | None = None) -> dict[s
         raise ReleaseGateError("offline certification replay did not pass all 10 cases")
     report_path, _ = write_report(report, destination / "certify-test-report.json")
     index_payload = validate_artifact_index(destination / "artifact-index.json")
-    trace_states = run_trace_replay()
+    primary_tool = suite.cases[0].tool_id
+    trace_states = run_trace_replay(primary_tool, task="preflight diagnostics")
     return {
         "status": "PASS",
         "suite_digest": suite.digest,
@@ -151,7 +152,7 @@ def run_release_gate(suite_path: Path, output_dir: Path | None = None) -> dict[s
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the offline Rolo MVP release gate")
-    parser.add_argument("--suite", type=Path, default=Path("examples/mapping-10.json"))
+    parser.add_argument("--suite", type=Path, default=Path("examples/chassis-rotation-10.json"))
     parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
     try:

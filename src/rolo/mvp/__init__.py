@@ -28,6 +28,7 @@ from .contracts import (
     TraceSession,
     TraceSessionRequest,
 )
+from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness
 from .trace import TraceService
 
 __all__ = [
@@ -59,4 +60,7 @@ __all__ = [
     "TraceEvent",
     "TraceSession",
     "TraceSessionRequest",
+    "RotationDebugAssessment",
+    "RotationDebugRequest",
+    "assess_rotation_readiness",
 ]

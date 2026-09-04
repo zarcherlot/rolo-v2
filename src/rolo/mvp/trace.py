@@ -68,6 +68,10 @@ class TraceService:
             session.state = SessionState.BLOCKED
             session.limitations.append("BLOCKED: capability not observed")
             self._event(session, SessionState.BLOCKED, "MAPPING_TOOL_NOT_OBSERVED", error_code="CAPABILITY_NOT_OBSERVED")
+        if any(token in task_lower for token in ("rotate", "rotation", "chassis", "旋转", "底盘", "地盘")) and not self._rotation_tool():
+            session.state = SessionState.BLOCKED
+            session.limitations.append("BLOCKED: physical rotation capability not observed")
+            self._event(session, SessionState.BLOCKED, "ROTATION_TOOL_NOT_OBSERVED", error_code="CAPABILITY_NOT_OBSERVED")
         return session
 
     def execute(
@@ -208,6 +212,18 @@ class TraceService:
 
     def _mapping_tool(self) -> CatalogTool | None:
         return next((item for item in self.catalog.tools if item.agent_callable and ("map" in item.tool_id.lower() or "mapping" in item.tool_id.lower())), None)
+
+    def _rotation_tool(self) -> CatalogTool | None:
+        return next(
+            (
+                item
+                for item in self.catalog.tools
+                if item.agent_callable
+                and item.experimental_write
+                and any(token in item.tool_id.lower() for token in ("rotate", "rotation", "chassis"))
+            ),
+            None,
+        )
 
     def _get(self, session_id: str) -> TraceSession:
         if session_id not in self.sessions:
