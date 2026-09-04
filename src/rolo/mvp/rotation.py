@@ -22,9 +22,9 @@ class RotationDebugRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     operation_id: Literal["app.base.rotate"] = "app.base.rotate"
-    angle_degrees: float = Field(gt=-180.0, lt=180.0)
+    angle_degrees: float = Field(ge=-360.0, le=360.0)
     max_speed_rad_s: float = Field(gt=0.0, le=1.0)
-    timeout_s: float = Field(gt=0.0, le=30.0)
+    timeout_s: float = Field(gt=0.0, le=90.0)
     direction: Literal["left", "right"]
     dry_run: bool = True
 
@@ -96,7 +96,7 @@ def rotation_tool_proposal(*, target_id: str, evidence_ref: str) -> ToolRegistra
             NativeToolParameter(
                 name="angle_degrees",
                 kind="token",
-                pattern=r"-?(?:[0-9]{1,2}(?:\.[0-9]+)?|1[0-7][0-9](?:\.[0-9]+)?)",
+                pattern=r"-?(?:360(?:\.0+)?|3[0-5][0-9](?:\.[0-9]+)?|[0-9]{1,2}(?:\.[0-9]+)?)",
             ),
             NativeToolParameter(
                 name="max_speed_rad_s",

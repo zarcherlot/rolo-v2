@@ -583,7 +583,7 @@ def execute_rotation(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
     proposal: Annotated[Path, typer.Option("--proposal")],
     evidence: Annotated[Path, typer.Option("--evidence")],
-    angle_degrees: Annotated[float, typer.Option("--angle-degrees", min=-179.999, max=179.999)],
+    angle_degrees: Annotated[float, typer.Option("--angle-degrees", min=-360.0, max=360.0)],
     max_speed_rad_s: Annotated[float, typer.Option("--max-speed-rad-s", min=0.0001, max=1.0)],
     safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
     operator_id: Annotated[str | None, typer.Option("--operator-id", help="Optional audit label; not required for execution")] = None,

@@ -30,15 +30,15 @@ class RosBindingExecutor:
             speed = float(arguments['max_speed_rad_s'])
         except (TypeError, ValueError):
             return {'status': 'BLOCKED', 'error': 'INVALID_ROTATION_ARGUMENTS', 'motion_started': False}
-        if not math.isfinite(angle) or not -180 < angle < 180:
+        if not math.isfinite(angle) or not -360 <= angle <= 360:
             return {'status': 'BLOCKED', 'error': 'ANGLE_OUT_OF_BOUNDS', 'motion_started': False}
         if not math.isfinite(speed) or not 0 < speed <= 1:
             return {'status': 'BLOCKED', 'error': 'SPEED_OUT_OF_BOUNDS', 'motion_started': False}
         if angle == 0:
             return {'status': 'SUCCEEDED', 'motion_started': False, 'measured_angle_degrees': 0}
         duration = abs(math.radians(angle)) / speed
-        if duration > 10:
-            return {'status': 'BLOCKED', 'error': 'MOTION_DURATION_EXCEEDS_10_SECONDS', 'motion_started': False}
+        if duration > 60:
+            return {'status': 'BLOCKED', 'error': 'MOTION_DURATION_EXCEEDS_60_SECONDS', 'motion_started': False}
         request = {
             'protocol': 'rolo-harness/v1',
             'tool_id': 'app.base.rotate',

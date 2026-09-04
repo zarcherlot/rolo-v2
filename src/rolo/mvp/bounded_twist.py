@@ -19,7 +19,7 @@ def execute_bounded_twist(io, request):
     goal = float(request['goal_yaw_rad'])
     if not all(math.isfinite(v) for v in (speed, duration, goal)):
         raise ValueError('motion parameters must be finite')
-    if not 0 < abs(speed) <= 1 or not 0 < duration <= 10 or not 0 < abs(goal) < math.pi:
+    if not 0 < abs(speed) <= 1 or not 0 < duration <= 60 or not 0 < abs(goal) <= 2 * math.pi + 1e-9:
         raise ValueError('motion parameters exceed bounds')
     if speed * goal <= 0:
         raise ValueError('speed and goal directions differ')

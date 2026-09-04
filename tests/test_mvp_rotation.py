@@ -26,7 +26,8 @@ def test_rotation_request_is_bounded_and_dry_run_by_default() -> None:
     assert request.dry_run is True
     assert RotationDebugRequest(angle_degrees=90, max_speed_rad_s=0.4, timeout_s=10, direction="left", dry_run=False).dry_run is False
     with pytest.raises(ValueError):
-        RotationDebugRequest(angle_degrees=181, max_speed_rad_s=0.4, timeout_s=10, direction="left")
+        RotationDebugRequest(angle_degrees=361, max_speed_rad_s=0.4, timeout_s=10, direction="left")
+    assert RotationDebugRequest(angle_degrees=360, max_speed_rad_s=0.4, timeout_s=60, direction="left").angle_degrees == 360
 
 
 def test_landerpi_rotation_readiness_is_evidence_bound() -> None:

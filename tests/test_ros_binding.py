@@ -102,4 +102,4 @@ def test_controller_uses_one_target_call_and_serialized_parameters():
 
 def test_overlong_motion_rejected_instead_of_clamping():
     result = RosBindingExecutor(None).rotate(binding(), {'angle_degrees': 15, 'max_speed_rad_s': 0.001})
-    assert result['error'] == 'MOTION_DURATION_EXCEEDS_10_SECONDS'
+    assert result['error'] == 'MOTION_DURATION_EXCEEDS_60_SECONDS'
