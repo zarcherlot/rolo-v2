@@ -140,7 +140,12 @@ class NativeToolSession:
         allowed = set(self.descriptor.allowed_tools)
         return [item for item in self.runner.list_tools() if item.tool_id in allowed]
 
-    def execute_plan(self, plan: ToolPlan) -> list[AgentNativeToolResult]:
+    def execute_plan(
+        self,
+        plan: ToolPlan,
+        *,
+        allow_mutating: bool = False,
+    ) -> list[AgentNativeToolResult]:
         """Validate and execute one Agent plan through this frozen session."""
         if plan.target_id != self.descriptor.robot_id:
             raise NativeToolSessionAuthorizationError("tool plan target does not match session")
@@ -156,6 +161,7 @@ class NativeToolSession:
             plan,
             allowed_tool_ids=self.descriptor.allowed_tools,
             catalog=self.runner.list_tools(),
+            allow_mutating=allow_mutating,
         )
         results: list[AgentNativeToolResult] = []
         for step in plan.steps:

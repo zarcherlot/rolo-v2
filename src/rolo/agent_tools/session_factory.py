@@ -37,6 +37,8 @@ def create_profile_native_tool_session(
     session_nonce: str | None = None,
     native_executor: object | None = None,
     target_host_fingerprint: str | None = None,
+    additional_descriptors: list[AgentNativeToolDescriptor] | None = None,
+    allow_experimental_write: bool = False,
 ) -> NativeToolSession:
     """Create the smallest trusted Tool Surface for one enrolled profile.
 
@@ -47,6 +49,15 @@ def create_profile_native_tool_session(
     if ttl_s < 1 or ttl_s > 86_400:
         raise ValueError("native tool session TTL must be between 1 second and 24 hours")
     catalog = reduced_agent_native_catalog()
+    if additional_descriptors:
+        if not allow_experimental_write and any(item.access == "experimental_write" for item in additional_descriptors):
+            raise ValueError("experimental write descriptors require an explicit registered surface")
+        by_id = {item.tool_id: item for item in catalog}
+        for item in additional_descriptors:
+            if item.tool_id in by_id:
+                raise ValueError(f"registered tool duplicates native tool: {item.tool_id}")
+            by_id[item.tool_id] = item
+        catalog = [by_id[key] for key in sorted(by_id)]
     target_executor = create_profile_target_executor(
         profile_id,
         config_root=config_root,
@@ -75,7 +86,10 @@ def create_profile_native_tool_session(
         stage="probe",
         native_catalog_sha256=_catalog_digest(catalog),
         allowed_tools=[item.tool_id for item in catalog],
-        policy_version="rolo-v2-probe-readonly-v1",
+            policy_version=(
+                "rolo-v2-probe-registered-v1" if allow_experimental_write
+                else "rolo-v2-probe-readonly-v1"
+            ),
         budget=NativeToolSessionBudget(
             max_calls=max_calls,
             max_elapsed_s=max_elapsed_s,

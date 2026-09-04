@@ -1,0 +1,17 @@
+{
+  "schema_version": "rolo-mvp-certification-suite/v1",
+  "suite_id": "mapping-10",
+  "target_id": "mentorpi",
+  "cases": [
+    {"case_id": "mapping-01", "description": "start mapping", "tool_id": "native.application.mapping.run", "arguments": {"area": "A"}, "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-02", "description": "mapping status", "tool_id": "native.application.mapping.status", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-03", "description": "mapping pose", "tool_id": "native.application.mapping.pose", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-04", "description": "mapping sensor", "tool_id": "native.application.mapping.sensor", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-05", "description": "mapping coverage", "tool_id": "native.application.mapping.coverage", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-06", "description": "mapping save", "tool_id": "native.application.mapping.save", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-07", "description": "mapping reload", "tool_id": "native.application.mapping.reload", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-08", "description": "mapping loop closure", "tool_id": "native.application.mapping.loop", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-09", "description": "mapping export", "tool_id": "native.application.mapping.export", "expected": {"status": "SUCCEEDED"}},
+    {"case_id": "mapping-10", "description": "mapping artifact", "tool_id": "native.application.mapping.artifact", "expected": {"status": "SUCCEEDED"}}
+  ]
+}

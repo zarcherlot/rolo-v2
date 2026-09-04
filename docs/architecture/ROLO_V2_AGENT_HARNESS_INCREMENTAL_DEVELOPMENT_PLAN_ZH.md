@@ -90,6 +90,8 @@ CLI 交付包包含：
 - `schemas/`：ToolPlan、Tool result、RKB、MHS、Episode schema；
 - `skills/rolo/SKILL.md`：安装、升级、preflight、命令路由和安全边界的主 skill；
 - `skills/rolo-tool-planning/`：告诉 Agent 如何读取 surface、生成 digest-bound plan 和处理拒绝；
+- `skills/rolo-harness-codegen/`：把已知 Tool 的 typed arguments、binding 和派生 request
+  预先编译成可复用 Harness bundle，避免每次执行重新手工编码和拼接 SSH 载荷；
 - `examples/harness-plugin/`：Agent 产品接入和 conformance 示例。
 
 ### 3.3 Loopback API 交付
@@ -253,8 +255,24 @@ Codex 读取上一步结果后自行决定是否发起下一次调用。
 - rolo-vis 中的 proposal review 和用户确认；
 - 关联发布为 Tool/RKB read model 的规则。
 
-验收：Probe 可重复执行“collect → Codex analyze → follow-up → validate → user confirm”；
+验收：Probe 可重复执行“collect → Harness 交互式编码 → validate → register”；
 proposal 不能引用不存在的 evidence，也不能把模型猜测发布为能力。
+
+本 MVP 对 W2.5 做以下产品取舍：Rolo 不主动调用 Codex，也不增加第二个
+rolo-vis 审阅门。Rolo 通过 `probe-analysis-input` 把 target/evidence/routes/RKB/MHS
+摘要交给当前 Harness；用户直接在 Harness 窗口中纠正、迭代和测试生成的 adapter。
+Harness 最终提交 `rolo-tool-registration-proposal/v1`，Rolo 校验 target、evidence、
+descriptor 和 digest 后立即注册。MVP 暂不要求隔离工作区，注册后的 application Tool
+可以进入真实设备执行路径，但仍必须经过 Rolo 的 target-bound session 和 typed
+ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mapping/navigation 等 Tool
+复用同一 envelope、proposal 和 registry。
+
+本轮补充 `rolo-harness-codegen` 子 skill：当目标 Tool 已知时，Harness 依据 descriptor
+机械生成与参数列表同构的输入校验函数，并依据 observation contract 生成输出校验函数；
+再计算 binding 定义的派生 request，生成带 source/binding digest 的 bundle。SSH 或本地执行
+只由 Rolo target executor 选择，不能在生成代码中重复拼接。用户在 Harness 窗口修正代码或
+参数时，只重新生成 bundle 并复用同一执行入口；Tool 注册后，后续 Trace 直接实例化同一
+模板，不再重新编码。新增 Tool 不需要修改该 Skill。
 
 ### W3：Trace Session Runtime
 

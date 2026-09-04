@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mvp-trace-session-request/v1",
+  "type": "object",
+  "required": ["target_id", "catalog_digest", "task"],
+  "properties": {
+    "target_id": {"type": "string"},
+    "catalog_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "task": {"type": "string", "minLength": 1},
+    "mode": {"enum": ["OBSERVATION_ONLY", "SUPERVISED_FIELD_DEBUG", "UNATTENDED_REMOTE"]},
+    "ttl_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 86400},
+    "max_calls": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}

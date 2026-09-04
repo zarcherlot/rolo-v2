@@ -48,6 +48,21 @@ Agent 只能从 Rolo 返回的 catalog 选择已注册工具和 query；不能�
 任意 shell、任意 argv 或未注册 route。Agent 的关联结果只能是 `PROPOSED`、`UNKNOWN`
 或 `UNSUPPORTED`，不能自行写成 `VERIFIED`、`ELIGIBLE` 或授权结论。
 
+### Probe 构造闭环（MVP）
+
+当 Probe 只读结果暴露出应用能力缺口时，Probe 不再停在候选报告。Rolo 输出
+`rolo-probe-analysis-input/v1`，当前 Agent Harness 在自己的交互窗口中与用户一起编写、
+运行和修改 adapter，再提交 `rolo-tool-registration-proposal/v1`。MVP 不增加第二个
+rolo-vis 确认步骤，也暂不要求隔离工作区；Harness 对代码负责，Rolo 对 proposal 的
+target、evidence、descriptor、digest 和 session 边界负责。校验通过后，Rolo 把 Tool
+发布到 registered application catalog，后续 Trace 从该 catalog 消费。
+
+这个闭环对所有应用 Tool 通用。以旋转为例，Harness 从 Probe 的运行时软件栈证据中
+生成 evidence-bound `ExecutionBinding`，声明 `/cmd_vel`、反馈 topic、停止策略和参数
+映射；`app.base.rotate` 是应用语义。Rolo 校验 binding 的 target、evidence、参数和
+停止约束后注册 Tool，不要求预先存在固定 route。MHS 可以提供驱动上下文，但不需要
+定义 rotate 语义，也不能把单个观测到的 topic 自动升级为写能力。
+
 ## 用户使用旅程
 
 用户不需要手工编排内部 artifact，按意图进入下列路径：

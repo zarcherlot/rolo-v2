@@ -153,12 +153,12 @@
       "type": "array"
     },
     "access": {
-      "pattern": "^read$",
+      "pattern": "^(read|experimental_write)$",
       "title": "Access",
       "type": "string"
     },
     "risk": {
-      "pattern": "^(R0|R1)$",
+      "pattern": "^(R0|R1|R2|R3)$",
       "title": "Risk",
       "type": "string"
     },

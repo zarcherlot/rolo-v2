@@ -18,6 +18,7 @@ from rolo.agent_tools import (
     ToolPlan,
     reduced_agent_native_catalog,
 )
+from rolo.mvp import CertificationReport, TargetCatalog, TraceSessionRequest
 from rolo.probe_baseline import (
     BaselineArtifactIndex,
     ProbeBaselineManifest,
@@ -59,6 +60,8 @@ def run_release_check(
         "rolo.stages.probe.target_evidence",
         "rolo.rkb",
         "rolo.probe_baseline",
+        "rolo.harness",
+        "rolo.mvp",
     ):
         try:
             importlib.import_module(module)
@@ -98,6 +101,9 @@ def run_release_check(
             (ProbeBaselineManifest, "probe-baseline-manifest"),
             (BaselineArtifactIndex, "probe-baseline-artifact-index"),
             (ReadOnlyCompletion, "read-only-completion"),
+            (TargetCatalog, "mvp-target-catalog"),
+            (TraceSessionRequest, "mvp-trace-session-request"),
+            (CertificationReport, "mvp-certification-report"),
         ):
             model.model_json_schema()
             checks.append(f"schema:{label}")

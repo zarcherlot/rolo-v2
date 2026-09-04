@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mvp-certification-report/v1",
+  "type": "object",
+  "required": ["run_id", "target_id", "snapshot_digest", "suite_digest", "results", "conclusion"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "target_id": {"type": "string"},
+    "snapshot_digest": {"type": "string"},
+    "suite_digest": {"type": "string"},
+    "results": {"type": "array"},
+    "conclusion": {"enum": ["PASS", "CONDITIONAL", "BLOCKED"]}
+  },
+  "additionalProperties": false
+}
