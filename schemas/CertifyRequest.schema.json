@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-certify-request/v1",
+  "type": "object",
+  "required": ["schema_version", "target_id", "suite_ref"],
+  "properties": {
+    "schema_version": {"const": "rolo-certify-request/v1"},
+    "target_id": {"type": "string", "minLength": 1},
+    "suite_ref": {"type": "string", "minLength": 1},
+    "snapshot_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}
