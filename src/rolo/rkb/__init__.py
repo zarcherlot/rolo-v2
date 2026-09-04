@@ -17,6 +17,7 @@ from rolo.probe_baseline import (
     validate_baseline,
 )
 
+from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
 from .canonical import (
     canonical_json,
     json_pointer,
@@ -24,6 +25,21 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .collector import SnapshotCollector, collect_snapshot
+from .episodes import (
+    EpisodeArtifactRef,
+    EpisodeEvent,
+    EpisodeEventKind,
+    EpisodeMetadata,
+    EpisodeMetrics,
+    EpisodeQueryPage,
+    EpisodeState,
+    EpisodeStore,
+    build_episode_from_snapshot,
+    build_terminal_episode,
+    publish_probe_episode,
+)
+from .keyring import HMACKey, HMACKeyring
 from .mhs_api import MhsEvidenceReadApi
 from .mhs_http import create_mhs_app
 from .mhs_read_models import (
@@ -146,6 +162,29 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "SnapshotCollector",
+    "collect_snapshot",
+    "AlertSeverity",
+    "RKBAlert",
+    "evaluate_alerts",
+    "HMACKey",
+    "HMACKeyring",
+    "SchemaPolicy",
+    "SchemaRegistry",
+    "AlertSchedule",
+    "run_alert_cycle",
+    "keyring_from_vault",
+    "EpisodeArtifactRef",
+    "EpisodeEvent",
+    "EpisodeEventKind",
+    "EpisodeMetrics",
+    "EpisodeMetadata",
+    "EpisodeQueryPage",
+    "EpisodeState",
+    "EpisodeStore",
+    "build_episode_from_snapshot",
+    "build_terminal_episode",
+    "publish_probe_episode",
     "BaselineArtifact",
     "BaselineArtifactIndex",
     "BaselineStatus",

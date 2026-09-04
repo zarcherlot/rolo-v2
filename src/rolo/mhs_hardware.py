@@ -68,6 +68,124 @@ class MhsChannel(BaseModel):
         return self
 
 
+class MhsIdentitySource(BaseModel):
+    """One independently observable identity source for a physical device."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["serial", "device_tree", "udev_by_id", "controller_resource", "path", "other"]
+    value: str = Field(min_length=1)
+    observed: bool = True
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class MhsIdentity(BaseModel):
+    """Stable identity and disagreement state, separate from display metadata."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stable_id: str | None = None
+    sources: list[MhsIdentitySource] = Field(default_factory=list)
+    confidence: Literal["high", "medium", "low"] = "low"
+    conflicts: list[str] = Field(default_factory=list)
+
+
+class MhsProvenance(BaseModel):
+    """Lifecycle and evidence metadata for a declared manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal[
+        "DECLARED",
+        "DISCOVERED_UNVERIFIED",
+        "READY_FOR_SAMPLING",
+        "VERIFIED",
+        "REJECTED",
+    ] = "DECLARED"
+    evidence_ids: list[str] = Field(default_factory=list)
+    observed_at: datetime | None = None
+    fresh_until: datetime | None = None
+    field_status: dict[str, Literal["declared", "observed", "inferred", "unknown"]] = Field(
+        default_factory=dict
+    )
+
+    @model_validator(mode="after")
+    def valid_window(self) -> MhsProvenance:
+        if (
+            self.observed_at is not None
+            and self.fresh_until is not None
+            and self.fresh_until < self.observed_at
+        ):
+            raise ValueError("provenance fresh_until cannot precede observed_at")
+        if self.status == "VERIFIED" and not self.evidence_ids:
+            raise ValueError("verified manifest requires provenance evidence")
+        return self
+
+
+class MhsRelation(BaseModel):
+    """Typed edge between MHS devices, interfaces, or transport resources."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["attached_to", "driven_by", "publishes_to", "controls", "member_of"]
+    target: str = Field(min_length=1)
+    interface_id: str | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class MhsInterfaceDescriptor(BaseModel):
+    """Middleware-neutral structured data interface."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    kind: Literal[
+        "scalar",
+        "image",
+        "point_cloud",
+        "laser_scan",
+        "joint_state",
+        "pose",
+        "event",
+        "command",
+    ]
+    access: Literal["read", "stream", "write"] = "read"
+    transport_ref: str | None = None
+    payload_schema: dict[str, Any] = Field(default_factory=dict)
+    encoding: str | None = None
+    shape: list[int | str] = Field(default_factory=list)
+    unit: str | None = None
+    frame_id: str | None = None
+    timestamp: Literal["none", "source", "receipt", "source_and_receipt"] = "none"
+    qos: dict[str, Any] = Field(default_factory=dict)
+
+
+class MhsSafetyContract(BaseModel):
+    """Read-side safety facts and write-adapter prerequisites."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    read_only: bool = True
+    resource_claims: list[str] = Field(default_factory=list)
+    modes: list[str] = Field(default_factory=list)
+    limits: list[str] = Field(default_factory=list)
+    faults: list[str] = Field(default_factory=list)
+    interlocks: list[str] = Field(default_factory=list)
+    estop_required: bool | None = None
+
+
+class MhsInterfaceSample(BaseModel):
+    """One structured sample emitted by a transport adapter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    interface_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    value: Any
+    observed_at: datetime
+    source_timestamp: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class MhsCommandDescriptor(BaseModel):
     """One bounded write command declared by a device manifest."""
 
