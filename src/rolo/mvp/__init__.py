@@ -10,7 +10,6 @@ from .adapter import AgentAdapter, InMemoryAgentAdapter, RoloHttpAgentAdapter
 from .catalog import build_target_catalog, load_target_catalog, save_target_catalog
 from .certify import CertificationRunner, load_suite, write_report
 from .context import AgentContext, build_agent_context
-from .execution_routes import ExecutionRoute, ExecutionRouteRegistry, RoloRouteBroker, RouteHandler
 from .contracts import (
     CaseStatus,
     CatalogTool,
@@ -52,10 +51,6 @@ __all__ = [
     "write_report",
     "AgentContext",
     "build_agent_context",
-    "ExecutionRoute",
-    "ExecutionRouteRegistry",
-    "RoloRouteBroker",
-    "RouteHandler",
     "TraceService",
     "CaseStatus",
     "CatalogTool",

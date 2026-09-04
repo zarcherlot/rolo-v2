@@ -57,11 +57,10 @@ rolo-vis 确认步骤，也暂不要求隔离工作区；Harness 对代码负责
 target、evidence、descriptor、digest 和 session 边界负责。校验通过后，Rolo 把 Tool
 发布到 registered application catalog，后续 Trace 从该 catalog 消费。
 
-这个闭环对所有应用 Tool 通用。以旋转为例，`app.base.rotate` 是应用语义，proposal
-只声明参数和目标绑定的 `base.motion.velocity` route；provider/driver 负责把 route
-映射到具体控制输入（例如 `/cmd_vel`），因此 harness 不能在 proposal 中嵌入 shell 或
-topic publish。角度反馈、停止和超时属于 route/provider contract，只有写入已注册
-Tool 和 route 后才允许进入现场调试执行路径。
+这个闭环对所有应用 Tool 通用。以旋转为例，`/cmd_vel` 是 adapter 的控制输入，
+`app.base.rotate` 是应用语义；MHS 可以提供驱动和 route 上下文，但不需要定义 rotate
+语义。角度反馈、停止和超时属于 adapter contract，只有写入已注册 Tool 后才允许进入
+现场调试执行路径。
 
 ## 用户使用旅程
 

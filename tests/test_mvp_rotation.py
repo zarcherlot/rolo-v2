@@ -87,7 +87,5 @@ def test_rotation_tool_proposal_is_generic_registered_adapter() -> None:
     proposal = rotation_tool_proposal(target_id="mentorpi", evidence_ref="target-evidence:" + "a" * 64)
     assert proposal.tool_id == "app.base.rotate"
     assert proposal.descriptor.access == "experimental_write"
-    assert proposal.implementation == "route"
-    assert proposal.route_refs == ["base.motion.velocity"]
-    assert proposal.descriptor.executable == "rolo-route-broker"
-    assert proposal.descriptor.variants == {}
+    assert "execute" in proposal.descriptor.variants
+    assert proposal.descriptor.variants["execute"].argv_template[:2] == ["python3", "-c"]
