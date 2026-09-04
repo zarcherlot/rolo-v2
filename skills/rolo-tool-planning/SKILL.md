@@ -34,8 +34,9 @@ a bounded Probe gap path, where Rolo probes, verifies, conforms, and publishes o
 
 When a capability is absent, the harness owns an interactive coding loop with
 the user. Request `rolo probe-analysis-input --evidence <bundle>`, inspect its
-software-stack observations and evidence references, and implement the adapter
-in the current harness workspace. For a write-capable application Tool, emit an
+  software-stack observations and evidence references, load `rolo-harness-codegen`
+  to prepare the typed operation arguments and derived target request once, and
+  implement the adapter in the current harness workspace. For a write-capable application Tool, emit an
 evidence-bound `ExecutionBinding` describing the observed transport, bounded
 parameters, feedback and stop strategy. Revise it with the user's feedback and
 emit a typed `rolo-tool-registration-proposal/v1`; submit it with

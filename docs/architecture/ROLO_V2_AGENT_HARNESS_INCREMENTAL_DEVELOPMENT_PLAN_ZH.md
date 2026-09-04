@@ -90,6 +90,8 @@ CLI 交付包包含：
 - `schemas/`：ToolPlan、Tool result、RKB、MHS、Episode schema；
 - `skills/rolo/SKILL.md`：安装、升级、preflight、命令路由和安全边界的主 skill；
 - `skills/rolo-tool-planning/`：告诉 Agent 如何读取 surface、生成 digest-bound plan 和处理拒绝；
+- `skills/rolo-harness-codegen/`：把已知 Tool 的 typed arguments、binding 和派生 request
+  预先编译成可复用 Harness bundle，避免每次执行重新手工编码和拼接 SSH 载荷；
 - `examples/harness-plugin/`：Agent 产品接入和 conformance 示例。
 
 ### 3.3 Loopback API 交付
@@ -264,6 +266,12 @@ descriptor 和 digest 后立即注册。MVP 暂不要求隔离工作区，注册
 可以进入真实设备执行路径，但仍必须经过 Rolo 的 target-bound session 和 typed
 ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mapping/navigation 等 Tool
 复用同一 envelope、proposal 和 registry。
+
+本轮补充 `rolo-harness-codegen` 子 skill：当目标 Tool 已知时，Harness 先依据 descriptor
+准备原始参数和派生 request（例如旋转角度、角速度、目标弧度、带余量的时长），再生成
+带 source/binding digest 的 bundle。SSH 或本地执行只由 Rolo target executor 选择，不能在
+生成代码中重复拼接。用户在 Harness 窗口修正代码或参数时，只重新生成 bundle 并复用同一
+执行入口；Tool 注册后，后续 Trace 直接实例化同一模板，不再重新编码。
 
 ### W3：Trace Session Runtime
 

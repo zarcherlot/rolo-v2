@@ -13,8 +13,9 @@ model is only an interface and planner.
   may run without confirmation. v2 has no host-mutating bootstrap command.
 - When a requested capability is absent, use the Probe construction loop:
   run `rolo probe-analysis-input --evidence <bundle>`; keep the resulting JSON in
-  the active harness conversation; let the harness iteratively write and test an
-  adapter with the user; then submit its typed `ToolRegistrationProposal` with
+  the active harness conversation; load `rolo-harness-codegen` to prepare the
+  typed arguments and derived target request once; let the harness iteratively
+  write and test the generic adapter with the user; then submit its typed `ToolRegistrationProposal` with
   `rolo register-tool --proposal <proposal> --evidence <bundle>`. Registration
   is the harness interaction boundary in the MVP, so there is no second GUI
   approval step.
