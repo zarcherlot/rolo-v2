@@ -39,7 +39,16 @@ def build_target_catalog(
     inferred from a tool name or from an MHS reference.
     """
     report = conformance if isinstance(conformance, ToolConformanceReport) else (ToolConformanceReport.model_validate(conformance) if conformance else None)
-    descriptors = [item if isinstance(item, AgentNativeToolDescriptor) else AgentNativeToolDescriptor.model_validate(item) for item in descriptors]
+    raw_descriptors = list(descriptors)
+    descriptors: list[AgentNativeToolDescriptor] = []
+    experimental_records: list[Mapping[str, Any]] = []
+    for item in raw_descriptors:
+        if isinstance(item, AgentNativeToolDescriptor):
+            descriptors.append(item)
+        elif str(item.get("access", "read")) == "experimental_write" or bool(item.get("experimental_write", False)):
+            experimental_records.append(item)
+        else:
+            descriptors.append(AgentNativeToolDescriptor.model_validate(item))
     report_ok = bool(
         report is not None
         and report.status == "PASS"
@@ -73,6 +82,26 @@ def build_target_catalog(
                 parameters={item.name: item.model_dump(mode="json") for item in descriptor.parameters},
                 timeout_s=descriptor.max_duration_s,
                 limitations=limitations,
+            )
+        )
+    for raw in experimental_records:
+        import hashlib
+
+        tool_id = str(raw.get("tool_id", "experimental.tool"))
+        encoded = json.dumps(dict(raw), sort_keys=True, separators=(",", ":"))
+        tools.append(
+            CatalogTool(
+                tool_id=tool_id,
+                target_id=target_id,
+                state=ToolState.DISCOVERED_UNVERIFIED,
+                agent_callable=False,
+                access="experimental_write",
+                experimental_write=True,
+                descriptor_digest=hashlib.sha256(encoded.encode()).hexdigest(),
+                source="probe",
+                parameters=dict(raw.get("parameters", {})) if isinstance(raw.get("parameters", {}), Mapping) else {},
+                timeout_s=float(raw.get("timeout_s", raw.get("max_duration_s", 30))),
+                limitations=["experimental write requires supervised field debug and safety declaration"],
             )
         )
     entries = [item if isinstance(item, MhsInventoryEntry) else MhsInventoryEntry.model_validate(item) for item in mhs]
