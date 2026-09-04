@@ -1,6 +1,6 @@
 """Target-bound evidence collection for local and remote deployments.
 
-The remote collector is deliberately a narrow stdin/stdout protocol.  SSH owns
+The remote Probe runner is a narrow stdin/stdout protocol.  Ordinary SSH owns
 transport authentication and host-key pinning; the bundle adds target identity,
 freshness and an integrity signature that remains verifiable after transport.
 """
@@ -93,7 +93,12 @@ def restricted_collector_authorized_key(
     collector_executable: str,
     collector_config: str,
 ) -> str:
-    """Build one injection-safe authorized_keys entry restricted to the Collector protocol."""
+    """Build the legacy forced-command entry.
+
+    Kept only for migration compatibility.  The v2 MVP path uses ordinary
+    profile SSH and :func:`collect_over_ssh_user`; new enrollments must not
+    provision this entry.
+    """
     if not _REMOTE_PATH_PATTERN.fullmatch(collector_executable):
         raise ValueError("collector_executable contains unsupported characters")
     if not _REMOTE_PATH_PATTERN.fullmatch(collector_config):
@@ -1487,7 +1492,7 @@ def _ssh_transport_command(
     remote_argv = [
         deployment.collector_executable,
         "target-evidence",
-        "collector-run",
+        "probe-runner",
         "--config",
         deployment.collector_config,
     ]
@@ -1594,13 +1599,21 @@ def _run_ssh_transport(command: Sequence[str], request: bytes, *, timeout_s: flo
         return stdout_stream.read(MAX_BUNDLE_BYTES + 1)
 
 
-def collect_over_ssh(
+def collect_over_ssh_user(
     deployment: EvidenceDeploymentConfig,
     request: TargetEvidenceRequest,
     *,
     timeout_s: float = 45.0,
     max_attempts: int = 2,
 ) -> TargetEvidenceBundle:
+    """Collect evidence over the target profile's ordinary SSH session.
+
+    The request is sent on stdin to a bounded target-side probe runner.  No
+    forced-command authorized key or separate Collector SSH credential is
+    required; host-key and user credential policy remain owned by the profile.
+    ``deployment.collector`` describes the runner and signed evidence schema,
+    not an SSH authorization channel.
+    """
     if deployment.mode != EvidenceDeploymentMode.REMOTE:
         raise ValueError("SSH collection requires remote deployment mode")
     if not 1 <= max_attempts <= 3:
@@ -1634,3 +1647,17 @@ def collect_over_ssh(
         raise SSHTransportError(
             "COLLECTOR_INVALID_BUNDLE", f"remote collector returned invalid JSON: {exc}"
         ) from exc
+
+
+def collect_over_ssh(
+    deployment: EvidenceDeploymentConfig,
+    request: TargetEvidenceRequest,
+    *,
+    timeout_s: float = 45.0,
+    max_attempts: int = 2,
+) -> TargetEvidenceBundle:
+    """Backward-compatible alias for :func:`collect_over_ssh_user`."""
+
+    return collect_over_ssh_user(
+        deployment, request, timeout_s=timeout_s, max_attempts=max_attempts
+    )

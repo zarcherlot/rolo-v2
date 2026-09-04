@@ -405,6 +405,14 @@ def collector_run(
     typer.echo(bundle.model_dump_json())
 
 
+@target_evidence_app.command("probe-runner", hidden=True)
+def probe_runner(
+    config: Annotated[Path, typer.Option("--config")],
+) -> None:
+    """Compatibility-neutral name for the ordinary SSH Probe runner."""
+    collector_run(config)
+
+
 @target_evidence_app.command("collect")
 def collect(
     robot_id: Annotated[str, typer.Option("--robot-id", "--robot")],

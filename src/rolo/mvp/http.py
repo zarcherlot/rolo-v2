@@ -60,6 +60,51 @@ def execute_trace(session_id: str, target_id: str, calls: list[TraceCall]) -> di
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@router.get("/trace/sessions/{session_id}")
+def get_trace_session(session_id: str, target_id: str) -> dict[str, Any]:
+    service = _services.get(target_id)
+    if service is None:
+        raise HTTPException(status_code=404, detail="target catalog not found")
+    try:
+        return service.get(session_id).model_dump(mode="json")
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="trace session not found") from exc
+
+
+@router.get("/trace/sessions/{session_id}/events")
+def get_trace_events(session_id: str, target_id: str) -> dict[str, Any]:
+    service = _services.get(target_id)
+    if service is None:
+        raise HTTPException(status_code=404, detail="target catalog not found")
+    try:
+        session = service.get(session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="trace session not found") from exc
+    return {"session_id": session_id, "target_id": target_id, "items": [item.model_dump(mode="json") for item in session.events]}
+
+
+@router.post("/trace/sessions/{session_id}/cancel")
+def cancel_trace(session_id: str, target_id: str) -> dict[str, Any]:
+    service = _services.get(target_id)
+    if service is None:
+        raise HTTPException(status_code=404, detail="target catalog not found")
+    try:
+        return service.cancel(session_id).model_dump(mode="json")
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="trace session not found") from exc
+
+
+@router.post("/trace/sessions/{session_id}/stop")
+def stop_trace(session_id: str, target_id: str) -> dict[str, Any]:
+    service = _services.get(target_id)
+    if service is None:
+        raise HTTPException(status_code=404, detail="target catalog not found")
+    try:
+        return service.stop(session_id).model_dump(mode="json")
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="trace session not found") from exc
+
+
 @router.post("/invoke")
 def invoke_tool(payload: dict[str, Any]) -> dict[str, Any]:
     session_id = payload.get("session_id")

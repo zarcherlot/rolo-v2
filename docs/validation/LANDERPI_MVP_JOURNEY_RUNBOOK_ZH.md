@@ -7,7 +7,7 @@ authority: guide
 2. 执行 `rolo target inspect-profile --profile mentorpi` 和新鲜 `rolo probe`，保存
    Probe manifest、Tool Surface、RKB snapshot、MHS inventory 及 digest。
    若 profile 使用受限的 enrollment key（`authorized_keys` 配置了强制
-   `target-evidence collector-run`），通用 `uname` 检查会被目标端忽略并等待超时；
+   `target-evidence probe-runner`），通用 `uname` 检查会被目标端忽略并等待超时；
    这表示传输认证正常但 shell 检查路径不适用。请改用
    `rolo probe target-evidence preflight --robot-id mentorpi` 或 `collect` 验证 pinned
    collector，不要为通过通用检查而移除强制命令限制。

@@ -24,7 +24,7 @@ from rolo.stages.probe.target_evidence import (
     CollectorDescriptor,
     EvidenceDeploymentMode,
     TargetEvidenceBundle,
-    collect_over_ssh,
+    collect_over_ssh_user,
     collect_target_evidence,
     configure_deployment,
     ensure_local_deployment,
@@ -154,7 +154,7 @@ def run_probe_start(
                 collector_executable=collector_executable or "robotctl",
             )
         request = new_request(robot_id)
-        bundle = collect_over_ssh(
+        bundle = collect_over_ssh_user(
             deployment,
             request,
             timeout_s=evidence_timeout,
