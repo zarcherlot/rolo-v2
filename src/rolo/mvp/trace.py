@@ -151,12 +151,16 @@ class TraceService:
         self._check_live(session)
         descriptor = next((item for item in self.catalog.tools if item.tool_id == call.tool_id), None)
         if descriptor is None or not descriptor.agent_callable:
+            session.state = SessionState.BLOCKED
             self._event(session, SessionState.BLOCKED, "TOOL_NOT_CALLABLE", tool_id=call.tool_id, error_code="TOOL_NOT_CALLABLE")
             raise ValueError("TRACE_BLOCKED: tool is not callable in the Probe catalog")
         if descriptor.experimental_write and session.mode != RunMode.SUPERVISED_FIELD_DEBUG:
+            session.state = SessionState.BLOCKED
             self._event(session, SessionState.BLOCKED, "WRITE_MODE_REQUIRED", tool_id=call.tool_id, error_code="WRITE_MODE_REQUIRED")
             raise ValueError("WRITE_BLOCKED: experimental write requires supervised field debug")
         if session.calls >= session.max_calls:
+            session.state = SessionState.BLOCKED
+            self._event(session, SessionState.BLOCKED, "TRACE_BUDGET_EXHAUSTED", error_code="TRACE_BUDGET_EXHAUSTED")
             raise ValueError("TRACE_BUDGET_EXHAUSTED: call budget reached")
         session.state = SessionState.CALLING
         self._event(session, SessionState.CALLING, "TOOL_CALL", tool_id=call.tool_id, arguments=dict(call.arguments))
