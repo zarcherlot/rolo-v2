@@ -1,3 +1,6 @@
+status: active
+authority: guide
+
 # LanderPi Agent Journey MVP 现场走查
 
 1. 在设备周围确认急停、网络、地图区域和数据目录，启动 loopback runtime。
@@ -16,4 +19,3 @@
    校验回放；所有 UNKNOWN、BLOCKED、重试和人工介入均保留在报告中。
 
 该走查只适用于有人在场的实验调试窗口，不构成功能安全或无人值守授权。
-

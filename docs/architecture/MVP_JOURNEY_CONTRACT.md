@@ -1,3 +1,6 @@
+status: frozen
+authority: normative
+
 # Rolo v2 LanderPi Agent Journey MVP contract
 
 This document freezes the boundary between Probe evidence and the external
@@ -38,4 +41,3 @@ actual values, status (`PASS`, `FAIL`, `BLOCKED`, `UNKNOWN`), operation ID,
 evidence IDs, artifact digests, timing, and failure class. The runner emits a
 JSON report and a Markdown projection from the same report object; Markdown is
 never a second source of facts.
-
