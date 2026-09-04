@@ -1,0 +1,28 @@
+{
+  "schema_version": "rolo-mhs-ros-payload-observation/v1",
+  "robot_id": "landerpi",
+  "container": "MentorPi",
+  "access": "READ_ONLY",
+  "observed_at": "2026-09-02T15:20:00Z",
+  "method": "timeout 8s ros2 topic echo --once <topic>",
+  "samples": [
+    {
+      "topic": "/scan",
+      "expected_type": "sensor_msgs/msg/LaserScan",
+      "returncode": 124,
+      "status": "UNAVAILABLE",
+      "payload_observed": false
+    },
+    {
+      "topic": "/controller_manager/joint_states",
+      "expected_type": "sensor_msgs/msg/JointState",
+      "returncode": 124,
+      "status": "UNAVAILABLE",
+      "payload_observed": false
+    }
+  ],
+  "limitations": [
+    "Topic metadata is present, but no message arrived within the bounded read window.",
+    "No topic publisher, service, action, or command was invoked by this observation."
+  ]
+}

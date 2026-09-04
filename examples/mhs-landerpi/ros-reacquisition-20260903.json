@@ -1,0 +1,43 @@
+{
+  "schema_version": "rolo-mhs-ros-reacquisition/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "attempted_at": "2026-09-03T10:55:00+08:00",
+  "access": "READ_ONLY_AFTER_AUTHORIZED_NODE_RESTART",
+  "restart": {
+    "service": "start_app_node.service",
+    "result": "COMMAND_RETURNED",
+    "aurora_process_observed": true,
+    "container_uptime_reset": false
+  },
+  "subscriptions": [
+    {
+      "topic": "/ascamera/camera_publisher/rgb0/image",
+      "type": "sensor_msgs/msg/Image",
+      "window_s": 15,
+      "payload_observed": false,
+      "sha256": null
+    },
+    {
+      "topic": "/ascamera/camera_publisher/ir0/image",
+      "type": "sensor_msgs/msg/Image",
+      "window_s": 15,
+      "payload_observed": false,
+      "sha256": null
+    },
+    {
+      "topic": "/ascamera/camera_publisher/depth0/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "window_s": 15,
+      "payload_observed": false,
+      "sha256": null
+    }
+  ],
+  "decision": "REACQUISITION_UNAVAILABLE",
+  "diagnostic_ref": "artifact://mhs-landerpi/aurora-diagnostic-20260903.json",
+  "limitations": [
+    "The ROS graph exposes Aurora publishers, but no image message arrived during the bounded read window.",
+    "The existing fixture digests remain serialization-normalized values and must be replaced after a successful fresh payload capture."
+  ]
+}

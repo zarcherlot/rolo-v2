@@ -1,0 +1,12 @@
+--- a/src/ros2_device.cc
++++ b/src/ros2_device.cc
+@@ -430,6 +430,9 @@
+       if ((frame->frame_type == deptrum::FrameType::kRgbdPointCloudFrame ||
+            frame->frame_type == deptrum::FrameType::kPointCloudFrame) &&
+           params_.point_cloud_enable) {
++        if (pointcloud_publisher_->get_subscription_count() == 0) {
++          continue;
++        }
+         // TimestampToRos(frame->timestamp, capture_time);
+         sensor_msgs::msg::PointCloud2 tmp_point_cloud;
+         if (frame->frame_type == deptrum::FrameType::kPointCloudFrame) {

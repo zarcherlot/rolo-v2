@@ -1,0 +1,87 @@
+{
+  "schema_version": "rolo-mhs-aurora-shared-load-optimization/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T16:22:47+08:00",
+  "access": "READ_ONLY_SUBSCRIPTION_AND_DRIVER_MAINTENANCE",
+  "retained_change": {
+    "source": "/home/ubuntu/third_party_ros2/third_party_ws/src/deptrum-ros-driver-aurora930/src/ros2_device.cc",
+    "reproducible_patch": "aurora-pointcloud-demand-20260903.patch",
+    "behavior": "Skip PointCloud2 construction and publication while the point-cloud publisher has no subscribers.",
+    "point_cloud_stream_configuration_retained": true,
+    "point_cloud_enable": true,
+    "rgbd_enable": false,
+    "source_sha256": "c1943e9acc38fb9734d667916886eb89f052333c91eb3644adc3084901b7451a",
+    "binary_sha256": "3b894385a12369ca103848fbacf32289988e3cb0785932e5d967a047e6fd1918",
+    "build": "PASS_WITH_EXISTING_OPENCV_AND_DEPRECATION_WARNINGS"
+  },
+  "point_cloud_on_demand_verification": {
+    "topic": "/ascamera/camera_publisher/depth0/points",
+    "type": "sensor_msgs/msg/PointCloud2",
+    "subscription": "ros2 topic echo --once --field width",
+    "width": 256000,
+    "result": "PASS"
+  },
+  "final_shared_profile_window": {
+    "duration_s": 30.018,
+    "executor": "rclpy MultiThreadedExecutor(num_threads=4)",
+    "qos": "reliable, KEEP_LAST depth=100",
+    "actuator_commands_sent": 0,
+    "streams": {
+      "rgb": {"count": 418, "source_rate_hz": 14.232, "max_gap_ms": 203.0, "gaps_gt_100ms": 15, "stamp_monotonic": true},
+      "ir": {"count": 398, "source_rate_hz": 13.549, "max_gap_ms": 205.0, "gaps_gt_100ms": 34, "stamp_monotonic": true},
+      "depth": {"count": 432, "source_rate_hz": 14.709, "max_gap_ms": 134.0, "gaps_gt_100ms": 2, "stamp_monotonic": true},
+      "rgb_camera_info": {"count": 433, "source_rate_hz": 14.744, "max_gap_ms": 108.0, "gaps_gt_100ms": 1, "stamp_monotonic": true},
+      "depth_camera_info": {"count": 433, "source_rate_hz": 14.744, "max_gap_ms": 108.0, "gaps_gt_100ms": 1, "stamp_monotonic": true}
+    },
+    "driver_timeout_disconnect_or_publish_failures": 0
+  },
+  "ab_tests": [
+    {
+      "change": "Pin all Aurora threads to CPU 2-3 and renice the main thread to -5",
+      "ir_source_rate_hz": 11.951,
+      "ir_max_gap_ms": 342.0,
+      "ir_gaps_gt_100ms": 63,
+      "decision": "REJECTED_AND_REVERTED"
+    },
+    {
+      "change": "Keep all-core affinity and renice only the already-running main thread to -5",
+      "ir_source_rate_hz": 13.398,
+      "ir_max_gap_ms": 270.0,
+      "ir_gaps_gt_100ms": 35,
+      "decision": "REJECTED_AND_REVERTED"
+    },
+    {
+      "change": "Renice only libusb_event and DecodeIrProcess threads to -5",
+      "ir_source_rate_hz": 13.863,
+      "ir_max_gap_ms": 204.0,
+      "ir_gaps_gt_100ms": 25,
+      "decision": "NOT_RETAINED_SINGLE_WINDOW_ONLY"
+    },
+    {
+      "change": "Start the whole Aurora process at nice=-5 so all SDK threads inherit it",
+      "ir_source_rate_hz": 13.374,
+      "ir_max_gap_ms": 269.0,
+      "ir_gaps_gt_100ms": 35,
+      "decision": "REJECTED_AND_REVERTED"
+    },
+    {
+      "change": "Remove the additional WallRate sleep after blocking GetFrames",
+      "ir_windows_source_rate_hz": [13.743, 13.58, 13.724],
+      "ir_windows_max_gap_ms": [273.0, 204.0, 144.0],
+      "ir_windows_gaps_gt_100ms": [25, 30, 30],
+      "decision": "REJECTED_AND_REVERTED_NO_REPEATABLE_GAIN"
+    }
+  ],
+  "assessment": {
+    "point_cloud_capability": "PASS_RETAINED_ON_DEMAND",
+    "unsubscribed_point_cloud_conversion": "REMOVED",
+    "shared_profile_payload_availability": "PASS",
+    "timestamp_order": "PASS",
+    "shared_profile_ir_continuity": "PARTIAL",
+    "remaining_contention": "The SDK still creates the kPointCloud stream even without ROS point-cloud subscribers; isolated IR remains the only zero-long-gap profile.",
+    "next_action": "For a further material IR improvement, implement and validate a separate or dynamically started SDK point-cloud stream rather than applying process-wide CPU affinity or priority changes.",
+    "safety": "No actuator writes were issued. E-stop and limit proof testing remains out of scope by user request."
+  }
+}

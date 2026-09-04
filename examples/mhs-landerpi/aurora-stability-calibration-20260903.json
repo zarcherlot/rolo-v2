@@ -1,0 +1,52 @@
+{
+  "schema_version": "rolo-mhs-aurora-stability-calibration/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "container": "MentorPi",
+  "observed_at": "2026-09-03T12:54:47+08:00",
+  "access": "READ_ONLY_SUBSCRIPTION",
+  "window": {
+    "duration_s": 30,
+    "qos": "bounded rclpy subscription; depth 100; best_effort",
+    "actuator_commands_sent": 0
+  },
+  "stream_counts": {
+    "rgb": {"count": 41, "rate_hz_observed": 7.883, "stamp_monotonic": true},
+    "ir": {"count": 69, "rate_hz_observed": 12.98, "stamp_monotonic": true},
+    "depth": {"count": 50, "rate_hz_observed": 9.315, "stamp_monotonic": true},
+    "rgb_camera_info": {"count": 73, "rate_hz_observed": 13.825, "stamp_monotonic": true},
+    "depth_camera_info": {"count": 73, "rate_hz_observed": 13.833, "stamp_monotonic": true}
+  },
+  "camera_info": {
+    "rgb": {
+      "width": 640,
+      "height": 400,
+      "distortion_model": "plumb_bob",
+      "k_len": 9,
+      "d_len": 5,
+      "p_len": 12,
+      "nonzero_intrinsics": true,
+      "roi": [0, 0, 0, 0],
+      "binning": [0, 0]
+    },
+    "depth": {
+      "width": 640,
+      "height": 400,
+      "distortion_model": "plumb_bob",
+      "k_len": 9,
+      "d_len": 5,
+      "p_len": 12,
+      "nonzero_intrinsics": true,
+      "roi": [0, 0, 0, 0],
+      "binning": [0, 0]
+    }
+  },
+  "assessment": {
+    "camera_info_shape": "PASS",
+    "camera_intrinsics_present": "PASS",
+    "timestamp_monotonicity": "PASS",
+    "long_run_stream_stability": "PARTIAL",
+    "reason": "All streams remained observable for the bounded window, but image callback rates varied below the nominal 15 Hz under this read path; no frame timestamp reversal was observed.",
+    "next_action": "Repeat with production executor load and collect drop/timeout counters before high-assurance timing claims."
+  }
+}

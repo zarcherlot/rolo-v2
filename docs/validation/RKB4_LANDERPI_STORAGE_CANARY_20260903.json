@@ -1,0 +1,63 @@
+{
+  "schema_version": "rkb4-target-storage-canary/v1",
+  "artifact_sha256": "fbc79aa196b5c16436ebaa2d03baf64253177c4df2aace0be90cb0b54e0ef840",
+  "execution_date": "2026-09-03",
+  "target_host": "192.168.10.167",
+  "target_host_fingerprint": "70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9",
+  "robot_id": "mentorpi",
+  "source_snapshot": {
+    "kind": "synthetic_target_bound_snapshot",
+    "target_fingerprint_bound": true,
+    "mhs_collection": false,
+    "reason": "The previously collected fresh snapshot was no longer retained in the target /tmp tree; this canary isolates storage behavior from provider collection."
+  },
+  "fault_recovery": {
+    "status": "PASS",
+    "remote_artifact_root": "/tmp/rkb4-fault-artifacts",
+    "artifact_sha256": "bcca153c76de7c7ffaa286a9593c8c09cf62f1dd07087e613afa9233f8d9b18e",
+    "checks": {
+      "latest_recovered": true,
+      "latest_stable_after_recovery": true,
+      "corrupt_record_isolated": true,
+      "read_only": true
+    },
+    "metrics": {
+      "corrupt_artifacts": 1,
+      "latest_recoveries": 1,
+      "writes": 2
+    }
+  },
+  "concurrency": {
+    "status": "PASS",
+    "remote_artifact_root": "/tmp/rkb4-concurrency-artifacts",
+    "artifact_sha256": "47d602ee57d018cb1c34f085a49682ad9b7146e1f74f203bd13aab107e586043",
+    "checks": {
+      "children_succeeded": true,
+      "two_immutable_records": true,
+      "writes_merged": true,
+      "read_only": true
+    },
+    "exit_codes": [0, 0],
+    "record_digests": [
+      "9364a81f4c763064447a95726853553ca86c59faf3943412e571a59ce42ffc1e",
+      "1d6c260f60d2bdac4863e200010c441906ad5022123cf713035a175ab9b8555a"
+    ]
+  },
+  "decision": {
+    "status": "TARGET_STORAGE_HARDENING_VERIFIED",
+    "allow": [
+      "retain the local EpisodeStore hardening",
+      "continue mentorpi metadata-only read-only rollout"
+    ],
+    "deny": [
+      "claim real MHS provider collection from this artifact",
+      "claim reboot or kill-9 recovery evidence",
+      "enable device write routes or expand platform rollout"
+    ]
+  },
+  "limitations": [
+    "No reboot was issued because it would interrupt the existing target debug process.",
+    "No device route, reset, calibration, setpoint, stop, power-cycle, or firmware operation was invoked.",
+    "The ROS2 graph and application route remain UNKNOWN in the fresh MHS evidence."
+  ]
+}

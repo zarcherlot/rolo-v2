@@ -1,0 +1,106 @@
+{
+  "artifact_sha256": "df679f3dbbb2e3a8f85353598354fc09735545cacf374e41e4bb25524f35a288",
+  "schema_version": "rkb4-landerpi-postreboot/v1",
+  "execution_date": "2026-09-03",
+  "target_host": "192.168.10.167",
+  "target_host_fingerprint": "70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9",
+  "robot_id": "mentorpi",
+  "reboot": {
+    "verified": true,
+    "boot_time_local": "2026-09-03 11:14:16 +08:00",
+    "boot_id": "98340707-6c54-4eb0-aae6-1eb4528b1087",
+    "uptime_at_validation": "up 29 minutes",
+    "systemd_state": "running",
+    "note": "Reboot was performed by the operator before this validation; no reboot was issued by the canary."
+  },
+  "mhs": {
+    "status": "PASS",
+    "read_only": true,
+    "artifact_sha256": "08cb2d34703e0929188ca9d9fdc19c8d300416b075b39a03464c2db7500ce234",
+    "snapshot_digest": "7074f57654a88bef7f512e686ba1621aba059df6019a58cbc0781aac7e14f300",
+    "driver": "rolo.mhs.linux-observer",
+    "driver_version": "1.0.0",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "serial": "f96761a4f6b6d40e",
+    "status_result": "AVAILABLE",
+    "health": "OK",
+    "transport_readiness": [
+      "GPIO",
+      "I2C",
+      "SPI",
+      "USB"
+    ]
+  },
+  "episode": {
+    "status": "PASS",
+    "read_only": true,
+    "episode_id": "landerpi-rkb4-postreboot-20260903",
+    "episode_digest": "a71bad8f728ef55bb8982d17e9b96af77fb972e26a2009a31325cde605f5d284",
+    "snapshot_digest": "7074f57654a88bef7f512e686ba1621aba059df6019a58cbc0781aac7e14f300",
+    "event_kinds": [
+      "baseline",
+      "observation",
+      "hypothesis",
+      "change",
+      "smoke_test",
+      "decision",
+      "rollback"
+    ]
+  },
+  "ros2": {
+    "status": "AVAILABLE_IN_DOCKER",
+    "container": "MentorPi",
+    "node_count": 29,
+    "service_count": 248,
+    "topic_count": 54,
+    "nodes_observed": [
+      "/robot_api",
+      "/rosapi",
+      "/rosbridge_websocket",
+      "/web_video_server",
+      "/ar_app",
+      "/LD19",
+      "/controller_manager",
+      "/odom_publisher",
+      "/robot_state_publisher"
+    ],
+    "application_route": {
+      "status": "ROUTE_PRESENCE_OBSERVED",
+      "routes": [
+        "/robot_api",
+        "/rosapi",
+        "/rosbridge_websocket",
+        "/web_video_server"
+      ],
+      "robot_api_subscriptions": [
+        "/odom",
+        "/ros_robot_controller/battery",
+        "/scan",
+        "/tf",
+        "/tf_static"
+      ],
+      "robot_api_publishers": [
+        "/controller/cmd_vel",
+        "/initialpose"
+      ],
+      "limitation": "Only graph/service/topic presence and node wiring were inspected; no service call, publish, actuator, or parameter write was invoked."
+    }
+  },
+  "decision": {
+    "status": "LIMITED_READ_ONLY_ROLLOUT",
+    "allow": [
+      "retain metadata-only Episode publication/query on mentorpi",
+      "continue read-only MHS and ROS2 route observation under the verified fingerprint"
+    ],
+    "deny": [
+      "enable device writes",
+      "claim kill-9 crash recovery or durable reboot persistence",
+      "promote to STABLE or expand platform rollout"
+    ]
+  },
+  "limitations": [
+    "MHS provider remains read-only and generic; no actuator/controller driver is installed.",
+    "ROS2/application evidence proves route presence only; typed graph and state-safety facts are not persisted in the MHS snapshot.",
+    "Reboot was observed after operator action, but kill-9 recovery and durable Episode persistence across reboot remain unverified."
+  ]
+}

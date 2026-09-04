@@ -1,0 +1,64 @@
+{
+  "schema_version": "rolo-mhs-estop-limits-evidence/v1",
+  "robot_id": "landerpi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "observed_at": "2026-09-03T08:27:30+08:00",
+  "access": "READ_ONLY",
+  "operational_safety_assumption": {
+    "source": "user://2026-09-03/remote-operator-safety-declaration",
+    "statement": "Physical E-stop and mechanical limit proof-tests are explicitly excluded from this release; an on-site person remains responsible for safety while remote control is used.",
+    "effect": "Operational prerequisite only; does not authorize actuator writes or change the fail-closed gate."
+  },
+  "probe": {
+    "operations": ["ros2 topic list -t", "ros2 service list -t", "gpioinfo line-label search"],
+    "writes": 0,
+    "services_called": 0
+  },
+  "signals": {
+    "candidate_topics": [
+      {"name": "/ros_robot_controller/enable_reception", "type": "std_msgs/msg/Bool", "authority": "UNKNOWN"}
+    ],
+    "candidate_services": [
+      {"name": "/enable", "type": "std_srvs/srv/Empty", "authority": "UNKNOWN"},
+      {"name": "/hand_trajectory/stop", "type": "std_srvs/srv/Trigger", "authority": "UNKNOWN"}
+    ],
+    "gpio_lines_with_safety_labels": []
+  },
+  "per_channel": [
+    {
+      "channel": "external_estop",
+      "status": "DECLARED_PRESENT_NOT_TESTED",
+      "evidence": ["user://2026-09-03/physical-estop-button-declaration"],
+      "required": "authoritative circuit diagram plus proof-test result"
+    },
+    {
+      "channel": "safe_stop_or_safe_torque_off",
+      "status": "UNKNOWN",
+      "evidence": [],
+      "required": "hardware/controller safety function and de-energized-state observation"
+    },
+    {
+      "channel": "joint_hard_limits",
+      "status": "DECLARED_MECHANICAL_BLOCKS_NOT_TESTED",
+      "evidence": ["user://2026-09-03/mechanical-limit-blocks-declaration", "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3/software_binding/configured_position_limits"],
+      "required": "per-joint travel envelope plus restrained-fixture boundary test"
+    },
+    {
+      "channel": "limit_switches",
+      "status": "NOT_APPLICABLE_MECHANICAL_BLOCKS",
+      "evidence": [],
+      "required": "mechanical-block contact/clearance inspection and boundary test"
+    },
+    {
+      "channel": "watchdog_timeout",
+      "status": "OUT_OF_SCOPE_CUSTOMER_DELIVERABLE",
+      "evidence": [],
+      "required": "future customer-provided watchdog design and timeout-to-safe-state test"
+    }
+  ],
+  "decision": "NOT_VERIFIED",
+  "limitations": [
+    "Topic/service names or user declarations alone cannot establish a safety function or authority.",
+    "No command, enable, stop, GPIO toggle, or physical motion was performed."
+  ]
+}

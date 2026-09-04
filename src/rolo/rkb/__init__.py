@@ -73,6 +73,8 @@ from .read_models import (
     TypedQueryResult,
     UnknownValue,
 )
+from .scheduler import AlertSchedule, run_alert_cycle
+from .schema_registry import SchemaPolicy, SchemaRegistry
 from .storage import RKBMetrics, RKBStore
 from .validation import (
     EvidenceValidationError,
@@ -83,6 +85,7 @@ from .validation import (
     validate_identity,
     validate_snapshot,
 )
+from .vault import keyring_from_vault
 
 __all__ = [
     "EvidenceEnvelope",

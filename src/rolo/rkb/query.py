@@ -113,6 +113,9 @@ class _ApplicationQueries:
 
     inspect = executable_inspect
 
+    def episodes(self, **kwargs: Any) -> TypedQueryResult[list[dict[str, Any]]]:
+        return self._kb.query_episodes(**kwargs)
+
 
 class _CapabilityQueries:
     def __init__(self, kb: ReadOnlyKnowledgeBase) -> None:
@@ -257,12 +260,22 @@ class ReadOnlyKnowledgeBase:
         facts = self._layer_facts(envelope, {"hw", "hardware", "hardware_inventory"})
         data = self._merge_data(facts)
         merge_limitations = self._take_merge_limitations(data)
-        raw_resources = self._items_from_facts(
-            facts, ("resources", "devices", "inventory")
-        )
+        raw_resources = self._items_from_facts(facts, ("resources", "devices", "inventory", "mhs"))
         resources: list[HardwareResourceModel] = []
         for index, raw in enumerate(raw_resources):
             item = dict(raw) if isinstance(raw, Mapping) else {"name": str(raw)}
+            if "capability_id" in item and "resource_id" not in item:
+                item = {
+                    "resource_id": f"mhs:{item.get('device_id', index)}",
+                    "kind": item.get("device_class", "mhs_device"),
+                    "name": item.get("device_id"),
+                    "serial": item.get("serial"),
+                    "provider_id": item.get("driver_provider_id"),
+                    "transport": item.get("route"),
+                    "path": item.get("route"),
+                    "stability": Stability.STABLE if item.get("serial") else Stability.UNKNOWN,
+                    "limitations": item.get("limitations", []),
+                }
             resource_id = str(
                 item.get("resource_id")
                 or item.get("id")
@@ -335,15 +348,9 @@ class ReadOnlyKnowledgeBase:
                 )
             )
             endpoints = [
-                item
-                for item in endpoints
-                if token in {item.endpoint, item.node, item.route_id}
+                item for item in endpoints if token in {item.endpoint, item.node, item.route_id}
             ]
-            relationships = [
-                item
-                for item in relationships
-                if token in {item.source, item.target}
-            ]
+            relationships = [item for item in relationships if token in {item.source, item.target}]
         ordered_endpoints = sorted(endpoints, key=lambda item: item.route_id)
         ordered_relationships = sorted(relationships, key=lambda item: item.relationship_id)
         endpoint_page, endpoint_total, endpoint_next = self._paginate(
@@ -424,6 +431,80 @@ class ReadOnlyKnowledgeBase:
             status_reason="missing executable is not success",
         )
 
+    def query_executables(
+        self,
+        *,
+        snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> TypedQueryResult[list[ExecutableModel]]:
+        """Return the bounded application executable inventory."""
+        envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
+        facts = self._layer_facts(envelope, {"application", "executable", "app"})
+        items = self._items_from_facts(facts, ("executables", "applications"))
+        executables: list[ExecutableModel] = []
+        for index, candidate in enumerate(items):
+            item = dict(candidate) if isinstance(candidate, Mapping) else {"name": str(candidate)}
+            item.setdefault("name", item.get("executable") or f"executable-{index}")
+            item.setdefault("executable_id", item.get("id") or item.get("name"))
+            item.setdefault("observed", True)
+            item.setdefault("source_kind", "OBSERVED")
+            executables.append(ExecutableModel.model_validate(item))
+        ordered = sorted(executables, key=lambda item: item.executable_id)
+        page, total, next_offset = self._paginate(ordered, offset=offset, limit=limit)
+        return self._typed(
+            page,
+            facts,
+            status=self._status_for(facts, now=now),
+            reason="executables observed" if facts else "executables are UNKNOWN",
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
+        )
+
+    def query_episodes(
+        self,
+        *,
+        snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> TypedQueryResult[list[dict[str, Any]]]:
+        """Return bounded Episode summaries embedded in verified facts."""
+        envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
+        facts = self._layer_facts(envelope, {"episode", "episodes", "episode_history"})
+        items = self._items_from_facts(facts, ("episodes", "items", "records"))
+        summaries: list[dict[str, Any]] = []
+        for index, candidate in enumerate(items):
+            item = (
+                dict(candidate)
+                if isinstance(candidate, Mapping)
+                else {"episode_id": str(candidate)}
+            )
+            item.setdefault("episode_id", item.get("id") or f"episode-unknown-{index}")
+            item.setdefault("state", "UNKNOWN")
+            item.setdefault("verification", "NOT_AVAILABLE")
+            item.setdefault("coverage", "METADATA_ONLY")
+            item.setdefault("limitations", ["episode detail is bounded to the RKB snapshot"])
+            summaries.append(item)
+        summaries.sort(key=lambda item: str(item["episode_id"]))
+        page, total, next_offset = self._paginate(summaries, offset=offset, limit=limit)
+        return self._typed(
+            page,
+            facts,
+            status=self._status_for(facts, now=now),
+            reason="episodes observed" if facts else "episodes are UNKNOWN",
+            limitations=[] if facts else ["no Episode read model is present in this snapshot"],
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
+        )
+
     def query_capability(
         self,
         operation_id: str,
@@ -433,23 +514,42 @@ class ReadOnlyKnowledgeBase:
         now: datetime | None = None,
     ) -> TypedQueryResult[CapabilityRecord]:
         envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
-        facts = self._layer_facts(envelope, {"capability", "capabilities", "application"})
+        facts = self._layer_facts(
+            envelope, {"capability", "capabilities", "application", "hardware"}
+        )
         data = self._merge_data(facts)
         merge_limitations = self._take_merge_limitations(data)
-        items = self._items_from_facts(facts, ("capabilities", "operations"))
+        items = self._items_from_facts(facts, ("capabilities", "operations", "mhs"))
         for candidate in items:
             item = (
                 dict(candidate)
                 if isinstance(candidate, Mapping)
                 else {"operation_id": str(candidate)}
             )
-            item.setdefault("operation_id", item.get("id") or item.get("operation") or operation_id)
+            item.setdefault(
+                "operation_id",
+                item.get("id")
+                or item.get("operation")
+                or (
+                    f"mhs.{item.get('device_id')}.{item.get('capability_id')}"
+                    if item.get("capability_id")
+                    else operation_id
+                ),
+            )
+            if item.get("capability_id") and operation_id not in {
+                item.get("operation_id"),
+                f"mhs.{item.get('device_id')}.{item.get('capability_id')}",
+                str(item.get("route", "")),
+            }:
+                continue
             if item["operation_id"] != operation_id:
                 continue
             source = str(
                 item.get("source_kind") or (facts[0].source_kind.value if facts else "OBSERVED")
             )
             requested = str(item.get("state") or item.get("status") or "UNAVAILABLE").upper()
+            if item.get("capability_id") and requested == "AVAILABLE":
+                requested = "ELIGIBLE"
             try:
                 state = CapabilityState(requested)
             except ValueError:
@@ -478,6 +578,45 @@ class ReadOnlyKnowledgeBase:
             status=CapabilityState.UNAVAILABLE,
             limitations=[f"capability not found: {operation_id}"],
             status_reason="capability record is unavailable",
+        )
+
+    def query_capabilities(
+        self,
+        *,
+        snapshot_ref: SnapshotReference | str | Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        now: datetime | None = None,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> TypedQueryResult[list[CapabilityRecord]]:
+        """Return the complete bounded capability projection for one snapshot."""
+        envelope = self._select(snapshot_ref=snapshot_ref, fingerprint=fingerprint, now=now)
+        facts = self._layer_facts(envelope, {"capability", "capabilities", "application"})
+        items = self._items_from_facts(facts, ("capabilities", "operations"))
+        operation_ids = sorted(
+            {
+                str(item.get("operation_id") or item.get("id") or item.get("operation"))
+                for item in items
+                if isinstance(item, Mapping)
+                and (item.get("operation_id") or item.get("id") or item.get("operation"))
+            }
+        )
+        reference = self.reference(envelope)
+        records = [
+            self.query_capability(operation_id, snapshot_ref=reference, now=now).value
+            for operation_id in operation_ids
+        ]
+        records = [item for item in records if item is not None]
+        page, total, next_offset = self._paginate(records, offset=offset, limit=limit)
+        return self._typed(
+            page,
+            facts,
+            status=self._status_for(facts, now=now),
+            reason="capability records observed" if facts else "capability records are UNKNOWN",
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=next_offset,
         )
 
     def query_state_safety(
@@ -519,7 +658,10 @@ class ReadOnlyKnowledgeBase:
     middleware_graph_snapshot = query_middleware_graph
     middleware_route_inspect = query_middleware_route
     app_executable_inspect = query_executable
+    app_executable_list = query_executables
     capability_get = query_capability
+    capability_list = query_capabilities
+    executable_list = query_executables
     state_safety_snapshot = query_state_safety
 
     def _latest(self) -> EvidenceEnvelope | Snapshot | None:
@@ -634,7 +776,10 @@ class ReadOnlyKnowledgeBase:
             for key in keys:
                 raw = data.get(key)
                 if isinstance(raw, Mapping):
-                    items.extend(raw.values())
+                    if key == "mhs" and "capability_id" in raw:
+                        items.append(raw)
+                    else:
+                        items.extend(raw.values())
                     break
                 if isinstance(raw, list):
                     items.extend(raw)
@@ -709,13 +854,9 @@ class ReadOnlyKnowledgeBase:
     @staticmethod
     def _runtime_value(data: Mapping[str, Any]) -> dict[str, Any]:
         host = data.get("host") if isinstance(data.get("host"), Mapping) else {}
-        os_release = (
-            host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
-        )
+        os_release = host.get("os_release") if isinstance(host.get("os_release"), Mapping) else {}
         environment = (
-            data.get("environment")
-            if isinstance(data.get("environment"), Mapping)
-            else {}
+            data.get("environment") if isinstance(data.get("environment"), Mapping) else {}
         )
         value = {
             "os_name": host.get("system") or data.get("os_name") or data.get("os"),
