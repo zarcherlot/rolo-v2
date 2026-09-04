@@ -7,6 +7,7 @@ registration, a frozen Tool Surface, and execution of digest-bound plans.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -25,6 +26,7 @@ from rolo.mvp.probe_registration import (
     load_registered_proposals,
     register_tool_proposal,
 )
+from rolo.mvp.ros_binding import RosBindingExecutor
 from rolo.release_check import run_release_check
 from rolo.stages.probe.active_discovery import ActiveProbeMode
 from rolo.stages.probe.application import (
@@ -571,6 +573,60 @@ def probe_analysis_input(
     except (OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     emit(envelope)
+
+
+@app.command("execute-rotation")
+def execute_rotation(
+    profile: Annotated[str, typer.Option("--profile", "--robot")],
+    proposal: Annotated[Path, typer.Option("--proposal")],
+    evidence: Annotated[Path, typer.Option("--evidence")],
+    angle_degrees: Annotated[float, typer.Option("--angle-degrees", min=-179.999, max=179.999)],
+    max_speed_rad_s: Annotated[float, typer.Option("--max-speed-rad-s", min=0.0001, max=1.0)],
+    operator_id: Annotated[str, typer.Option("--operator-id", min_length=1, max_length=128)],
+    safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
+    timeout: Annotated[float, typer.Option("--timeout", min=10.0, max=300.0)] = 120.0,
+) -> None:
+    """Execute one registered rotation binding and persist execution evidence."""
+    if not safety_confirmed:
+        emit({"status": "BLOCKED", "reason": "physical safety confirmation is required"})
+        raise typer.Exit(code=2)
+    try:
+        bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
+        if bundle.robot_id != profile:
+            raise ValueError("evidence target does not match profile")
+        proposals = load_registered_proposals(get_settings().rolo_config_dir / "registered-tools", profile)
+        registered = next((item for item in proposals if item.tool_id == "app.base.rotate"), None)
+        if registered is None or registered.implementation != "binding" or registered.binding is None:
+            raise ValueError("registered app.base.rotate binding is unavailable")
+        expected_ref = f"target-evidence:{bundle.payload_sha256}"
+        if expected_ref not in registered.evidence_refs or expected_ref not in registered.binding.evidence_refs:
+            raise ValueError("registered rotation binding is stale for this Probe evidence")
+        target_executor = create_profile_target_executor(profile, config_root=get_settings().rolo_config_dir, timeout_s=timeout)
+        result = RosBindingExecutor(target_executor).rotate(
+            registered.binding,
+            {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
+        )
+        evidence_payload = {
+            "schema_version": "rolo-rotation-execution-evidence/v1",
+            "target_id": profile,
+            "tool_id": "app.base.rotate",
+            "proposal_digest": registered.digest(),
+            "probe_evidence_ref": expected_ref,
+            "operator_id": operator_id,
+            "safety_confirmed": safety_confirmed,
+            "arguments": {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
+            "result": result,
+            "executed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        relative = f"application/{profile}/rotations/{registered.digest()}.json"
+        artifact_path = get_settings().rolo_artifact_dir / relative
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        artifact_path.write_text(json.dumps(evidence_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        emit({"status": result.get("status", "UNKNOWN"), "evidence_ref": f"artifact://{relative}", "result": result})
+        if result.get("status") != "SUCCEEDED":
+            raise typer.Exit(code=2)
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @app.command("register-tool")

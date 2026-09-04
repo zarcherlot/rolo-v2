@@ -81,6 +81,11 @@ class TargetExecutor(Protocol):
         self, assessment: TargetConnectionAssessment | None = None
     ) -> TargetBootstrapPlan: ...
 
+    def run_bound(
+        self, remote_argv: list[str], *, timeout_s: float | None = None,
+        ros_setup_files: tuple[str, ...] = (),
+    ) -> CommandResult: ...
+
 
 def _blocked_plan(
     assessment: TargetConnectionAssessment,
@@ -136,6 +141,12 @@ class LocalTargetExecutor:
                 )
             ],
         )
+
+    def run_bound(
+        self, remote_argv: list[str], *, timeout_s: float | None = None,
+        ros_setup_files: tuple[str, ...] = (),
+    ) -> CommandResult:
+        raise ValueError("local bound execution is not available through this target executor")
 
 
 class SshTargetExecutor:
@@ -259,6 +270,41 @@ class SshTargetExecutor:
                 raise ValueError("remote native environment contains an unsafe key or value")
             assignments = [f"{key}={value}" for key, value in sorted(environment.items())]
             remote_argv = ["env", *assignments, *remote_argv]
+        return self._run(remote_argv)
+
+    def run_bound(
+        self,
+        remote_argv: list[str],
+        *,
+        timeout_s: float | None = None,
+        ros_setup_files: tuple[str, ...] = (),
+    ) -> CommandResult:
+        """Run one provider-generated, fixed argv on the pinned target.
+
+        Only a trusted typed provider may call this method.  Harness input is
+        never passed here; providers construct and validate the complete argv
+        from an evidence-bound execution binding before dispatch.
+        """
+        if not remote_argv or any(not value or "\x00" in value for value in remote_argv):
+            raise ValueError("bound execution argv must be non-empty and NUL-free")
+        setup_files = tuple(ros_setup_files or self.ros_setup_files)
+        if setup_files:
+            if any(
+                not path
+                or "\x00" in path
+                or not path.startswith("/")
+                or any(character in path for character in "'\";$`\\")
+                for path in setup_files
+            ):
+                raise ValueError("ROS setup paths must be absolute and shell-safe")
+            command = "; ".join(
+                [
+                    "set -eo pipefail",
+                    *[f". {quote_remote_arg(path)}" for path in setup_files],
+                    f"exec {' '.join(quote_remote_argv(remote_argv))}",
+                ]
+            )
+            return self._run(["bash", "--noprofile", "--norc", "-c", command])
         return self._run(remote_argv)
 
     @staticmethod

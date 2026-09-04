@@ -39,6 +39,7 @@ from .probe_registration import (
     load_registered_proposals,
     register_tool_proposal,
 )
+from .ros_binding import RosBindingExecutor
 from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness, rotation_tool_proposal
 from .trace import TraceService
 
@@ -75,6 +76,7 @@ __all__ = [
     "RotationDebugRequest",
     "assess_rotation_readiness",
     "rotation_tool_proposal",
+    "RosBindingExecutor",
     "ProbeAnalysisInput",
     "ExecutionBinding",
     "ToolRegistrationProposal",
