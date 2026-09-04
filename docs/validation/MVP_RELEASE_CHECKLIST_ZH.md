@@ -17,7 +17,9 @@ authority: guide
 ## LanderPi 真机门禁（发布前执行）
 
 最近一次只读验证（2026-09-04）已确认 SSH 网络、host key 和 ED25519 identity 正常；collector preflight 返回 `READY`（37.9s）。`mentorpi` collector 返回了新鲜且可验证的 `hw`/`linux` bundle：目标指纹为
-`70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`，设备为 Raspberry Pi 5、aarch64、Ubuntu 22.04。`ros` layer 在目标端未在超时窗口内返回，完整三层 Probe 因此保持 `BLOCKED`；不得用 controller 环境替代该证据，也不得把 mapping 能力标记为已验证。
+`70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`，设备为 Raspberry Pi 5、aarch64、Ubuntu 22.04。早期短超时曾使 `ros` layer 未及时返回；不得用 controller 环境替代该证据，也不得把 mapping 能力标记为已验证。
+
+后续使用足够的 120 秒窗口完成了完整 Probe（`hw=PARTIAL`、`linux=SUCCEEDED`、`ros=SUCCEEDED`），并修复了 bundle JSON round-trip digest 校验。对新鲜 bundle 运行 mapping application discovery 的结论仍为 `NOT_FOUND`：`map_state` 信号为空、runtime route bindings 为空，conformance 为 `FAIL`。全盘历史产物中虽可见 `cli:map_save`、`cli:costmap_publish`、SLAM/Nav2 源码和静态 manifest 声明，但均为 `DECLARED_STATIC`，不能升级为 `agent_callable` capability。
 
 - [x] 在 `mentorpi` 上重新执行 Probe，记录 `target_fingerprint`、catalog/snapshot digest、采样时间和 freshness。2026-09-04 实测 `Probe READY`：target fingerprint `70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`，evidence SHA-256 `e1089e99a9415e3a77b06275f2cc51aab454e990308b7929685e3fd304ff6649`，RKB snapshot SHA-256 `ca87af85d5a1f274b112442b6389ff55be14bcdaa16ad86460d6e95725f9847a`，采样时间 `2026-09-04T05:49:32Z`；hw=`PARTIAL`、linux/ros=`SUCCEEDED`。
 - [ ] 运行 `mapping-10`，10 条结果均可关联到独立 `run_id`、`case_id`、operation/evidence ID 和 artifact digest。
