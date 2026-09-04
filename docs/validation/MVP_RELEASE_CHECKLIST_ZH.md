@@ -19,7 +19,7 @@ authority: guide
 最近一次只读验证（2026-09-04）已确认 SSH 网络、host key 和 ED25519 identity 正常。`mentorpi` collector 返回了新鲜且可验证的 `hw`/`linux` bundle：目标指纹为
 `70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`，设备为 Raspberry Pi 5、aarch64、Ubuntu 22.04。`ros` layer 在目标端未在超时窗口内返回，完整三层 Probe 因此保持 `BLOCKED`；不得用 controller 环境替代该证据，也不得把 mapping 能力标记为已验证。
 
-- [ ] 在 `mentorpi` 上重新执行 Probe，记录 `target_fingerprint`、catalog/snapshot digest、采样时间和 freshness。
+- [x] 在 `mentorpi` 上重新执行 Probe，记录 `target_fingerprint`、catalog/snapshot digest、采样时间和 freshness。2026-09-04 实测 `Probe READY`：target fingerprint `70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`，evidence SHA-256 `e1089e99a9415e3a77b06275f2cc51aab454e990308b7929685e3fd304ff6649`，RKB snapshot SHA-256 `ca87af85d5a1f274b112442b6389ff55be14bcdaa16ad86460d6e95725f9847a`，采样时间 `2026-09-04T05:49:32Z`；hw=`PARTIAL`、linux/ros=`SUCCEEDED`。
 - [ ] 运行 `mapping-10`，10 条结果均可关联到独立 `run_id`、`case_id`、operation/evidence ID 和 artifact digest。
 - [ ] 归档 `trace-session.json`、`trace-evidence-bundle.json`、Certify JSON/Markdown 报告与 `artifact-index.json`；下载后重新执行 digest 校验。
 - [ ] 至少完成一次断连或 Tool 失败恢复演练，并确认失败时进入 `BLOCKED`/`UNKNOWN`，没有绕过 allowlist 的调用。
