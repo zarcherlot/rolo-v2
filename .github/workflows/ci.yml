@@ -45,12 +45,23 @@ jobs:
           src/rolo/core/models.py
           src/rolo/stages/probe/target_evidence.py
           src/rolo/release_check.py
+          src/rolo/probe_baseline.py
           tests/test_rkb_envelope.py
           tests/test_rkb_contract_baseline.py
           tests/test_rkb_typed_queries.py
           tests/test_rkb_storage.py
           tests/test_rkb_schema_roundtrip.py
           tests/test_mhs_hardware.py
+          tests/test_mhs_association.py
+          tests/test_mhs_api.py
+          tests/test_mhs_http.py
+          tests/test_mhs_vis.py
+          tests/test_mhs_conformance.py
+          tests/test_mhs_fixture.py
+          tests/test_mhs_manifest_records.py
+          tests/test_mhs_linux_inventory.py
+          tests/test_rkb_mhs_read_models.py
+          tests/test_probe_baseline.py
           examples/mhs-sensor
           scripts/rkb2_landerpi_smoke.py
           scripts/rkb2_capacity_baseline.py
@@ -76,9 +87,19 @@ jobs:
           tests/test_rkb_storage.py
           tests/test_rkb_schema_roundtrip.py
           tests/test_mhs_hardware.py
+          tests/test_mhs_association.py
+          tests/test_mhs_api.py
+          tests/test_mhs_http.py
+          tests/test_mhs_vis.py
+          tests/test_mhs_conformance.py
+          tests/test_mhs_fixture.py
+          tests/test_mhs_manifest_records.py
+          tests/test_mhs_linux_inventory.py
+          tests/test_rkb_mhs_read_models.py
+          tests/test_probe_baseline.py
           examples/mhs-sensor/test_mhs_sensor.py
       - name: Compile the v2 source and test tree
-        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py
+        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py scripts/mhs_readonly_canary.py scripts/probe_baseline.py
 
   package:
     runs-on: ubuntu-latest

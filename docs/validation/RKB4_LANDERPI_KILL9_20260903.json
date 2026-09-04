@@ -1,0 +1,31 @@
+{
+  "artifact_sha256": "d3b213e0919cf814227a17c2a8a09759b6b1830824bc0b8c28901c04674be7b6",
+  "schema_version": "rkb4-landerpi-kill9/v1",
+  "execution_date": "2026-09-03",
+  "target_host": "192.168.10.167",
+  "target_host_fingerprint": "70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9",
+  "robot_id": "mentorpi",
+  "canary": {
+    "status": "PASS",
+    "process_exitcode": -9,
+    "episode_digest": "4ef04607c6ba76d8ebf7508d016e7fa6a93c1d2613ec93e6c8dd1339789e699e",
+    "read_only": true,
+    "persisted_record_reloaded": true,
+    "device_route_invoked": false
+  },
+  "decision": {
+    "status": "RKB4_STABLE_METADATA_ONLY",
+    "allow": [
+      "metadata-only Episode publish/load/query/rollback on the enrolled mentorpi target"
+    ],
+    "deny": [
+      "device writes",
+      "unbounded platform rollout",
+      "claims about physical behavior or safety"
+    ]
+  },
+  "limitations": [
+    "The canary terminated only its own publisher process; MentorPi and ROS2 debug processes were not interrupted.",
+    "Alert notification transport, vault implementation and schema retirement remain deployment-owned integrations."
+  ]
+}

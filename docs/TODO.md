@@ -1,4 +1,4 @@
-<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-03 -->
 
 # RKB-1 后续工程待办
 
@@ -37,3 +37,25 @@ RKB-1 已交付 Evidence Envelope、`robot-snapshot/v1` 和旧 Probe/Bundle/Disc
 
 每项待办都必须同时具备：版本化契约、拒绝路径测试、至少一个可复现的离线或真机证据，
 并在 `docs/reference/ENGINEERING_STATUS.md` 中同步证据等级后，才可从本文件移除。
+
+## RKB-3 后续工程项（不阻塞 RKB-4）
+
+- [ ] 为常见厂商 MHS 设备补充只读 provider manifest/driver，并为每类目标机补充 canary artifact。
+- [ ] 将 Linux observer 的热度、I2C、SPI、GPIO 和 USB 发现结果与厂商 serial/topology 做稳定绑定。
+- [ ] 在真实目标机调度中周期采集 MHS freshness/断线指标；保持 reset、calibrate、setpoint、stop、power-cycle、firmware 未开放。
+- [ ] wheel 安装后导入验证属于发布工程，单独建立发布 artifact 和回归矩阵，不回写本阶段 gate。
+
+## RKB-4 工程项
+
+- [x] 将每次 Probe run 的 Episode metadata 接入正式 Probe orchestration，并保留旧 bundle/report 双读路径。
+- [x] 为 Episode latest 指针接入跨进程故障恢复、损坏隔离和审计指标。
+- [x] 为 Episode 增加按 identity、source、freshness、status 的只读分页查询、幂等 Probe run 和 retention。
+- [x] 在固定目标机完成 identity → runtime → graph → app 的只读 smoke 后，记录灰度放量决策；LanderPi graph/app 已补充 Docker 内 ROS2 route presence 观察，灰度仍仅限 metadata-only 只读。
+- [x] 增加跨进程并发发布、指标增量合并、digest 损坏 record 隔离和 latest 恢复 fault canary。
+- [x] 在 LanderPi 上执行跨进程并发、latest 恢复和损坏 record 隔离 canary，并记录目标机 artifact；使用合成 snapshot，不替代 MHS provider 证据。
+- [x] 增加并在 LanderPi 执行迁移式新旧 Episode 发布、父 digest 绑定和 rollback 指针切换 canary；使用合成 snapshot，不替代真实 MHS 迁移证据。
+- [x] 在操作员重启后的 LanderPi 上重跑 MHS → snapshot → Episode 只读 smoke，并记录 boot id、启动时间、ROS2 graph/service/topic 计数。
+- [x] 在 LanderPi 上执行 Episode publisher `kill -9`，验证已持久化 record 可由新进程恢复读取，并记录 `RKB4_LANDERPI_KILL9_20260903.json`。
+- [x] 增加 freshness/断线/digest mismatch/容量水位的结构化告警策略；生产通知 transport、周期 cadence 和部署接线仍需落地。
+- [x] 固化 Episode schema 迁移注册表、旧 bundle/report 兼容窗口和发布弃用策略；最终公告与删除动作仍需发布流程接线。
+- [x] 增加受控 HMAC keyring 的轮换、吊销、时间窗口和重放拒绝策略；生产 vault 持久化与目标机密钥演练仍需维护窗口。

@@ -1,0 +1,40 @@
+{
+  "$id": "rolo-read-only-completion/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Probe read-only completion audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "phase", "decision", "baseline_id", "manifest_digest", "artifact_index_digest", "generated_at", "gates", "owner", "write_calls", "p0_p1_open"],
+  "properties": {
+    "schema_version": {"const": "rolo-read-only-completion/v1"},
+    "phase": {"const": "W0"},
+    "decision": {"enum": ["READ_ONLY_COMPLETE", "READ_ONLY_CONDITIONAL", "READ_ONLY_BLOCKED"]},
+    "baseline_id": {"type": "string"},
+    "manifest_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact_index_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "gates": {"type": "object", "minProperties": 6, "maxProperties": 6, "additionalProperties": {"$ref": "#/$defs/Gate"}},
+    "owner": {"type": "string"},
+    "reviewer": {"type": ["string", "null"]},
+    "write_calls": {"type": "integer", "minimum": 0},
+    "p0_p1_open": {"type": "integer", "minimum": 0},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "blockers": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "Gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate_id", "status", "owner"],
+      "properties": {
+        "gate_id": {"enum": ["A", "B", "C", "D", "E", "F"]},
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "test_commands": {"type": "array", "items": {"type": "string"}},
+        "owner": {"type": "string"},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+        "blockers": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

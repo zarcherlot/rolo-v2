@@ -1,0 +1,114 @@
+{
+  "schema_version": "rolo-mhs-aurora-diagnostic/v1",
+  "robot_id": "landerpi",
+  "target_host": "raspberrypi",
+  "target_host_fingerprint": "04cbb3398c9d270eb847f5a1931dd94f9f4e1c0d5048daf89fe0c4da99bbb741",
+  "observed_at": "2026-09-03T12:08:42+08:00",
+  "access": "READ_ONLY",
+  "usb": {
+    "enumerated": true,
+    "bus_device": "001/003",
+    "vid": "3251",
+    "pid": "1930",
+    "product": "Aurora 930",
+    "serial": "HY400516001016421G00082",
+    "device_node_mode": "crw-rw-rw-",
+    "kernel_disconnect_or_reset_seen": false,
+    "kernel_error_seen": false
+  },
+  "container": {
+    "name": "MentorPi",
+    "aurora_pid": 393303,
+    "process_state": "Sl",
+    "process_open_fd": "/dev/bus/usb/001/003",
+    "video_nodes_visible": "/dev/video19-/dev/video37"
+  },
+  "launch_parameters": {
+    "depth_camera_type": "aurora",
+    "resolution_mode_index": 2,
+    "rgb_fps": 15,
+    "ir_fps": 15,
+    "usb_port_number": "",
+    "stream_sdk_log_enable": false,
+    "rgbd_enable_before": true,
+    "rgbd_enable_after": false
+  },
+  "driver": {
+    "binary": "/home/ubuntu/third_party_ros2/third_party_ws/install/deptrum-ros-driver-aurora930/lib/deptrum-ros-driver-aurora930/aurora930_node",
+    "stream_library": "libdeptrum_stream_aurora900.so.1.1.22",
+    "source_package": "/home/ubuntu/third_party_ros2/third_party_ws/src/deptrum-ros-driver-aurora930",
+    "initialization_behavior": "GetSupportedFrameMode -> reject empty list -> use resolution_mode_index -> SetMode",
+    "frame_read_behavior": "GetFrames(frames, 2000ms)",
+    "known_error_codes": {
+      "0x42005": "Get frames timeout",
+      "0x2100c": "Device disconnect"
+    },
+    "compiled_error_signals": [
+      "GetSupportedFrameMode is empty",
+      "unknown frame mode!!",
+      "Failed to get rgb frame",
+      "Failed to get depth frame",
+      "Failed to get ir frame"
+    ],
+    "source_refs": [
+      "src/aurora900_ros2_device.cc:240-276",
+      "src/ros2_device.cc:373-414"
+    ]
+  },
+  "v4l2": {
+    "tool_version": "v4l2-ctl 1.22.1",
+    "camera_nodes_checked": ["/dev/video19", "/dev/video20", "/dev/video21", "/dev/video22", "/dev/video23"],
+    "observed_devices": [
+      {"node": "/dev/video19", "driver": "rpivid", "format": "NC12/S265"},
+      {"node": "/dev/video20", "driver": "pispbe", "format": "YU12"}
+    ],
+    "aurora_v4l2_node_identified": false,
+    "interpretation": "The listed V4L2 nodes are Raspberry Pi ISP/HEVC platform devices, not an Aurora-specific capture node; the Aurora SDK uses libusb directly."
+  },
+  "handles": {
+    "aurora_process_usb_handle": "/proc/1594/fd -> /dev/bus/usb/001/003",
+    "other_video_or_aurora_handles_found": false,
+    "defunct_aurora_processes_seen": [3118, 378144]
+  },
+  "ros": {
+    "node": "/aurora/aurora",
+    "publishers_present": [
+      "/ascamera/camera_publisher/rgb0/image",
+      "/ascamera/camera_publisher/ir0/image",
+      "/ascamera/camera_publisher/depth0/image_raw",
+      "/ascamera/camera_publisher/depth0/points"
+    ],
+    "bounded_payload_read_s": 15,
+    "payload_observed": false,
+    "ros_log_file_bytes": 0,
+    "docker_log_error_lines": 0
+  },
+  "assessment": {
+    "network_or_ros_graph_fault": "NOT_SUPPORTED_BY_EVIDENCE",
+    "usb_enumeration_fault": "NOT_SUPPORTED_BY_EVIDENCE",
+    "likely_fault_domain": "Aurora SDK stream initialization or frame receive path",
+    "confidence": "high",
+    "root_cause_confirmed": "Selected supported mode reports depth_mode=kInvalid; combined kRgbdIr initialization yields no frames. Separate RGB/IR/depth streams with rgbd_enable=false are operational.",
+    "fix_test": {
+      "parameter": "rgbd_enable",
+      "before": true,
+      "after": false,
+      "result": "PASS",
+      "observed_rgb_rate_hz_approx": 11.2,
+      "payload_topics": [
+        "/ascamera/camera_publisher/rgb0/image",
+        "/ascamera/camera_publisher/ir0/image",
+        "/ascamera/camera_publisher/depth0/image_raw"
+      ],
+      "artifact": "artifact://mhs-landerpi/aurora-fix-20260903.json"
+    },
+    "next_read_only_checks": [
+      "run a longer stability window and record frame-drop/timeout statistics",
+      "verify camera calibration and frame alignment before any high-assurance use"
+    ]
+  },
+  "limitations": [
+    "Long-run stream stability and camera calibration remain unverified.",
+    "No USB replug, format change, or actuator operation was performed."
+  ]
+}

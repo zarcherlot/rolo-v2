@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from rolo.mhs_hardware import (
     MhsChannel,
+    MhsCommandDescriptor,
     MhsDeviceClass,
     MhsDeviceManifest,
     MhsDeviceProvider,
@@ -47,11 +48,33 @@ def test_mhs_provider_exposes_only_read_routes():
         "status",
     }
     assert instance.route("read") == "mhs://cabinet-1/read"
-    assert instance.invoke("reset").status == MhsStatus.UNAVAILABLE
+    denied = instance.invoke("reset")
+    assert denied.status == MhsStatus.UNAVAILABLE
+    assert denied.observed_at is not None
+    assert denied.fresh_until is not None
+    assert denied.driver_sha256 == instance.manifest.driver_sha256
+    assert denied.evidence_ids
 
 
 def test_mhs_provider_rejects_unknown_and_unsafe_measurements():
     instance, _ = make_provider({"pressure": 1})
     assert instance.read().status == MhsStatus.UNAVAILABLE
     instance, _ = make_provider({"temperature": 100})
-    assert instance.read().status == MhsStatus.UNAVAILABLE
+    rejected = instance.read()
+    assert rejected.status == MhsStatus.UNAVAILABLE
+    assert rejected.manifest_sha256 == instance.manifest.manifest_sha256
+
+
+def test_probe_does_not_publish_manifest_commands_as_tools():
+    instance, _ = make_provider()
+    instance.manifest.commands = [
+        MhsCommandDescriptor(
+            id="reset",
+            hardware_resource_id="cabinet-1",
+            risk="R3",
+            input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+            timeout_s=1,
+        )
+    ]
+    assert all(item["access"] == "read" for item in instance.capabilities())
+    assert "reset" not in {item["capability_id"] for item in instance.capabilities()}

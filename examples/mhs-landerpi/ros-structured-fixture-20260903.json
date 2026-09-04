@@ -1,0 +1,107 @@
+{
+  "schema_version": "rolo-mhs-structured-fixture/v1",
+  "robot_id": "landerpi",
+  "container": "MentorPi",
+  "access": "READ_ONLY_SUBSCRIPTION",
+  "observed_at": "2026-09-03T12:08:42+08:00",
+  "method": "rclpy subscriptions with an 8-12 second bounded spin; first message per topic retained",
+  "repair": {
+    "artifact": "artifact://mhs-landerpi/fixture-repair-20260903.json",
+    "kind": "fresh_reacquisition",
+    "raw_payload_reacquired": true
+  },
+  "samples": {
+    "/scan": {
+      "interface_id": "scan",
+      "type": "sensor_msgs/msg/LaserScan",
+      "frame_id": "lidar_frame",
+      "source_timestamp": {"sec": 1788368288, "nanosec": 805193620},
+      "angle_min": 0.0,
+      "angle_max": 6.2831854820251465,
+      "angle_increment": 0.012566370889544487,
+      "scan_time": 0.09996938705444336,
+      "range_min": 0.019999999552965164,
+      "range_max": 25.0,
+      "ranges_count": 501,
+      "finite_ranges_count": 444,
+      "range_min_observed": 0.06199999898672104,
+      "range_max_observed": 26.0,
+      "intensities_count": 501,
+      "ranges_head": [2.993000030517578, 2.9833999967575073, 2.9730000495910645, 2.9630000591278076, 2.953000068664551, 2.944999933242798, 2.937000036239624, 2.930000066757202]
+    },
+    "/controller_manager/joint_states": {
+      "interface_id": "joint_state",
+      "type": "sensor_msgs/msg/JointState",
+      "frame_id": "base_footprint",
+      "source_timestamp": {"sec": 1788368288, "nanosec": 902203439},
+      "name_count": 6,
+      "position_count": 6,
+      "velocity_count": 0,
+      "effort_count": 0,
+      "names": ["joint1", "joint2", "joint3", "joint4", "joint5", "r_joint"],
+      "positions_head": [0.0, 0.9634217471008698, -1.5498523757709646, -1.6755160819145563, 0.0, 1.4660765716752366]
+    },
+    "/controller_manager/servo_states": {
+      "interface_id": "feedback",
+      "type": "servo_controller_msgs/msg/ServoStateList",
+      "frame_id": "base_footprint",
+      "source_timestamp": {"sec": 1788368288, "nanosec": 902203439},
+      "servo_count": 6,
+      "servos": [
+        {"id": 1, "goal": 0, "position": 500, "error": 0, "voltage": 0},
+        {"id": 2, "goal": 0, "position": 730, "error": 0, "voltage": 0},
+        {"id": 3, "goal": 0, "position": 130, "error": 0, "voltage": 0},
+        {"id": 4, "goal": 0, "position": 100, "error": 0, "voltage": 0},
+        {"id": 5, "goal": 0, "position": 500, "error": 0, "voltage": 0},
+        {"id": 10, "goal": 0, "position": 150, "error": 0, "voltage": 0}
+      ]
+    },
+    "/ascamera/camera_publisher/rgb0/image": {
+      "interface_id": "rgb",
+      "type": "sensor_msgs/msg/Image",
+      "frame_id": "rgb_camera_link",
+      "source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
+      "height": 400,
+      "width": 640,
+      "encoding": "bgr8",
+      "is_bigendian": 0,
+      "step": 1920,
+      "data_len": 768000,
+      "data_sha256": "14bb9b6badfc9ced55f253241a6cd224cea1df799aaf67d0379ee07d9d3bc090",
+      "data_head_hex": "e2eedce2eedce5f0dce4efdbeaf0d6ea"
+    },
+    "/ascamera/camera_publisher/ir0/image": {
+      "interface_id": "ir",
+      "type": "sensor_msgs/msg/Image",
+      "frame_id": "depth_camera_link",
+      "source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
+      "height": 400,
+      "width": 640,
+      "encoding": "mono8",
+      "is_bigendian": 0,
+      "step": 640,
+      "data_len": 256000,
+      "data_sha256": "bfdb02f953b2847f9d4ad8c67fe3146b5bdc087e51dcb4fbdcacccc77e137212",
+      "data_head_hex": "000000000000000000009231233c3532"
+    },
+    "/ascamera/camera_publisher/depth0/image_raw": {
+      "interface_id": "depth",
+      "type": "sensor_msgs/msg/Image",
+      "frame_id": "depth_camera_link",
+      "source_timestamp": {"sec": 1788408522, "nanosec": 529000000},
+      "height": 400,
+      "width": 640,
+      "encoding": "mono16",
+      "is_bigendian": 0,
+      "step": 1280,
+      "data_len": 512000,
+      "data_sha256": "2017bf46f45c62db3262df68d86c49925341517dbd33d4499336249d2660fea6",
+      "data_head_hex": "00000000000000000000000000000000"
+    }
+  },
+  "limitations": [
+    "Image bytes are represented by length, SHA-256 and a 16-byte prefix; raw frames are not persisted.",
+    "LaserScan ranges are summarized with counts, extrema and a prefix; the complete array is not persisted.",
+    "This proves runtime payload availability, but not actuator write authorization or physical safety."
+  ]
+}

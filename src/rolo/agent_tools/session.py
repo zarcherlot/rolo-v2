@@ -42,6 +42,7 @@ class NativeToolSessionDescriptor(BaseModel):
     session_id: str = Field(pattern=_SESSION_PATTERN)
     nonce: str = Field(pattern=_NONCE_PATTERN)
     robot_id: str = Field(min_length=1, max_length=128)
+    target_host_fingerprint: str | None = Field(default=None, pattern=_SHA256_PATTERN)
     stage: Literal["probe"]
     native_catalog_sha256: str = Field(pattern=_SHA256_PATTERN)
     allowed_tools: list[str] = Field(min_length=1, max_length=256)

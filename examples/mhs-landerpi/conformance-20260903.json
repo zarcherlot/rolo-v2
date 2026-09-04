@@ -1,0 +1,82 @@
+{
+  "schema_version": "rolo-mhs-conformance/v1",
+  "robot_id": "landerpi",
+  "evaluated_at": "2026-09-03T12:14:35+08:00",
+  "profile": "rolo-mhs-compatible-read-only/v1",
+  "result": "PASS_READ_ONLY",
+  "write_profile": "NOT_ELIGIBLE",
+  "checks": {
+    "bundle_schema": {
+      "passed": true,
+      "observed": "rolo-mhs-bundle/v1"
+    },
+    "unique_device_ids": {
+      "passed": true,
+      "observed": [
+        "landerpi-vision-aurora930",
+        "landerpi-lidar",
+        "landerpi-ros-robot-controller",
+        "landerpi-servo-actuator"
+      ]
+    },
+    "write_commands_absent": {
+      "passed": true,
+      "observed_command_count": 0
+    },
+    "fixture_topics_and_types": {
+      "passed": true,
+      "missing_topics": []
+    },
+    "physical_binding_referenced": {
+      "passed": true,
+      "matching_refs": [
+        "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/0",
+        "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/1",
+        "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/2",
+        "artifact://mhs-landerpi/physical-binding-20260903.json#/bindings/3"
+      ]
+    },
+    "safety_fail_closed": {
+      "passed": true,
+      "decision": "BLOCKED_FOR_WRITE_AND_VERIFIED"
+    },
+    "estop_and_limits_gate": {
+      "passed": false,
+      "status": "NOT_VERIFIED"
+    },
+    "fixture_digest_shape": {
+      "passed": true,
+      "algorithm": "sha256",
+      "invalid_hash_lengths": {}
+    }
+  },
+  "negative_tests": {
+    "unknown_channel": "REJECTED_BY_MANIFEST",
+    "write_command": "REJECTED_BY_EMPTY_COMMANDS",
+    "stale_or_missing_estop": "REJECTED_BY_SAFETY_GATE",
+    "unmapped_servo_id_9": "RETAINED_AS_UNKNOWN"
+  },
+  "source_artifacts": [
+    "mhs-bundle-20260902.json",
+    "ros-structured-fixture-20260903.json",
+    "physical-binding-20260903.json",
+    "safety-review-20260903.json",
+    "estop-limits-evidence-20260903.json",
+    "fixture-repair-20260903.json",
+    "ros-reacquisition-20260903.json",
+    "aurora-diagnostic-20260903.json",
+    "aurora-fix-20260903.json",
+    "aurora-stability-calibration-20260903.json",
+    "aurora-production-stability-20260903.json",
+    "joystick-scheduler-fix-20260903.json",
+    "aurora-production-stability-post-joystick-fix-20260903.json",
+    "aurora-ir-analysis-20260903.json",
+    "aurora-shared-load-optimization-20260903.json",
+    "aurora-pointcloud-demand-20260903.patch",
+    "ros-reacquisition-20260903-success.json"
+  ],
+  "limitations": [
+    "This is a Rolo-compatible profile check, not an official external MHS conformance certification.",
+    "Actuator write, E-stop, limit-switch, watchdog and fault-clear behavior remain unverified."
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mhs-association-report/v1",
+  "title": "MHS association report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_fingerprint", "status", "access", "write_requests"],
+  "properties": {
+    "schema_version": {"const": "rolo-mhs-association-report/v1"},
+    "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"type": "string", "enum": ["PROPOSED", "UNKNOWN", "UNSUPPORTED"]},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "route": {"type": ["string", "null"]},
+    "manifest_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "requests": {"type": "array", "items": {"type": "object", "additionalProperties": false}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "access": {"const": "READ_ONLY"},
+    "write_requests": {"const": 0}
+  }
+}

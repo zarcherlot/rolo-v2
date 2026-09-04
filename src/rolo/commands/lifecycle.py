@@ -45,6 +45,10 @@ class ProbeStartResult(BaseModel):
     robot_id: str = Field(min_length=1, max_length=128)
     evidence_ref: str | None = None
     evidence_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    snapshot_ref: str | None = None
+    snapshot_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    episode_ref: str | None = None
+    episode_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     next_step: str
     limitations: list[str] = Field(default_factory=list)
     observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -158,17 +162,37 @@ def run_probe_start(
         )
     verify_evidence_bundle(bundle, deployment=deployment, request=request)
     path = _write_bundle(bundle)
+    # RKB-4 is a one-way publication boundary: legacy bundle remains readable,
+    # while the verified snapshot and metadata-only Episode become the new
+    # artifact path.  Publication failure must not affect the legacy bundle.
+    from rolo.rkb import publish_probe_episode
+
+    bundle_ref = f"artifact://legacy/target-evidence/{bundle.robot_id}-bundle.json"
+    snapshot, episode, snapshot_path, episode_path = publish_probe_episode(
+        bundle,
+        artifact_root=settings.rolo_artifact_dir,
+        deployment_mode=evidence_mode.value,
+        bundle_ref=bundle_ref,
+        legacy_root=settings.rolo_config_dir,
+    )
+    artifact_root = settings.rolo_artifact_dir.resolve()
+
+    def artifact_ref(path: Path) -> str:
+        return f"artifact://{path.resolve().relative_to(artifact_root).as_posix()}"
+
     return ProbeStartResult(
         status="READY",
         robot_id=robot_id,
         evidence_ref=str(path),
         evidence_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        snapshot_ref=artifact_ref(snapshot_path),
+        snapshot_sha256=snapshot.digest,
+        episode_ref=artifact_ref(episode_path),
+        episode_sha256=episode.content_sha256,
         next_step=(
             f"agent reads `rolo target tool-surface --profile {robot_id}` and emits a ToolPlan"
         ),
-        limitations=[
-            "target evidence is a read-only snapshot, not a physical safety certificate"
-        ],
+        limitations=["target evidence is a read-only snapshot, not a physical safety certificate"],
     )
 
 
@@ -198,21 +222,23 @@ def probe_stage_start(
 ) -> None:
     """Collect target evidence; Agent planning starts after this command returns."""
     try:
-        emit(run_probe_start(
-            robot_id=robot_id,
-            project_root=project_root,
-            active_probe=active_probe,
-            evidence_mode=evidence_mode,
-            allow_executable=allow_executable,
-            collector_descriptor=collector_descriptor,
-            verification_secret=verification_secret,
-            ssh_target=ssh_target,
-            known_hosts=known_hosts,
-            collector_config=collector_config,
-            evidence_timeout=evidence_timeout,
-            ssh_port=ssh_port,
-            ssh_identity_file=ssh_identity_file,
-        ))
+        emit(
+            run_probe_start(
+                robot_id=robot_id,
+                project_root=project_root,
+                active_probe=active_probe,
+                evidence_mode=evidence_mode,
+                allow_executable=allow_executable,
+                collector_descriptor=collector_descriptor,
+                verification_secret=verification_secret,
+                ssh_target=ssh_target,
+                known_hosts=known_hosts,
+                collector_config=collector_config,
+                evidence_timeout=evidence_timeout,
+                ssh_port=ssh_port,
+                ssh_identity_file=ssh_identity_file,
+            )
+        )
     except (FileNotFoundError, OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
