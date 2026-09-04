@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .agent_tools.conformance import ToolConformanceReport
 from .mhs_registry import MhsProviderRegistry, MhsRegistryError
+from .mvp.http import router as mvp_router
 from .rkb import (
     CapabilityState,
     EvidenceValidationError,
@@ -26,10 +27,11 @@ from .rkb import (
     ReadOnlyKnowledgeBase,
     RKBStore,
 )
-from .mvp.http import router as mvp_router
+from .rkb.mhs_http import create_mhs_router
 
 app = FastAPI(title="rolo v2 read-only API", version="0.38.0")
 app.include_router(mvp_router)
+app.include_router(create_mhs_router())
 API_FEATURES = (
     "rkb.read-model/v1",
     "mhs.inventory-read-model/v1",
