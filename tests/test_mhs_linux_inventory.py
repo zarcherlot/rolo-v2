@@ -34,17 +34,8 @@ def test_inventory_creates_unverified_candidates_and_read_only_providers(tmp_pat
     assert len(candidates) == 6  # compute + thermal + three device nodes + USB
     assert {candidate.discovery_status for candidate in candidates} == {"DISCOVERED_UNVERIFIED"}
     providers = inventory.providers()
-    thermal = next(provider for candidate, provider in providers if "thermal_zone0" in candidate.source)
+    thermal = next(
+        provider for candidate, provider in providers if "thermal_zone0" in candidate.source
+    )
     assert thermal.read().status == MhsStatus.AVAILABLE
     assert thermal.invoke("reset").status == MhsStatus.UNAVAILABLE
-
-
-def test_inventory_models_video_nodes_as_unverified_camera_candidates(tmp_path: Path) -> None:
-    root = _root(tmp_path)
-    (root / "dev" / "video0").touch()
-    candidates = LinuxMhsInventory(root, device_prefix="target").candidates()
-    camera = next(candidate for candidate in candidates if "video0" in candidate.source)
-    assert camera.manifest.device_class.value == "sensor"
-    assert camera.manifest.transport["properties"]["path"] == "/dev/video0"
-    assert camera.identity_stability == "path"
-    assert "camera frames require" in " ".join(camera.manifest.limits)

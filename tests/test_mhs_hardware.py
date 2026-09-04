@@ -1,15 +1,13 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 from rolo.mhs_hardware import (
     MhsChannel,
+    MhsCommandDescriptor,
     MhsDeviceClass,
     MhsDeviceManifest,
     MhsDeviceProvider,
-    MhsInterfaceSample,
     MhsStatus,
 )
-from rolo.mhs_replay import MhsReplayBackend
 
 
 @dataclass
@@ -67,22 +65,16 @@ def test_mhs_provider_rejects_unknown_and_unsafe_measurements():
     assert rejected.manifest_sha256 == instance.manifest.manifest_sha256
 
 
-def test_structured_replay_is_optional_and_read_only():
-    manifest = MhsDeviceManifest(
-        device_id="camera-1",
-        device_class=MhsDeviceClass.SENSOR,
-        name="camera",
-        vendor="example",
-        model="depth",
-        interfaces=[{"id": "depth", "kind": "image", "access": "stream"}],
-    )
-    sample = MhsInterfaceSample(
-        interface_id="depth",
-        value={"width": 2, "height": 1, "data": [1, 2]},
-        observed_at=datetime.now(timezone.utc),
-    )
-    provider = MhsDeviceProvider(manifest, MhsReplayBackend(manifest, structured_samples=[sample]))
-    assert "read_structured" in {item["capability_id"] for item in provider.capabilities()}
-    result = provider.read_structured()
-    assert result.status == MhsStatus.AVAILABLE
-    assert result.samples[0].interface_id == "depth"
+def test_probe_does_not_publish_manifest_commands_as_tools():
+    instance, _ = make_provider()
+    instance.manifest.commands = [
+        MhsCommandDescriptor(
+            id="reset",
+            hardware_resource_id="cabinet-1",
+            risk="R3",
+            input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+            timeout_s=1,
+        )
+    ]
+    assert all(item["access"] == "read" for item in instance.capabilities())
+    assert "reset" not in {item["capability_id"] for item in instance.capabilities()}

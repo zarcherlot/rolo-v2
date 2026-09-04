@@ -198,12 +198,6 @@ class LinuxDiscoverySnapshot(BaseModel):
     gpio_chips: list[LinuxGpioChip] = Field(default_factory=list)
     thermal: list[dict[str, str | None]] = Field(default_factory=list)
     software_stack: dict[str, list[str]] = Field(default_factory=dict)
-    udev_rules: list[str] = Field(default_factory=list)
-    kernel_drivers: list[str] = Field(default_factory=list)
-    serial_devices: list[dict[str, str | None]] = Field(default_factory=list)
-    gpio_lines: list[dict[str, Any]] = Field(default_factory=list)
-    ros_graph: dict[str, Any] = Field(default_factory=dict)
-    network_endpoints: list[dict[str, Any]] = Field(default_factory=list)
     read_values: dict[str, Any] = Field(default_factory=dict)
     status_values: dict[str, Any] = Field(default_factory=dict)
     traces: list[DiscoveryTrace] = Field(default_factory=list)
@@ -338,38 +332,6 @@ def collect_linux_snapshot(
     services = sorted(path.name for path in (base / "etc/systemd/system").glob("*.service"))
     software_stack = {"processes": processes[:256], "services": services[:256]}
 
-    kernel_drivers: list[str] = []
-    modules = text(base / "proc/modules")
-    if modules:
-        kernel_drivers = sorted({line.split()[0] for line in modules.splitlines() if line.split()})[
-            :512
-        ]
-    udev_rules = sorted(
-        str(path.relative_to(base).as_posix())
-        for directory in (base / "etc/udev/rules.d", base / "lib/udev/rules.d")
-        for path in directory.glob("*.rules")
-        if path.is_file()
-    )[:512]
-    serial_devices: list[dict[str, str | None]] = []
-    for path in sorted((base / "dev/serial/by-id").glob("*")):
-        serial_devices.append(
-            {
-                "by_id": "/" + path.relative_to(base).as_posix(),
-                "target": link(path),
-            }
-        )
-
-    gpio_lines: list[dict[str, Any]] = []
-    gpio_debug = text(base / "sys/kernel/debug/gpio")
-    if gpio_debug:
-        for line in gpio_debug.splitlines()[:512]:
-            gpio_lines.append({"raw": line})
-    # ROS/DDS graph and network endpoints require an environment adapter.  The
-    # snapshot keeps explicit placeholders so a target-side adapter can merge
-    # them without changing the schema.
-    ros_graph: dict[str, Any] = {}
-    network_endpoints: list[dict[str, Any]] = []
-
     sections = {
         "status": status,
         "read": read_values,
@@ -379,12 +341,6 @@ def collect_linux_snapshot(
         "gpio_chips": [item.model_dump(mode="json") for item in gpio_chips],
         "thermal": thermal,
         "software_stack": software_stack,
-        "udev_rules": udev_rules,
-        "kernel_drivers": kernel_drivers,
-        "serial_devices": serial_devices,
-        "gpio_lines": gpio_lines,
-        "ros_graph": ros_graph,
-        "network_endpoints": network_endpoints,
     }
     traces = [
         DiscoveryTrace.from_output(
@@ -416,12 +372,6 @@ def collect_linux_snapshot(
         gpio_chips=gpio_chips,
         thermal=thermal,
         software_stack=software_stack,
-        udev_rules=udev_rules,
-        kernel_drivers=kernel_drivers,
-        serial_devices=serial_devices,
-        gpio_lines=gpio_lines,
-        ros_graph=ros_graph,
-        network_endpoints=network_endpoints,
         read_values=read_values,
         status_values=status,
         traces=traces,
@@ -459,16 +409,6 @@ def snapshot_evidence_envelope(snapshot: LinuxDiscoverySnapshot) -> EvidenceEnve
         facts=[fact],
         snapshot={"trace_ids": [trace.trace_id for trace in snapshot.traces]},
     ).with_digest()
-
-
-def merge_ros_graph(
-    snapshot: LinuxDiscoverySnapshot, ros_graph: Mapping[str, Any]
-) -> LinuxDiscoverySnapshot:
-    """Attach a target-side ROS adapter result to an existing snapshot."""
-
-    payload = snapshot.model_dump(mode="json")
-    payload["ros_graph"] = dict(ros_graph)
-    return LinuxDiscoverySnapshot.model_validate(payload)
 
 
 def build_snapshot_candidates(snapshot: LinuxDiscoverySnapshot) -> list[LinuxMhsCandidate]:
@@ -609,7 +549,9 @@ def resolve_identity(
     if present:
         selected_source, selected_value = present[0]
         stability = (
-            IdentityStability.PATH if selected_source == "path" else IdentityStability.STABLE
+            IdentityStability.PATH
+            if selected_source == "path"
+            else IdentityStability.STABLE
         )
         return MhsIdentityResolution(
             sources=normalized,
@@ -621,9 +563,14 @@ def resolve_identity(
 
 
 def write_gate_allowed(identity: MhsIdentityResolution) -> bool:
-    """Return whether a resolved device identity may be considered for writes."""
+    """Probe never grants write authority from identity discovery.
 
-    return identity.stability == IdentityStability.STABLE and identity.usable
+    The helper is retained for compatibility with older callers, but write
+    eligibility belongs to the separately approved Trace/Write gate.
+    """
+
+    del identity
+    return False
 
 
 def mhs_evidence_envelope(
@@ -700,7 +647,6 @@ __all__ = [
     "build_snapshot_candidates",
     "collect_linux_snapshot",
     "mhs_evidence_envelope",
-    "merge_ros_graph",
     "redact_secrets",
     "resolve_identity",
     "snapshot_evidence_envelope",

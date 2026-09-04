@@ -1,0 +1,45 @@
+{
+  "$id": "rolo-probe-baseline-manifest/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Probe baseline manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_id", "baseline_version", "code_commit", "generated_at", "schema_digest", "api_versions", "authority_rules", "readonly_tool_allowlist", "feature_flags", "freshness_policy", "rollback_pointer", "access"],
+  "properties": {
+    "schema_version": {"const": "rolo-probe-baseline-manifest/v1"},
+    "baseline_id": {"type": "string", "minLength": 1},
+    "baseline_version": {"type": "string", "pattern": "^v[0-9]+(?:\\.[0-9]+){1,2}$"},
+    "code_commit": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "schema_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "api_versions": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}},
+    "error_codes": {"type": "array", "items": {"type": "string"}},
+    "authority_rules": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}},
+    "readonly_tool_allowlist": {"type": "array", "items": {"type": "string"}},
+    "feature_flags": {"type": "object", "additionalProperties": {"type": "boolean"}},
+    "target_profile": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "collector_id": {"type": ["string", "null"]},
+    "fixture": {"type": ["string", "null"]},
+    "freshness_policy": {"type": "object", "additionalProperties": {"type": "integer"}},
+    "snapshot_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "rollback_pointer": {"type": "string", "minLength": 1},
+    "tests": {"type": "array", "items": {"$ref": "#/$defs/BaselineTest"}},
+    "known_limitations": {"type": "array", "items": {"type": "string"}},
+    "access": {"const": "READ_ONLY"},
+    "digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "BaselineTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test_id", "command", "path", "required"],
+      "properties": {
+        "test_id": {"type": "string"},
+        "command": {"type": "string"},
+        "path": {"type": "string"},
+        "required": {"type": "boolean"}
+      }
+    }
+  }
+}

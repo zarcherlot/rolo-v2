@@ -10,7 +10,6 @@ from rolo.mhs_discovery import (
     MhsProbePolicy,
     build_snapshot_candidates,
     collect_linux_snapshot,
-    merge_ros_graph,
     mhs_evidence_envelope,
     redact_secrets,
     resolve_identity,
@@ -77,7 +76,7 @@ def test_identity_resolution_prefers_serial_and_marks_path() -> None:
     assert path.stability == IdentityStability.PATH
     assert path.usable
     assert not write_gate_allowed(path)
-    assert write_gate_allowed(stable)
+    assert not write_gate_allowed(stable)
 
 
 def test_identity_conflict_fails_closed() -> None:
@@ -133,20 +132,6 @@ def test_linux_snapshot_is_traceable_and_converts_to_rkb(tmp_path) -> None:
     assert candidates
     assert all(item.discovery_status == "DISCOVERED_UNVERIFIED" for item in candidates)
     assert not any(item.manifest.commands for item in candidates)
-
-
-def test_ros_graph_can_be_merged_without_replacing_snapshot_identity(tmp_path) -> None:
-    snapshot = collect_linux_snapshot(
-        root=_linux_root(tmp_path),
-        robot_id="robot-1",
-        target_host_fingerprint=FINGERPRINT,
-        collector_id="collector-1",
-        observed_at=NOW,
-    )
-    merged = merge_ros_graph(snapshot, {"status": "AVAILABLE", "nodes": ["/camera"]})
-    assert merged.robot_id == snapshot.robot_id
-    assert merged.target_host_fingerprint == snapshot.target_host_fingerprint
-    assert merged.ros_graph["nodes"] == ["/camera"]
 
 
 def test_mhs_results_bind_to_rkb_evidence() -> None:

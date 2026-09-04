@@ -134,12 +134,7 @@ class MhsRelation(BaseModel):
 
 
 class MhsInterfaceDescriptor(BaseModel):
-    """Middleware-neutral structured data interface.
-
-    ``transport_ref`` may point to a ROS topic, USB endpoint, CAN frame, native
-    SDK handle, or another adapter-specific resource.  The interface kind and
-    payload schema remain stable when the transport changes.
-    """
+    """Middleware-neutral structured data interface."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -256,9 +251,6 @@ class MhsDeviceManifest(BaseModel):
         command_ids = [item.id for item in self.commands]
         if len(command_ids) != len(set(command_ids)):
             raise ValueError("manifest contains duplicate command ids")
-        interface_ids = [item.id for item in self.interfaces]
-        if len(interface_ids) != len(set(interface_ids)):
-            raise ValueError("manifest contains duplicate interface ids")
         return self
 
     @property
@@ -359,6 +351,9 @@ class MhsDeviceProvider:
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
+        # Probe publishes only the bounded read surface.  A vendor manifest may
+        # carry command metadata for later Trace/Write review, but commands are
+        # deliberately not converted into executable Tool descriptors here.
         readable = [
             {
                 "capability_id": capability,
@@ -369,30 +364,7 @@ class MhsDeviceProvider:
             }
             for capability in sorted(self.READ_CAPABILITIES)
         ]
-        writable = [
-            {
-                "capability_id": command.id,
-                "access": "write",
-                "route": self.route(command.id),
-                "status": "DISCOVERED_UNVERIFIED",
-                "risk": command.risk,
-                "hardware_resource_id": command.hardware_resource_id,
-                "requires_rolo_write_gate": True,
-                "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
-            }
-            for command in sorted(self.manifest.commands, key=lambda item: item.id)
-        ]
-        if callable(getattr(self.backend, "read_structured", None)):
-            readable.append(
-                {
-                    "capability_id": "read_structured",
-                    "access": "read",
-                    "route": self.route("read_structured"),
-                    "status": "DISCOVERED_UNVERIFIED",
-                    "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
-                }
-            )
-        return [*readable, *writable]
+        return readable
 
     def inspect(self) -> MhsResult:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
@@ -525,7 +497,6 @@ class MhsDeviceProvider:
             driver_sha256=self.manifest.driver_sha256,
             provider_version=self.provider_version,
             transport=self.manifest.transport,
-            samples=list(samples or []),
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
                 f"mhs-driver:{self.manifest.driver_sha256}",

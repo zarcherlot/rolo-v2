@@ -1,5 +1,22 @@
 """Typed, read-only Robot Knowledge Base evidence models."""
 
+from rolo.probe_baseline import (
+    BaselineArtifact,
+    BaselineArtifactIndex,
+    BaselineStatus,
+    BaselineTest,
+    CompletionDecision,
+    GateResult,
+    ProbeBaselineManifest,
+    ReadOnlyCompletion,
+    audit_read_only,
+    build_artifact_index,
+    build_manifest,
+    current_commit,
+    schema_digest,
+    validate_baseline,
+)
+
 from .alerts import AlertSeverity, RKBAlert, evaluate_alerts
 from .canonical import (
     canonical_json,
@@ -23,6 +40,18 @@ from .episodes import (
     publish_probe_episode,
 )
 from .keyring import HMACKey, HMACKeyring
+from .mhs_api import MhsEvidenceReadApi
+from .mhs_http import create_mhs_app
+from .mhs_read_models import (
+    MhsManifestReference,
+    MhsReadOnlyResult,
+    MhsReferenceCandidate,
+    ProbeEvidenceView,
+    build_probe_evidence_view,
+    project_mhs_read_result,
+    project_probe_evidence_view,
+)
+from .mhs_vis import render_probe_evidence_cards
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -93,6 +122,16 @@ __all__ = [
     "QueryRejectedError",
     "ReadOnlyKnowledgeBase",
     "ReadModelMetadata",
+    "MhsReferenceCandidate",
+    "MhsManifestReference",
+    "MhsReadOnlyResult",
+    "ProbeEvidenceView",
+    "build_probe_evidence_view",
+    "project_mhs_read_result",
+    "project_probe_evidence_view",
+    "MhsEvidenceReadApi",
+    "create_mhs_app",
+    "render_probe_evidence_cards",
     "RobotIdentityModel",
     "RuntimeStatusModel",
     "HardwareResourceModel",
@@ -146,4 +185,18 @@ __all__ = [
     "build_episode_from_snapshot",
     "build_terminal_episode",
     "publish_probe_episode",
+    "BaselineArtifact",
+    "BaselineArtifactIndex",
+    "BaselineStatus",
+    "BaselineTest",
+    "CompletionDecision",
+    "GateResult",
+    "ProbeBaselineManifest",
+    "ReadOnlyCompletion",
+    "audit_read_only",
+    "build_artifact_index",
+    "build_manifest",
+    "current_commit",
+    "schema_digest",
+    "validate_baseline",
 ]

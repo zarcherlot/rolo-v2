@@ -1,0 +1,21 @@
+{
+  "schema_version": "rolo-mhs-provisional-fixture/v1",
+  "fixture_id": "landerpi-observed-20260903",
+  "target_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_kind": "TEST_FIXTURE",
+  "authority": "PROVISIONAL",
+  "access": "READ_ONLY",
+  "generated_by": "rolo-fixture-tool",
+  "generated_at": "2026-09-03T10:00:00+00:00",
+  "input_evidence_ids": ["probe:usb:landerpi", "probe:ros:/camera/image_raw"],
+  "samples": {
+    "camera": {"route": "/camera/image_raw", "bound": "PARTIAL"},
+    "lidar": {"route": "/scan", "bound": "UNKNOWN"},
+    "controller": {"route": "/cmd_vel", "bound": "UNKNOWN"},
+    "servo": {"route": null, "bound": "UNKNOWN"}
+  },
+  "freshness": "FRESH",
+  "digest": "3f7d9db6b3bed9c64f0aff6547e83f565a6da33f4ca251a96eb007ce03b19130",
+  "not_vendor_manifest": true,
+  "not_release_authority": true
+}

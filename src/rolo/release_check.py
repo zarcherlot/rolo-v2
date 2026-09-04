@@ -18,6 +18,11 @@ from rolo.agent_tools import (
     ToolPlan,
     reduced_agent_native_catalog,
 )
+from rolo.probe_baseline import (
+    BaselineArtifactIndex,
+    ProbeBaselineManifest,
+    ReadOnlyCompletion,
+)
 from rolo.rkb import EvidenceEnvelope
 from rolo.stages.probe.application import (
     ApplicationAdapterBundle,
@@ -53,6 +58,7 @@ def run_release_check(
         "rolo.stages.probe.application",
         "rolo.stages.probe.target_evidence",
         "rolo.rkb",
+        "rolo.probe_baseline",
     ):
         try:
             importlib.import_module(module)
@@ -89,6 +95,9 @@ def run_release_check(
             (ApplicationOperationAdapterBundle, "application-operation-adapter-bundle"),
             (ApplicationOperationConformanceReport, "application-operation-conformance"),
             (EvidenceEnvelope, "robot-evidence-envelope"),
+            (ProbeBaselineManifest, "probe-baseline-manifest"),
+            (BaselineArtifactIndex, "probe-baseline-artifact-index"),
+            (ReadOnlyCompletion, "read-only-completion"),
         ):
             model.model_json_schema()
             checks.append(f"schema:{label}")
