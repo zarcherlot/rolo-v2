@@ -14,9 +14,9 @@
 
 ## rolo 是什么
 
-rolo（robot only loop once）是一个面向具身机器人的开发与验证框架：每次用例执行都记录
-输入、过程、结果和外部观测，形成可解释、可回放、可复现的证据闭环。当前版本仍是开发中的
-MVP；真实机器人能力必须经过目标证据、独立 Gate、授权和相应的真机验收。
+rolo（robot only loop once）是一个面向 Codex 类 Agent 的目标工具层：把目标身份、只读证据、
+固定工具调用和 Conformance 绑定成可审计闭环。当前版本是 Probe-first MVP；真实机器人能力
+必须经过目标证据、独立校验、授权和相应的真机验收。
 
 v2 的核心定位是“小而稳的可信工具面”：Rolo 定义 Tool、Discovery/Evidence、Conformance
 和 Release 四类标准，并提供经过验证的 Probe CLI；Agent 负责发现、规划和解释，Rolo 负责
@@ -105,9 +105,9 @@ uv run rolo
 
 ## rolo 特性
 
-- **证据闭环**：关联命令、执行状态、遥测、配置版本、测试判定、异常区间和诊断结论，形成可追溯 episode。
-- **Canonical Tool Surface**：Hardware、Linux、Middleware、Application 四层能力统一使用 Tool、Schema、错误码、风险和授权语义，详见 [Agent-native Tools](docs/probe/AGENT_NATIVE_TOOLS.md)。
-- **主动发现与机器人 Wiki**：有界 Probe 汇总主机、软件栈、依赖、启动关系、通信接口、目标证据和未知项，并将静态声明、启发式推断和运行时观测分层记录。
+- **目标证据闭环**：固定目标身份、采集边界、digest、freshness 和结果 artifact，形成可审计的 TargetEvidenceBundle。
+- **Canonical Tool Surface**：Hardware、OS、Middleware、Application 四类能力统一使用 Tool、Schema、错误码、风险和只读授权语义，详见 [Agent-native Tools](docs/probe/AGENT_NATIVE_TOOLS.md)。
+- **有界 Discovery**：在目标自己的 OS/Middleware 环境采集硬件、运行时、通信和应用候选；静态声明、推断和目标观测分层记录。
 - **Probe、Trace 与 Certify**：Probe 负责发现和关联；Trace 负责消费已注册 Tool/RKB 完成任务并在实验模式下自诊断；Certify 负责执行固定测试用例并生成证据报告。
 - **平台无关 Probe**：ROS 仅是 Middleware provider 之一；四类稳定语义与目标绑定边界见 [v2 核心设计](docs/architecture/ROLO_V2_CORE_DESIGN_ZH.md)。
 
@@ -116,7 +116,7 @@ uv run rolo
 - **真实目标机**：请阅读[目标机 enrollment 记录](docs/validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md)和[Probe 端到端验收手册](docs/validation/PROBE_E2E_ACCEPTANCE_RUNBOOK_ZH.md)。
 - **Robot Knowledge Base**：RKB 设计、[可执行开发计划](docs/architecture/ROLO_V2_RKB_EXECUTION_PLAN_ZH.md)、[Probe 后受控写执行计划](docs/architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md)见[架构说明](docs/architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md)。
 - **LanderPi Agent MVP**：用户旅程、最大并行工作流、集成门和真机验收见 [MVP 开发计划](docs/architecture/ROLO_V2_LANDERPI_AGENT_JOURNEY_MVP_PLAN_ZH.md)。
-- **rolo-vis-v2**：Probe 证据图、Agent 关联建议和 Trace 前用户确认见 [rolo-vis-v2 开发计划](docs/architecture/ROLO_VIS_V2_DEVELOPMENT_PLAN_ZH.md)；关联细节见 [Probe 证据与关联设计](docs/architecture/ROLO_VIS_PROBE_ASSOCIATION_PLAN_ZH.md)。
+- **rolo-vis-v2**：Probe 证据图、Agent 关联建议和 Trace 前用户确认见 [Probe 证据与关联设计](docs/architecture/ROLO_VIS_PROBE_ASSOCIATION_PLAN_ZH.md)。
 - **远程证据**：控制器与目标机分离时，请按[目标证据部署规范](docs/target/TARGET_EVIDENCE_DEPLOYMENT.md)置备签名 bundle、SSH host-key 和 collector。
 - **Codex/Claude Code**：模型 transport、授权和执行边界见 [Agent-native Tools](docs/probe/AGENT_NATIVE_TOOLS.md)。
 - **阶段边界**：Probe、Trace、Certify 的职责和现场监督模式见[阶段词汇](docs/architecture/ROLO_V2_PROBE_TRACE_CERTIFY_ZH.md)与[架构说明](docs/architecture/ARCHITECTURE.md)。

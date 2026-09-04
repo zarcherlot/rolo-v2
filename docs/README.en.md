@@ -13,6 +13,9 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 ## Core documents
 
 - [v2 architecture](architecture/ARCHITECTURE.md): user, Agent, Rolo, and robot responsibilities;
+- [Probe/Trace/Certify phase contract](architecture/ROLO_V2_PROBE_TRACE_CERTIFY_ZH.md): the single source for phase roles, Agent interaction, and user journey;
+- [10-minute read-only journey](getting-started/QUICKSTART_10_MIN.md): profile to ToolPlan;
+- [Probe short journey](getting-started/PROBE_SHORT_JOURNEY.md): roles and minimal commands;
 - [engineering status](reference/ENGINEERING_STATUS.md): implementation maturity and evidence;
 - [Agent-native Tool standard](probe/AGENT_NATIVE_TOOLS.md): the four small Tool Surface contracts;
 - [Application gap bundles](probe/APPLICATION_GAP_BUNDLES.md): narrow startup/navigation/mapping/manipulation loops;
@@ -20,7 +23,7 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [implementation map](reference/IMPLEMENTATION_MAP.md): code, schemas, artifacts, and tests;
 - [physical target enrollment record](validation/ROLO_V2_TARGET_ENROLLMENT_20260902.md): one real-target verification.
 
-## Next phase (RKB drafts)
+## Next-phase drafts and focused plans
 
 - [RKB design](architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md): fact layers,
   provenance, and freshness rules;
@@ -29,6 +32,18 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
   scheduling entry point.
 - [Probe post-controlled write execution plan (RKB read-only prerequisite)](architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md):
   gates for a future, explicitly authorized write-execution pilot; RKB itself never executes device writes.
+- [rolo-vis Probe association plan](architecture/ROLO_VIS_PROBE_ASSOCIATION_PLAN_ZH.md): evidence graph,
+  Agent-assisted association proposals, and user confirmation before Trace.
+- [Probe end-to-end acceptance runbook](validation/PROBE_E2E_ACCEPTANCE_RUNBOOK_ZH.md): CLI, artifact,
+  fixed-target canary, and read-only rolo-vis checks.
+- [Probe/Trace/Certify concurrency plan](architecture/ROLO_V2_PHASE_CONSUMPTION_MAX_CONCURRENCY_PLAN_ZH.md):
+  parallel workstreams; phase semantics remain in the normative phase document.
+- [post-Probe baseline plan](architecture/ROLO_V2_POST_PROBE_BASELINE_DEVELOPMENT_PLAN_ZH.md):
+  read-only completion audit and integration gates.
+- [LanderPi Agent journey MVP plan](architecture/ROLO_V2_LANDERPI_AGENT_JOURNEY_MVP_PLAN_ZH.md):
+  target-specific journey and hardware acceptance.
+- [Agent Harness incremental plan](architecture/ROLO_V2_AGENT_HARNESS_INCREMENTAL_DEVELOPMENT_PLAN_ZH.md):
+  external Agent call adapters and delivery modes.
 
 The root `OPERATION_CONTRACTS.md`, `CANONICAL_OPERATIONS.md`, and Episode contract files, plus
 `architecture/WORKBENCH_PLUGIN_HOST_CONTRACT.md`, are retained only because generators or existing

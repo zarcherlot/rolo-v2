@@ -1,4 +1,4 @@
-<!-- status: draft; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-02; reviewed_commit: decb3b7fe5f2d5685b3998880f103ab301728880; source_of_truth: ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md -->
+<!-- status: draft; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-04; reviewed_commit: c05ab27e62b4d61351d99a711be930f6a7abc27b; source_of_truth: ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md -->
 
 # Rolo v2 Robot Knowledge Base 可执行开发计划（修订版）
 
@@ -10,7 +10,7 @@
 
 ### 1.1 基线事实
 
-- 基线提交：`decb3b7`，分支：`rolo-v2`；
+- 基线提交：`c05ab27`，分支：`docs/probe-write-execution-plan`；
 - canonical Probe 实现：`src/rolo/stages/probe/`；
 - 当前权威链路：`TargetProfile → TargetEvidenceBundle → NativeToolSession → ToolPlan → Conformance`；
 - `ProbeResult` 尚未携带强类型 identity/freshness envelope；Bundle 校验有目标绑定和 replay
