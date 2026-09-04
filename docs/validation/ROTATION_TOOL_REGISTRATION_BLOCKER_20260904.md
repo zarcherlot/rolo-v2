@@ -63,3 +63,29 @@ Harness 可在自己的交互窗口中生成和修改 adapter，再通过
 `/controller/cmd_vel`、`/odom_raw` 和 `/odom_rf2o` 均出现在 ROS 运行时图中，但
 provider identity 和稳定性证据仍不完整。因此本轮已完成 binding 发现和注册校验，
 真实旋转尚未执行，避免把 topic 观测误报成可控能力。
+
+## 现场确认后的执行核查
+
+用户已明确确认本次 15°、0.2 rad/s 旋转的现场安全条件，并要求取消操作员 ID
+必填。CLI 和 SUPERVISED_FIELD_DEBUG session 均已允许省略 operator_id；审计保存
+null，保留用户安全确认、参数、目标指纹、proposal digest 和独立 run_id。
+
+旧执行器逐次启动 SSH/ROS CLI，无法根据发布次数推定实际持续时间。修正后的
+执行器在目标端单进程运行：单调时钟限定运动窗口，里程计记录实测转角；退出时
+发送零速度并读取停止反馈，未观察到转角或停止均不能报告成功。新的每次运行
+独立审计文件在派发前先写入 PENDING，避免失败丢失记录或覆盖上一轮证据。
+
+当前 SSH 诊断：192.168.10.167 可 ping 通，主机密钥匹配，ED25519 公钥认证成功；
+随后会话显示 authorized_keys 的 command 限制。普通 uname 和 ROS import 请求
+在强制命令会话中超时。这与现场走查文档描述的 Collector 专用 key 行为一致，
+不能把成功的 Tool Surface 静态 conformance 当成远端执行能力。
+
+当前没有发送运动命令。继续真机执行需要一个允许运行已注册 Rolo Tool 的目标
+执行入口；不移除或绕过 Collector key 的强制命令限制。此前自动审批关于现场
+确认的阻塞已收到用户补充信息，但实际运动执行仍未完成。
+
+随后 Collector 协议复测返回 READY（2026-09-04T09:56:42Z）。最新 signed bundle
+payload SHA-256 为 `50e0307950ca6852cf2df80f7df24b746e55f4264f0e8f9e6612248b69f9cce2`；
+里程计可观测，但本轮 /cmd_vel 和 /controller/cmd_vel 未出现在运行时接口证据中。
+注册前校验返回 BLOCKED：binding command endpoint was not observed by Probe。
+本地记录见 artifacts/rotation-registration-check.json；motion_sent=false。

@@ -52,6 +52,8 @@ python_files = [
   "test_probe_evidence_contract.py",
   "test_probe_session_factory.py",
   "test_product_cli_v2.py",
+  "test_mvp_rotation_execution.py",
+  "test_ros_binding.py",
   "test_probe_pipeline.py",
   "test_application_bundles.py",
   "test_rkb_envelope.py",

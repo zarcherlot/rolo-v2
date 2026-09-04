@@ -287,6 +287,9 @@ class SshTargetExecutor:
         """
         if not remote_argv or any(not value or "\x00" in value for value in remote_argv):
             raise ValueError("bound execution argv must be non-empty and NUL-free")
+        command_timeout = self.timeout_s if timeout_s is None else timeout_s
+        if not 1 <= command_timeout <= 300:
+            raise ValueError("bound execution timeout must be between 1 and 300 seconds")
         setup_files = tuple(ros_setup_files or self.ros_setup_files)
         if setup_files:
             if any(
@@ -304,8 +307,8 @@ class SshTargetExecutor:
                     f"exec {' '.join(quote_remote_argv(remote_argv))}",
                 ]
             )
-            return self._run(["bash", "--noprofile", "--norc", "-c", command])
-        return self._run(remote_argv)
+            return self.runner.run(self._ssh_argv(["bash", "--noprofile", "--norc", "-c", command]), timeout_s=command_timeout)
+        return self.runner.run(self._ssh_argv(remote_argv), timeout_s=command_timeout)
 
     @staticmethod
     def _failure_detail(result: CommandResult) -> str:

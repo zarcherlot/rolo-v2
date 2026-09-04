@@ -19,8 +19,9 @@ authority: guide
    返回 `READY_FOR_SUPERVISED_REVIEW` 只表示允许进入人工复核，不会驱动底盘。
 4. 为 Trace 创建带 TTL 和预算的 session；每次调用只使用 catalog 中的工具。错误必须
    关联本次 session 的 evidence，并最多进行有界诊断/恢复尝试。
-5. 在 `SUPERVISED_FIELD_DEBUG` 下执行实验性写工具时，必须提供 operator identity、
-   `safety_confirmed=true`、超时、停止/取消和结果读回；`UNATTENDED_REMOTE` 在 MVP 中拒绝。
+5. 在 `SUPERVISED_FIELD_DEBUG` 下执行实验性写工具时，需要用户确认现场安全、
+   超时、停止/取消和结果读回。operator ID 仅为可选审计备注，缺省保存 null，
+   不能由 Harness 虚构身份；`UNATTENDED_REMOTE` 在 MVP 中拒绝。
 6. 使用 `examples/chassis-rotation-10.json` 作为离线格式样例。现场 runner 应从设备路径加载同
    格式的十条用例，并调用 `CertificationRunner` 生成 JSON、Markdown 和 artifact index。
 7. 归档 `.rolo/mvp/<run_id>/` 下的 session、events、evidence、报告和索引，用 SHA-256

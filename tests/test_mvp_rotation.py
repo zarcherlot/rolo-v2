@@ -74,10 +74,10 @@ def test_supervised_trace_can_invoke_registered_experimental_write_tool() -> Non
         catalog_digest=catalog.digest or "",
         task="调试地盘旋转",
         mode="SUPERVISED_FIELD_DEBUG",
-        operator_id="operator-1",
         safety_confirmed=True,
     )
     session = service.create_session(request)
+    assert session.operator_id is None
     result = service.execute(session.session_id, [{"tool_id": descriptor.tool_id, "arguments": {"angle_degrees": 90}}])
     assert result.state == SessionState.COMPLETED
     assert result.calls == 1

@@ -7,10 +7,10 @@ registration, a frozen Tool Surface, and execution of digest-bound plans.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import typer
 
@@ -582,8 +582,8 @@ def execute_rotation(
     evidence: Annotated[Path, typer.Option("--evidence")],
     angle_degrees: Annotated[float, typer.Option("--angle-degrees", min=-179.999, max=179.999)],
     max_speed_rad_s: Annotated[float, typer.Option("--max-speed-rad-s", min=0.0001, max=1.0)],
-    operator_id: Annotated[str, typer.Option("--operator-id", min_length=1, max_length=128)],
     safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
+    operator_id: Annotated[str | None, typer.Option("--operator-id", help="Optional audit label; not required for execution")] = None,
     timeout: Annotated[float, typer.Option("--timeout", min=10.0, max=300.0)] = 120.0,
 ) -> None:
     """Execute one registered rotation binding and persist execution evidence."""
@@ -598,30 +598,55 @@ def execute_rotation(
         registered = next((item for item in proposals if item.tool_id == "app.base.rotate"), None)
         if registered is None or registered.implementation != "binding" or registered.binding is None:
             raise ValueError("registered app.base.rotate binding is unavailable")
+        supplied = ToolRegistrationProposal.model_validate_json(proposal.read_text(encoding="utf-8"))
+        if supplied.digest() != registered.digest():
+            raise ValueError("supplied proposal differs from registered Tool")
+        deployment = load_deployment(get_settings().rolo_config_dir / "target-evidence" / f"{profile}.json")
+        verify_evidence_bundle(bundle, deployment=deployment)
         expected_ref = f"target-evidence:{bundle.payload_sha256}"
         if expected_ref not in registered.evidence_refs or expected_ref not in registered.binding.evidence_refs:
             raise ValueError("registered rotation binding is stale for this Probe evidence")
-        target_executor = create_profile_target_executor(profile, config_root=get_settings().rolo_config_dir, timeout_s=timeout)
-        result = RosBindingExecutor(target_executor).rotate(
-            registered.binding,
-            {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
-        )
+        routes = {route.resource_id: route for probe in bundle.probes.values() for route in observed_probe_routes(probe)}
+        command = routes.get(registered.binding.command_resource_id)
+        if command is None or command.interface_type != registered.binding.interface_type:
+            raise ValueError("command binding differs from Probe observations")
+        for endpoint in registered.binding.feedback_endpoints:
+            feedback = routes.get(f"ros_topic:{endpoint}")
+            if feedback is None or feedback.interface_type != "nav_msgs/msg/Odometry":
+                raise ValueError("rotation feedback must be observed Odometry")
+        run_id = uuid4().hex
         evidence_payload = {
             "schema_version": "rolo-rotation-execution-evidence/v1",
             "target_id": profile,
             "tool_id": "app.base.rotate",
+            "run_id": run_id,
+            "target_fingerprint": bundle.target_host_fingerprint,
             "proposal_digest": registered.digest(),
             "probe_evidence_ref": expected_ref,
             "operator_id": operator_id,
             "safety_confirmed": safety_confirmed,
             "arguments": {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
-            "result": result,
+            "result": {"status": "PENDING"},
             "executed_at": datetime.now(timezone.utc).isoformat(),
         }
-        relative = f"application/{profile}/rotations/{registered.digest()}.json"
-        artifact_path = get_settings().rolo_artifact_dir / relative
-        artifact_path.parent.mkdir(parents=True, exist_ok=True)
-        artifact_path.write_text(json.dumps(evidence_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        relative = f"application/{profile}/rotations/{run_id}.json"
+        store = ArtifactStore(get_settings().rolo_artifact_dir)
+        store.write_json(relative, evidence_payload)
+        try:
+            target_executor = create_profile_target_executor(profile, config_root=get_settings().rolo_config_dir, timeout_s=timeout)
+            connection = target_executor.inspect()
+            if connection.state != TargetConnectionState.READY:
+                result = {"status": "BLOCKED", "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE", "motion_started": False}
+            else:
+                result = RosBindingExecutor(target_executor).rotate(
+                    registered.binding,
+                    {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
+                )
+        except (OSError, ValueError) as exc:
+            result = {"status": "UNKNOWN", "error": type(exc).__name__}
+        evidence_payload["result"] = result
+        evidence_payload["completed_at"] = datetime.now(timezone.utc).isoformat()
+        store.write_json(relative, evidence_payload)
         emit({"status": result.get("status", "UNKNOWN"), "evidence_ref": f"artifact://{relative}", "result": result})
         if result.get("status") != "SUCCEEDED":
             raise typer.Exit(code=2)

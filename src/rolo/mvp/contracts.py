@@ -141,8 +141,8 @@ class TraceSessionRequest(MvpModel):
 
     @model_validator(mode="after")
     def mode_requirements(self) -> TraceSessionRequest:
-        if self.mode == RunMode.SUPERVISED_FIELD_DEBUG and (not self.operator_id or not self.safety_confirmed):
-            raise ValueError("SUPERVISED_FIELD_DEBUG requires operator_id and safety_confirmed")
+        if self.mode == RunMode.SUPERVISED_FIELD_DEBUG and not self.safety_confirmed:
+            raise ValueError("SUPERVISED_FIELD_DEBUG requires safety_confirmed")
         if self.mode == RunMode.UNATTENDED_REMOTE:
             raise ValueError("UNATTENDED_REMOTE is blocked for the MVP")
         return self
