@@ -6,7 +6,7 @@ authority: guide
 ## Probe 结果
 
 2026-09-04 已连续执行三次 `mentorpi` 新鲜 Probe，均返回 `READY`。最近一次目标证据
-digest 为 `6cb678bd7145417d9373aeddc68db2d9ae2d4ea33e17b405cbc71765744787e2`。
+digest 为 `2e2db99d04e6d93a418514c1bd598f0bce52ba63023cf97f85eeb3491ae48de4`。
 
 最近一次 runtime graph 观察到：
 
@@ -72,4 +72,3 @@ descriptor 不再携带 Python、`ros2` 或 `/cmd_vel` 发布脚本。新增的
 LanderPi 当前仍没有真实的 `base.motion.velocity` provider-owned route；Probe 观察到的
 `/cmd_vel` 只是资源证据，不能直接升级为写能力。因此本轮已完成架构和注册前校验，
 真实旋转仍保持 BLOCKED，未向设备发送运动命令。
-
