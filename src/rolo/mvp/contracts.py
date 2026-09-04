@@ -177,6 +177,8 @@ class TraceSession(MvpModel):
     created_at: datetime
     expires_at: datetime
     max_calls: int
+    operator_id: str | None = None
+    safety_confirmed: bool = False
     calls: int = 0
     events: list[TraceEvent] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)

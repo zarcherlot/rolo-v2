@@ -58,6 +58,8 @@ class TraceService:
             created_at=now,
             expires_at=now + timedelta(seconds=request.ttl_s),
             max_calls=request.max_calls,
+            operator_id=request.operator_id,
+            safety_confirmed=request.safety_confirmed,
         )
         self.sessions[session.session_id] = session
         self._event(session, SessionState.DISCOVERED, "SESSION_CREATED")
@@ -260,13 +262,32 @@ class TraceService:
         self._event(session, state, event, **kwargs)
 
     def _event(self, session: TraceSession, state: SessionState, event: str, **kwargs: Any) -> None:
-        item = TraceEvent(sequence=len(session.events) + 1, session_id=session.session_id, state=state, event=event, created_at=self.clock(), **kwargs)
+        safe_kwargs = {key: self._safe_value(value, key=key) for key, value in kwargs.items()}
+        item = TraceEvent(sequence=len(session.events) + 1, session_id=session.session_id, state=state, event=event, created_at=self.clock(), **safe_kwargs)
         session.events.append(item)
         if self.artifact_root is not None:
             path = self.artifact_root / session.target_id / session.session_id / "trace-events.jsonl"
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as stream:
                 stream.write(json.dumps(item.model_dump(mode="json"), ensure_ascii=False, separators=(",", ":")) + "\n")
+
+    @classmethod
+    def _safe_value(cls, value: Any, *, key: str = "") -> Any:
+        if any(token in key.lower() for token in ("token", "secret", "password", "authorization", "credential")):
+            return "<redacted>"
+        if value is None or isinstance(value, (bool, int, float)):
+            return value
+        if isinstance(value, str):
+            return value[:4096]
+        if isinstance(value, Mapping):
+            return {str(k): cls._safe_value(v, key=str(k)) for k, v in list(value.items())[:64]}
+        if isinstance(value, (list, tuple)):
+            return [cls._safe_value(item) for item in list(value)[:128]]
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            return f"<{type(value).__name__}>"
+        return value
 
 
 __all__ = ["TraceService"]
