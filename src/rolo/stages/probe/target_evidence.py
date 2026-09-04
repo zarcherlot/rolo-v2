@@ -1347,6 +1347,30 @@ def verify_evidence_bundle(
         )
         legacy_base.pop("source_snapshot", None)
         actual_payload_sha256 = hashlib.sha256(_canonical_json(legacy_base)).hexdigest()
+    # JSON round-trips mark Pydantic compatibility defaults as explicitly set.
+    # Older target collectors omitted these fields, so accept the exact
+    # round-trip candidate only when the values are still their defaults. The
+    # digest remains authoritative; explicit non-default metadata is retained.
+    if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
+        roundtrip_base = bundle.model_dump(
+            mode="json",
+            exclude={"payload_sha256", "signature_hmac_sha256"},
+        )
+        if bundle.schema_version in {
+            "robot-target-evidence-bundle/v1",
+            "robot-target-evidence-bundle/v2",
+        } and bundle.source_snapshot is None:
+            roundtrip_base.pop("source_snapshot", None)
+        for serialized_probe in roundtrip_base.get("probes", {}).values():
+            if not isinstance(serialized_probe, dict):
+                continue
+            if serialized_probe.get("identity") is None:
+                serialized_probe.pop("identity", None)
+            if serialized_probe.get("fresh_until") is None:
+                serialized_probe.pop("fresh_until", None)
+            if serialized_probe.get("access") == "READ_ONLY":
+                serialized_probe.pop("access", None)
+        actual_payload_sha256 = hashlib.sha256(_canonical_json(roundtrip_base)).hexdigest()
     if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
         raise ValueError("evidence bundle payload hash mismatch")
     verification_secret = _load_secret(secret_path or Path(deployment.verification_secret_path))
