@@ -200,6 +200,20 @@ def register_tool_proposal(
                 descriptor_digest=_descriptor_digest(proposal.descriptor),
                 limitations=[f"binding command endpoint was not observed by Probe: {proposal.binding.command_resource_id}"],
             )
+        missing_feedback = sorted(
+            f"ros_topic:{endpoint}"
+            for endpoint in proposal.binding.feedback_endpoints
+            if f"ros_topic:{endpoint}" not in observed_route_ids
+        )
+        if missing_feedback:
+            return ToolRegistrationResult(
+                target_id=target_id,
+                tool_id=proposal.tool_id,
+                status="BLOCKED",
+                proposal_digest=proposal.digest(),
+                descriptor_digest=_descriptor_digest(proposal.descriptor),
+                limitations=[f"binding feedback endpoints were not observed by Probe: {missing_feedback}"],
+            )
     target_dir = registry_root / target_id
     target_dir.mkdir(parents=True, exist_ok=True)
     path = target_dir / f"{proposal.tool_id}.json"
