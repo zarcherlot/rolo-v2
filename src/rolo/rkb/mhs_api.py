@@ -8,7 +8,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from pydantic import BaseModel
+
+from ..mhs_manifest_records import (
+    MhsManifestReference as StrictManifestReference,
+)
+from ..mhs_manifest_records import MhsReadOnly as StrictReadOnly
+from ..mhs_manifest_records import (
+    MhsReferenceCandidate as StrictReferenceCandidate,
+)
 from .mhs_read_models import ProbeEvidenceView, build_probe_evidence_view
+
+
+def _strict_payload(model_type: type[BaseModel], item: Mapping[str, object] | BaseModel) -> dict:
+    payload = item.model_dump(mode="json") if isinstance(item, BaseModel) else dict(item)
+    return model_type.model_validate(payload).model_dump(mode="json")
 
 
 class MhsEvidenceReadApi:
@@ -28,16 +42,28 @@ class MhsEvidenceReadApi:
         self,
         *,
         target_fingerprint: str,
-        references: Sequence[Mapping[str, object]] = (),
-        manifests: Sequence[Mapping[str, object]] = (),
-        read_results: Sequence[Mapping[str, object]] = (),
+        references: Sequence[Mapping[str, object] | BaseModel] = (),
+        manifests: Sequence[Mapping[str, object] | BaseModel] = (),
+        read_results: Sequence[Mapping[str, object] | BaseModel] = (),
         limitations: Sequence[str] = (),
     ) -> ProbeEvidenceView:
+        # Validate registry/provider records at the service boundary.  The
+        # transport model remains the public wire shape, while the strict
+        # records enforce source authority, canonical routes, and read-only
+        # access before anything is published to the in-process store.
+        validated_references = [
+            _strict_payload(StrictReferenceCandidate, item) for item in references
+        ]
+        validated_manifests = [
+            _strict_payload(StrictManifestReference, item)
+            for item in manifests
+        ]
+        validated_results = [_strict_payload(StrictReadOnly, item) for item in read_results]
         view = build_probe_evidence_view(
             target_fingerprint=target_fingerprint,
-            references=references,
-            manifests=manifests,
-            read_results=read_results,
+            references=validated_references,
+            manifests=validated_manifests,
+            read_results=validated_results,
             limitations=limitations,
         )
         self._views[target_fingerprint] = view

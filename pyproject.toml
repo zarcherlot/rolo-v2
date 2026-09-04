@@ -20,6 +20,7 @@ dependencies = [
 [project.scripts]
 rolo = "rolo.product_cli:app"
 robotctl = "rolo.cli:app"
+rolo-http = "rolo.http_server:run"
 
 [dependency-groups]
 dev = [
@@ -59,6 +60,7 @@ python_files = [
   "test_mhs_linux_inventory.py",
   "test_mhs_adapters.py",
   "test_mhs_sensor.py",
+  "test_http_server.py",
   "test_target_credentials.py",
   "test_target_executors.py",
   "test_tool_conformance.py",

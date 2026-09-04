@@ -26,3 +26,38 @@ def test_mhs_api_rejects_non_read_only_payload() -> None:
                 "write_operations": 1,
             }
         )
+
+
+def test_mhs_api_validates_manifest_registry_records_before_publish() -> None:
+    api = MhsEvidenceReadApi()
+    with pytest.raises(ValueError, match="canonical_route"):
+        api.publish_parts(
+            target_fingerprint="a" * 64,
+            manifests=[
+                {
+                    "manifest_id": "manifest-1",
+                    "target_fingerprint": "a" * 64,
+                    "status": "MHS_MANIFEST_AVAILABLE",
+                    "available": True,
+                    "verified": True,
+                    "canonical_route": "not-mhs-route",
+                }
+            ],
+        )
+
+
+def test_mhs_api_validates_provider_read_results_before_publish() -> None:
+    api = MhsEvidenceReadApi()
+    with pytest.raises(ValueError, match="unsupported MHS operation"):
+        api.publish_parts(
+            target_fingerprint="a" * 64,
+            read_results=[
+                {
+                    "device_id": "sensor-1",
+                    "operation": "write",
+                    "route": "mhs://sensor-1/read",
+                    "status": "AVAILABLE",
+                    "access": "READ_ONLY",
+                }
+            ],
+        )
