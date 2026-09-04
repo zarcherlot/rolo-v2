@@ -10,9 +10,9 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -31,6 +31,7 @@ class MhsDeviceClass(str, Enum):
     COMPUTE = "compute"
     BUS = "bus"
     TOOL = "tool"
+    END_EFFECTOR = "end-effector"
 
 
 class MhsChannel(BaseModel):
@@ -54,6 +55,33 @@ class MhsChannel(BaseModel):
         return self
 
 
+class MhsCommandDescriptor(BaseModel):
+    """One bounded write command declared by a device manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.-]*$")
+    access: Literal["write"] = "write"
+    hardware_resource_id: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_.:/-]*$")
+    risk: str = Field(pattern=r"^R[1-3]$")
+    input_schema: dict[str, Any]
+    timeout_s: float = Field(gt=0, le=300)
+    idempotent: bool = False
+    requires: list[str] = Field(default_factory=list)
+    cancel_capability: str | None = None
+    compensation_capability: str | None = None
+
+    @model_validator(mode="after")
+    def validate_input_schema(self) -> MhsCommandDescriptor:
+        if self.input_schema.get("type", "object") != "object":
+            raise ValueError("MHS command input_schema must describe an object")
+        if self.input_schema.get("additionalProperties") is not False:
+            raise ValueError("MHS command input_schema must reject additional properties")
+        if not isinstance(self.input_schema.get("properties"), dict):
+            raise ValueError("MHS command input_schema must declare properties")
+        return self
+
+
 class MhsDeviceManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -66,9 +94,12 @@ class MhsDeviceManifest(BaseModel):
     serial: str | None = None
     channels: list[MhsChannel] = Field(default_factory=list)
     resources: list[str] = Field(default_factory=list)
+    state: dict[str, list[str]] = Field(default_factory=lambda: {"read": []})
+    commands: list[MhsCommandDescriptor] = Field(default_factory=list)
     transport: dict[str, Any] = Field(default_factory=dict)
     limits: list[str] = Field(default_factory=list)
     driver_id: str = Field(default="unknown-driver", min_length=1)
+    driver_version: str = Field(default="unknown", min_length=1)
     driver_sha256: str = Field(default="0" * 64, pattern=r"^[0-9a-f]{64}$")
 
     @model_validator(mode="after")
@@ -76,6 +107,9 @@ class MhsDeviceManifest(BaseModel):
         ids = [item.id for item in self.channels]
         if len(ids) != len(set(ids)):
             raise ValueError("manifest contains duplicate channel ids")
+        command_ids = [item.id for item in self.commands]
+        if len(command_ids) != len(set(command_ids)):
+            raise ValueError("manifest contains duplicate command ids")
         return self
 
     @property
@@ -103,6 +137,13 @@ class MhsResult(BaseModel):
     route: str
     value: dict[str, Any] | None = None
     observed_at: datetime | None = None
+    fresh_until: datetime | None = None
+    manifest_sha256: str | None = None
+    driver_id: str | None = None
+    driver_version: str | None = None
+    driver_sha256: str | None = None
+    provider_version: str | None = None
+    transport: dict[str, Any] = Field(default_factory=dict)
     reason: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
@@ -112,6 +153,7 @@ class MhsDeviceProvider:
     """Read-only Provider SPI for one MHS device manifest and backend."""
 
     provider_version = "1.0.0"
+    freshness_seconds = 300
     READ_CAPABILITIES = frozenset({"inspect", "status", "read"})
 
     def __init__(self, manifest: MhsDeviceManifest, backend: MhsBackend) -> None:
@@ -124,7 +166,10 @@ class MhsDeviceProvider:
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
-        return [
+        # Probe publishes only the bounded read surface.  A vendor manifest may
+        # carry command metadata for later Trace/Write review, but commands are
+        # deliberately not converted into executable Tool descriptors here.
+        readable = [
             {
                 "capability_id": capability,
                 "access": "read",
@@ -134,6 +179,7 @@ class MhsDeviceProvider:
             }
             for capability in sorted(self.READ_CAPABILITIES)
         ]
+        return readable
 
     def inspect(self) -> MhsResult:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
@@ -198,13 +244,21 @@ class MhsDeviceProvider:
     def _ok(
         self, capability: str, value: dict[str, Any], observed_at: datetime | None = None
     ) -> MhsResult:
+        point = observed_at or datetime.now(timezone.utc)
         return MhsResult(
             status=MhsStatus.AVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
             route=self.route(capability),
             value=value,
-            observed_at=observed_at,
+            observed_at=point,
+            fresh_until=point + timedelta(seconds=self.freshness_seconds),
+            manifest_sha256=self.manifest.manifest_sha256,
+            driver_id=self.manifest.driver_id,
+            driver_version=self.manifest.driver_version,
+            driver_sha256=self.manifest.driver_sha256,
+            provider_version=self.provider_version,
+            transport=self.manifest.transport,
             evidence_ids=[
                 f"mhs-manifest:{self.manifest.manifest_sha256}",
                 f"mhs-driver:{self.manifest.driver_sha256}",
@@ -212,11 +266,24 @@ class MhsDeviceProvider:
         )
 
     def _error(self, capability: str, reason: str) -> MhsResult:
+        point = datetime.now(timezone.utc)
         return MhsResult(
             status=MhsStatus.UNAVAILABLE,
             device_id=self.manifest.device_id,
             capability_id=capability,
             route=self.route(capability),
             reason=reason,
+            observed_at=point,
+            fresh_until=point + timedelta(seconds=self.freshness_seconds),
+            manifest_sha256=self.manifest.manifest_sha256,
+            driver_id=self.manifest.driver_id,
+            driver_version=self.manifest.driver_version,
+            driver_sha256=self.manifest.driver_sha256,
+            provider_version=self.provider_version,
+            transport=self.manifest.transport,
+            evidence_ids=[
+                f"mhs-manifest:{self.manifest.manifest_sha256}",
+                f"mhs-driver:{self.manifest.driver_sha256}",
+            ],
             limitations=["read-only provider; no write operations"],
         )

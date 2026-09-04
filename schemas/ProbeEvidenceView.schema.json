@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-probe-evidence-view/v1",
+  "title": "Probe evidence view",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_fingerprint", "mhs_references", "manifests", "read_results", "access", "write_operations"],
+  "properties": {
+    "schema_version": {"const": "rolo-probe-evidence-view/v1"},
+    "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mhs_references": {"type": "array", "items": {"$ref": "MhsReferenceCandidate.schema.json"}},
+    "manifests": {"type": "array", "items": {"$ref": "MhsManifestReference.schema.json"}},
+    "read_results": {"type": "array", "items": {"$ref": "MHSReadOnly.schema.json"}},
+    "freshness": {"type": "string", "enum": ["FRESH", "STALE", "UNKNOWN"]},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "access": {"const": "READ_ONLY"},
+    "write_operations": {"const": 0}
+  }
+}

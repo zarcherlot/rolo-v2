@@ -1,5 +1,22 @@
 """Typed, read-only Robot Knowledge Base evidence models."""
 
+from rolo.probe_baseline import (
+    BaselineArtifact,
+    BaselineArtifactIndex,
+    BaselineStatus,
+    BaselineTest,
+    CompletionDecision,
+    GateResult,
+    ProbeBaselineManifest,
+    ReadOnlyCompletion,
+    audit_read_only,
+    build_artifact_index,
+    build_manifest,
+    current_commit,
+    schema_digest,
+    validate_baseline,
+)
+
 from .canonical import (
     canonical_json,
     json_pointer,
@@ -7,6 +24,18 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
+from .mhs_api import MhsEvidenceReadApi
+from .mhs_http import create_mhs_app
+from .mhs_read_models import (
+    MhsManifestReference,
+    MhsReadOnlyResult,
+    MhsReferenceCandidate,
+    ProbeEvidenceView,
+    build_probe_evidence_view,
+    project_mhs_read_result,
+    project_probe_evidence_view,
+)
+from .mhs_vis import render_probe_evidence_cards
 from .migration import (
     bundle_to_snapshot,
     probe_to_snapshot,
@@ -74,6 +103,16 @@ __all__ = [
     "QueryRejectedError",
     "ReadOnlyKnowledgeBase",
     "ReadModelMetadata",
+    "MhsReferenceCandidate",
+    "MhsManifestReference",
+    "MhsReadOnlyResult",
+    "ProbeEvidenceView",
+    "build_probe_evidence_view",
+    "project_mhs_read_result",
+    "project_probe_evidence_view",
+    "MhsEvidenceReadApi",
+    "create_mhs_app",
+    "render_probe_evidence_cards",
     "RobotIdentityModel",
     "RuntimeStatusModel",
     "HardwareResourceModel",
@@ -104,4 +143,18 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
+    "BaselineArtifact",
+    "BaselineArtifactIndex",
+    "BaselineStatus",
+    "BaselineTest",
+    "CompletionDecision",
+    "GateResult",
+    "ProbeBaselineManifest",
+    "ReadOnlyCompletion",
+    "audit_read_only",
+    "build_artifact_index",
+    "build_manifest",
+    "current_commit",
+    "schema_digest",
+    "validate_baseline",
 ]

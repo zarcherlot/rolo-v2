@@ -1,0 +1,46 @@
+{
+  "schema_version": "rolo-mhs-discovery-policy/v1",
+  "status": "ACTIVE",
+  "scope": {
+    "network_allowlist": ["192.168.10.0/24"],
+    "target_allowlist": ["192.168.10.167"],
+    "gateway": "192.168.10.1",
+    "owner": "rolo maintainers"
+  },
+  "identity_precedence": [
+    "serial",
+    "device_tree",
+    "udev_by_id",
+    "controller_resource_id",
+    "path"
+  ],
+  "probe_allowlist": ["inspect", "status", "read", "approved_identity_probe"],
+  "probe_budget": {
+    "timeout_s": 5,
+    "max_retries": 0,
+    "max_concurrency": 1,
+    "require_no_write": true
+  },
+  "forbidden_operations": [
+    "reset",
+    "calibrate",
+    "setpoint",
+    "enable",
+    "stop",
+    "power_cycle",
+    "firmware_update",
+    "register_write",
+    "gpio_output_toggle",
+    "arbitrary_shell"
+  ],
+  "gates": {
+    "discovery_output": "DISCOVERED_UNVERIFIED",
+    "path_identity_write": "DENY",
+    "discovery_to_verified": "DENY",
+    "unknown_or_conflict": "UNKNOWN"
+  },
+  "redaction": {
+    "required_before_artifact": true,
+    "forbidden_fields": ["password", "passwd", "token", "secret", "api_key", "authorization"]
+  }
+}

@@ -1,4 +1,4 @@
-<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: reference; owner: rolo maintainers; last_reviewed: 2026-09-04 -->
 
 # Rolo v2 implementation map
 
@@ -17,6 +17,7 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 |---|---|---|
 | `rolo` | `src/rolo/product_cli.py` | User-facing profile inspection, target evidence, Tool Surface, ToolPlan and Probe commands |
 | `robotctl` | `src/rolo/cli.py`, `src/rolo/commands/` | Small operational Probe/configuration surface |
+| `rolo-http` | `src/rolo/http_server.py` (`rolo.api:app` compatibility) | Production ASGI server; embeds validated GET-only MHS evidence routes |
 | package checks | `src/rolo/release_check.py` | Import, schema, docs and artifact sanity checks |
 
 ## Chain components
@@ -32,6 +33,7 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 | Agent planning | `src/rolo/agent_tools/planning.py` | Validates an Agent-produced plan against the session, digest, target and read-only policy |
 | Conformance | `src/rolo/agent_tools/conformance.py` | Independently checks descriptor uniqueness, catalog identity, allowlist and fixed-argv/read-only bounds |
 | Artifacts | `src/rolo/core/artifacts.py` | Writes relative `artifact://` references under the configured artifact root |
+| MHS evidence API | `src/rolo/rkb/mhs_api.py`, `rkb/mhs_http.py`, `mhs_manifest_records.py` | Validates manifest/provider records at publish time and exposes read-only evidence over HTTP |
 
 ## Four semantic families
 

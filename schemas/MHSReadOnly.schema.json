@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mhs-read-only/v1",
+  "title": "MHS read-only result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "device_id", "operation", "status", "access"],
+  "properties": {
+    "schema_version": {"const": "rolo-mhs-read-only/v1"},
+    "device_id": {"type": "string", "minLength": 1},
+    "provider_id": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "route": {"type": ["string", "null"]},
+    "operation": {"type": "string", "enum": ["inspect", "status", "read"]},
+    "status": {"type": "string", "enum": ["AVAILABLE", "UNAVAILABLE", "STALE", "UNKNOWN"]},
+    "value": {},
+    "manifest_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "driver_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "observed_at": {"type": ["string", "null"], "format": "date-time"},
+    "fresh_until": {"type": ["string", "null"], "format": "date-time"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "access": {"const": "READ_ONLY"}
+  }
+}
