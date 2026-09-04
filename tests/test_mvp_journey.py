@@ -39,7 +39,7 @@ def _catalog():
         status="PASS",
         checks=[ToolConformanceCheck(name="fixture", status="PASS", detail="ok")],
     )
-    return build_target_catalog(target_id="mentorpi", descriptors=descriptors, conformance=report)
+    return build_target_catalog(target_id="mentorpi", descriptors=descriptors, conformance=report, freshness="fresh")
 
 
 def test_trace_success_and_evidence():
@@ -53,7 +53,7 @@ def test_trace_success_and_evidence():
 
 
 def test_trace_blocks_unobserved_mapping():
-    catalog = build_target_catalog(target_id="mentorpi", descriptors=[_tool("native.os.host.inspect")])
+    catalog = build_target_catalog(target_id="mentorpi", descriptors=[_tool("native.os.host.inspect")], freshness="fresh")
     service = TraceService(catalog, lambda *_: {"status": "SUCCEEDED"})
     result = service.create_session(TraceSessionRequest(target_id="mentorpi", catalog_digest=catalog.digest or "", task="完成建图"))
     assert result.state == SessionState.BLOCKED

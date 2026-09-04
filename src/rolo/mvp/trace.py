@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
+import re
 from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -44,6 +45,8 @@ class TraceService:
     def create_session(self, request: TraceSessionRequest) -> TraceSession:
         if request.target_id != self.catalog.target_id or request.catalog_digest != self.catalog.digest:
             raise ValueError("TRACE_BLOCKED: target or catalog digest does not match Probe catalog")
+        if self.catalog.freshness != "fresh":
+            raise ValueError("TRACE_BLOCKED: Probe catalog is stale or unknown")
         now = self.clock()
         session = TraceSession(
             session_id=f"trace-{secrets.token_urlsafe(12)}",
@@ -162,13 +165,20 @@ class TraceService:
             session.state = SessionState.BLOCKED
             self._event(session, SessionState.BLOCKED, "TRACE_BUDGET_EXHAUSTED", error_code="TRACE_BUDGET_EXHAUSTED")
             raise ValueError("TRACE_BUDGET_EXHAUSTED: call budget reached")
+        try:
+            encoded_arguments = json.dumps(call.arguments, ensure_ascii=False, separators=(",", ":"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("PARAMETER_REJECTED: arguments must be JSON serializable") from exc
+        if len(encoded_arguments.encode("utf-8")) > 16 * 1024:
+            raise ValueError("PARAMETER_REJECTED: arguments exceed 16 KiB")
+        self._validate_arguments(descriptor, call.arguments)
         session.state = SessionState.CALLING
         self._event(session, SessionState.CALLING, "TOOL_CALL", tool_id=call.tool_id, arguments=dict(call.arguments))
         session.calls += 1
         try:
             result = self.invoker(call.tool_id, call.arguments, session.session_id)
         except Exception as exc:
-            result = {"status": "FAILED", "error": str(exc)[:500]}
+            result = {"status": "FAILED", "error": type(exc).__name__}
         session.state = SessionState.OBSERVED
         evidence = [f"trace:{session.session_id}:call:{session.calls}"]
         session.evidence_ids.extend(evidence)
@@ -189,10 +199,39 @@ class TraceService:
 
     def _check_live(self, session: TraceSession) -> None:
         if self.clock() >= session.expires_at:
+            if session.state == SessionState.BLOCKED and "session TTL expired" in session.limitations:
+                raise ValueError("TRACE_BLOCKED: session TTL expired")
             session.state = SessionState.BLOCKED
             session.limitations.append("session TTL expired")
             self._event(session, SessionState.BLOCKED, "SESSION_EXPIRED", error_code="SESSION_EXPIRED")
             raise ValueError("TRACE_BLOCKED: session TTL expired")
+
+    @staticmethod
+    def _validate_arguments(descriptor: CatalogTool, arguments: Mapping[str, Any]) -> None:
+        definitions = descriptor.parameters
+        unknown = sorted(set(arguments) - set(definitions))
+        if unknown:
+            raise ValueError(f"PARAMETER_REJECTED: unknown arguments {unknown}")
+        for name, definition in definitions.items():
+            if not isinstance(definition, Mapping):
+                continue
+            required = bool(definition.get("required", False))
+            if required and name not in arguments:
+                raise ValueError(f"PARAMETER_REJECTED: missing argument {name}")
+            if name not in arguments:
+                continue
+            value = arguments[name]
+            max_length = int(definition.get("max_length", 1024))
+            if isinstance(value, str) and len(value) > max_length:
+                raise ValueError(f"PARAMETER_REJECTED: argument {name} exceeds max_length")
+            choices = definition.get("choices", [])
+            if choices and value not in choices:
+                raise ValueError(f"PARAMETER_REJECTED: argument {name} is outside choices")
+            pattern = definition.get("pattern")
+            if pattern and isinstance(value, str) and re.fullmatch(str(pattern), value) is None:
+                raise ValueError(f"PARAMETER_REJECTED: argument {name} does not match pattern")
+            if definition.get("kind") == "integer" and not isinstance(value, int):
+                raise ValueError(f"PARAMETER_REJECTED: argument {name} must be an integer")
 
     def _finish(self, session_id: str, state: SessionState, event: str) -> TraceSession:
         session = self._get(session_id)
