@@ -267,6 +267,22 @@ def load_registered_bindings(registry_root: Path, target_id: str) -> list[Execut
     return bindings
 
 
+def load_registered_proposals(registry_root: Path, target_id: str) -> list[ToolRegistrationProposal]:
+    """Load all registered application proposals for a target."""
+
+    directory = registry_root / target_id
+    if not directory.is_dir():
+        return []
+    proposals: list[ToolRegistrationProposal] = []
+    for path in sorted(directory.glob("*.json")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if payload.get("status") == "REGISTERED":
+            proposals.append(ToolRegistrationProposal.model_validate(payload))
+    return proposals
+
+
 __all__ = [
     "ExecutionBinding",
     "ProbeAnalysisInput",
@@ -276,4 +292,5 @@ __all__ = [
     "register_tool_proposal",
     "load_registered_descriptors",
     "load_registered_bindings",
+    "load_registered_proposals",
 ]

@@ -36,6 +36,7 @@ from .probe_registration import (
     build_probe_analysis_input,
     load_registered_bindings,
     load_registered_descriptors,
+    load_registered_proposals,
     register_tool_proposal,
 )
 from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness, rotation_tool_proposal
@@ -82,4 +83,5 @@ __all__ = [
     "register_tool_proposal",
     "load_registered_descriptors",
     "load_registered_bindings",
+    "load_registered_proposals",
 ]

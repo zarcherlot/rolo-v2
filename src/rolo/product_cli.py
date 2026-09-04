@@ -22,6 +22,7 @@ from rolo.mvp.probe_registration import (
     ToolRegistrationProposal,
     build_probe_analysis_input,
     load_registered_descriptors,
+    load_registered_proposals,
     register_tool_proposal,
 )
 from rolo.release_check import run_release_check
@@ -247,6 +248,34 @@ def target_tool_plan(
     finally:
         if session is not None:
             session.close()
+
+
+@target_app.command("application-surface")
+def target_application_surface(
+    profile: Annotated[str, typer.Option("--profile", "--robot")],
+) -> None:
+    """Emit registered evidence-bound application Tools for a target."""
+    try:
+        proposals = load_registered_proposals(get_settings().rolo_config_dir / "registered-tools", profile)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit(
+        {
+            "status": "APPLICATION_SURFACE_READY",
+            "target_id": profile,
+            "tools": [
+                {
+                    "tool_id": proposal.tool_id,
+                    "implementation": proposal.implementation,
+                    "descriptor": proposal.descriptor.model_dump(mode="json"),
+                    "binding": proposal.binding.model_dump(mode="json") if proposal.binding else None,
+                    "evidence_refs": proposal.evidence_refs,
+                    "proposal_digest": proposal.digest(),
+                }
+                for proposal in proposals
+            ],
+        }
+    )
 
 
 @target_app.command("application-bundle")
