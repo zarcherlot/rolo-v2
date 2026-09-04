@@ -59,3 +59,16 @@ Harness 可在自己的交互窗口中生成和修改 adapter，再通过
 Rolo/MHS driver route；auto-review 因此拒绝了向本机 Rolo state registry 持久化并执行
 该运动 Tool。下一步必须把 application adapter 接到已注册的 target execution route，
 再进行现场旋转验证。
+
+## Route-backed adjustment
+
+随后已将旋转 proposal 调整为 route-backed 形式：proposal 只保留
+`angle_degrees`、`max_speed_rad_s` 的边界和 `base.motion.velocity` route 引用，
+descriptor 不再携带 Python、`ros2` 或 `/cmd_vel` 发布脚本。新增的
+`ExecutionRouteRegistry` 与 `RoloRouteBroker` 只允许目标绑定且已注册的 provider handler
+执行，并在进入 provider 前检查 route 的参数 schema。`register-tool` 现在会拒绝未注册 route
+引用，`register-route` 负责把经 Probe evidence 绑定的 provider route 写入 registry。
+
+LanderPi 当前仍没有真实的 `base.motion.velocity` provider-owned route；Probe 观察到的
+`/cmd_vel` 只是资源证据，不能直接升级为写能力。因此本轮已完成架构和注册前校验，
+真实旋转仍保持 BLOCKED，未向设备发送运动命令。

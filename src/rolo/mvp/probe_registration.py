@@ -49,8 +49,9 @@ class ToolRegistrationProposal(BaseModel):
     target_id: str = Field(min_length=1, max_length=128)
     tool_id: str = Field(pattern=_SAFE_ID.pattern)
     evidence_refs: list[str] = Field(min_length=1, max_length=128)
+    route_refs: list[str] = Field(default_factory=list, max_length=16)
     descriptor: AgentNativeToolDescriptor
-    implementation: Literal["descriptor"] = "descriptor"
+    implementation: Literal["descriptor", "route"] = "route"
     code_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     status: Literal["PROPOSED", "REGISTERED", "BLOCKED"] = "PROPOSED"
     harness_notes: str = Field(default="", max_length=4_000)
@@ -64,6 +65,8 @@ class ToolRegistrationProposal(BaseModel):
             raise ValueError("Probe registration currently requires experimental_write access")
         if self.descriptor.risk != "R3":
             raise ValueError("experimental application tools must declare R3 risk")
+        if self.implementation == "route" and not self.route_refs:
+            raise ValueError("route-backed tools require at least one route reference")
         if not self.evidence_refs:
             raise ValueError("registration requires at least one evidence reference")
         return self
@@ -124,6 +127,7 @@ def register_tool_proposal(
     *,
     target_id: str,
     evidence_refs: set[str],
+    route_refs: set[str] | None = None,
     registry_root: Path,
 ) -> ToolRegistrationResult:
     """Validate and persist a proposal for later Trace execution.
@@ -151,6 +155,16 @@ def register_tool_proposal(
             proposal_digest=proposal.digest(),
             descriptor_digest=_descriptor_digest(proposal.descriptor),
             limitations=[f"proposal references unknown evidence: {missing}"],
+        )
+    unknown_routes = sorted(set(proposal.route_refs) - set(route_refs or ()))
+    if unknown_routes:
+        return ToolRegistrationResult(
+            target_id=target_id,
+            tool_id=proposal.tool_id,
+            status="BLOCKED",
+            proposal_digest=proposal.digest(),
+            descriptor_digest=_descriptor_digest(proposal.descriptor),
+            limitations=[f"proposal references unregistered routes: {unknown_routes}"],
         )
     target_dir = registry_root / target_id
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -181,7 +195,8 @@ def load_registered_descriptors(registry_root: Path, target_id: str) -> list[Age
         if payload.get("status") != "REGISTERED":
             continue
         proposal = ToolRegistrationProposal.model_validate(payload)
-        descriptors.append(proposal.descriptor)
+        if proposal.implementation == "descriptor":
+            descriptors.append(proposal.descriptor)
     return descriptors
 
 

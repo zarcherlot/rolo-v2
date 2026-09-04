@@ -39,8 +39,13 @@ harness workspace. Revise it with the user's feedback and emit a typed
 `rolo-tool-registration-proposal/v1`; submit it with
 `rolo register-tool --proposal <proposal> --evidence <bundle>`.
 
-Rolo validates target identity, evidence references, descriptor schema, risk and
-digests, then persists the registered application Tool. The harness
+For a write-capable application Tool, the proposal must reference a registered
+target execution route; the descriptor carries no shell, free-form argv, or
+transport publish implementation. Register a provider-owned route first with
+`rolo register-route --route <route> --evidence <bundle>` when Probe has verified
+the provider and stop path. Rolo validates target identity, evidence references,
+route references, descriptor schema, risk and digests, then persists the
+registered application Tool. The harness
 conversation is the MVP review loop, so there is no second rolo-vis approval
 step. Every registered Tool remains callable only through a target-bound Rolo
 session and typed ToolPlan. The same protocol applies to rotation, mapping,

@@ -18,6 +18,7 @@ from rolo.commands.common import emit
 from rolo.commands.lifecycle import run_probe_start
 from rolo.core.artifacts import ArtifactStore
 from rolo.core.config import get_settings
+from rolo.mvp.execution_routes import ExecutionRoute, ExecutionRouteRegistry
 from rolo.mvp.probe_registration import (
     ToolRegistrationProposal,
     build_probe_analysis_input,
@@ -557,6 +558,7 @@ def register_tool(
             parsed,
             target_id=bundle.robot_id,
             evidence_refs={f"target-evidence:{bundle.payload_sha256}"},
+            route_refs={route.route_id for route in ExecutionRouteRegistry(get_settings().rolo_config_dir / "execution-routes").list(bundle.robot_id) if route.status == "REGISTERED"},
             registry_root=get_settings().rolo_config_dir / "registered-tools",
         )
     except (OSError, ValueError) as exc:
@@ -564,6 +566,36 @@ def register_tool(
     emit(result)
     if result.status == "BLOCKED":
         raise typer.Exit(code=2)
+
+
+@app.command("register-route")
+def register_route(
+    route: Annotated[Path, typer.Option("--route", help="Harness-produced ExecutionRoute JSON")],
+    evidence: Annotated[Path, typer.Option("--evidence", help="Probe evidence used by the route")],
+) -> None:
+    """Register a provider-owned execution route after Probe evidence binding."""
+    try:
+        bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
+        parsed = ExecutionRoute.model_validate_json(route.read_text(encoding="utf-8"))
+        if parsed.target_id != bundle.robot_id:
+            emit({"status": "BLOCKED", "reason": "route target does not match Probe target"})
+            raise typer.Exit(code=2)
+        allowed_evidence = {f"target-evidence:{bundle.payload_sha256}"}
+        missing = sorted(set(parsed.evidence_refs) - allowed_evidence)
+        if missing:
+            emit({"status": "BLOCKED", "reason": f"route references unknown evidence: {missing}"})
+            raise typer.Exit(code=2)
+        registry = ExecutionRouteRegistry(get_settings().rolo_config_dir / "execution-routes")
+        registered = registry.register(parsed)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit({
+        "status": "REGISTERED",
+        "target_id": registered.target_id,
+        "route_id": registered.route_id,
+        "route_digest": registered.digest(),
+        "registration_ref": f"artifact://execution-routes/{registered.target_id}/{registered.route_id}.json",
+    })
 
 
 if __name__ == "__main__":

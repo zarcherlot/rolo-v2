@@ -50,6 +50,7 @@ def test_registration_persists_callable_descriptor_and_reloads(tmp_path) -> None
         tool_id=descriptor.tool_id,
         evidence_refs=["target-evidence:abc"],
         descriptor=descriptor,
+        implementation="descriptor",
     )
     result = register_tool_proposal(
         proposal,
@@ -70,6 +71,7 @@ def test_registration_blocks_unknown_evidence(tmp_path) -> None:
         tool_id=descriptor.tool_id,
         evidence_refs=["target-evidence:missing"],
         descriptor=descriptor,
+        implementation="descriptor",
     )
     result = register_tool_proposal(
         proposal,
