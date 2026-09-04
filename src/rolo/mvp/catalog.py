@@ -115,6 +115,7 @@ def build_target_catalog(
         target_id=target_id,
         target_fingerprint=target_fingerprint,
         snapshot_digest=snapshot_digest,
+        surface_digest=native_catalog_sha256(descriptors) if descriptors else "UNKNOWN",
         generated_at=generated_at or datetime.now(timezone.utc),
         freshness=freshness if freshness in {"fresh", "stale", "unknown"} else "unknown",
         tools=tools,

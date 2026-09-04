@@ -97,6 +97,7 @@ class TargetCatalog(MvpModel):
     target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     target_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     snapshot_digest: str = Field(pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
+    surface_digest: str = Field(default="UNKNOWN", pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     generated_at: datetime
     freshness: Literal["fresh", "stale", "unknown"] = "unknown"
     tools: list[CatalogTool] = Field(default_factory=list, max_length=512)
