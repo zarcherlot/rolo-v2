@@ -1,4 +1,4 @@
-<!-- status: active; authority: requirement; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
+<!-- status: active; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-02 -->
 
 # 传感器与执行器 Discovery 需求
 
