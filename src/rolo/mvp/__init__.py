@@ -7,6 +7,7 @@ verified, target-bound artifacts.
 """
 
 from .adapter import AgentAdapter, InMemoryAgentAdapter, RoloHttpAgentAdapter
+from .artifacts import ArtifactIndex, build_artifact_index, rollback_artifact_index, write_artifact_index
 from .binding_dispatch import ApplicationBindingDispatcher, BindingHandler
 from .catalog import build_target_catalog, load_target_catalog, save_target_catalog
 from .certify import CertificationRunner, load_suite, write_report
@@ -49,6 +50,10 @@ from .trace import TraceService
 
 __all__ = [
     "AgentAdapter",
+    "ArtifactIndex",
+    "build_artifact_index",
+    "write_artifact_index",
+    "rollback_artifact_index",
     "InMemoryAgentAdapter",
     "RoloHttpAgentAdapter",
     "build_target_catalog",

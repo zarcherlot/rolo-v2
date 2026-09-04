@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import secrets
@@ -9,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from .artifacts import build_artifact_index, write_artifact_index
 from .contracts import (
     CatalogTool,
     RunMode,
@@ -157,7 +157,14 @@ class TraceService:
     def get(self, session_id: str) -> TraceSession:
         return self._get(session_id)
 
-    def persist_session(self, session_id: str, root: Path | None = None) -> dict[str, Any]:
+    def persist_session(
+        self,
+        session_id: str,
+        root: Path | None = None,
+        *,
+        signing_secret: bytes | None = None,
+        previous_index: str | None = None,
+    ) -> dict[str, Any]:
         """Write the replayable session, evidence bundle, and artifact index."""
         session = self._get(session_id)
         destination = root or self.artifact_root
@@ -179,14 +186,16 @@ class TraceService:
         }
         evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         files = [session_path, evidence_path]
-        index = {
-            "schema_version": "rolo-mvp-artifact-index/v1",
-            "run_id": session.session_id,
-            "target_id": session.target_id,
-            "artifacts": [{"path": file.name, "sha256": hashlib.sha256(file.read_bytes()).hexdigest()} for file in files],
-        }
         index_path = directory / "artifact-index.json"
-        index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        index = build_artifact_index(
+            run_id=session.session_id,
+            target_id=session.target_id,
+            files=files,
+            root=directory,
+            secret=signing_secret,
+            previous_index=previous_index,
+        )
+        write_artifact_index(index_path, index)
         return {"session": session_path, "evidence": evidence_path, "index": index_path}
 
     def _invoke(self, session: TraceSession, call: TraceCall) -> Any:

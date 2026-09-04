@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .artifacts import build_artifact_index, write_artifact_index
 from .contracts import CaseStatus, CertificationCaseResult, CertificationReport, CertificationSuite
 
 
@@ -98,7 +99,13 @@ class CertificationRunner:
         return report.model_copy(update={"artifact_digests": [hashlib.sha256(json.dumps(report.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode()).hexdigest()]})
 
 
-def write_report(report: CertificationReport, output: Path) -> tuple[Path, Path]:
+def write_report(
+    report: CertificationReport,
+    output: Path,
+    *,
+    signing_secret: bytes | None = None,
+    previous_index: str | None = None,
+) -> tuple[Path, Path]:
     output.parent.mkdir(parents=True, exist_ok=True)
     json_path = output if output.suffix == ".json" else output.with_suffix(".json")
     md_path = json_path.with_suffix(".md")
@@ -116,16 +123,15 @@ def write_report(report: CertificationReport, output: Path) -> tuple[Path, Path]
     for item in report.results:
         lines.append(f"| {item.case_id} | {item.status.value} | `{json.dumps(item.expected, ensure_ascii=False)}` | `{json.dumps(item.actual, ensure_ascii=False)}` | {', '.join(item.evidence_ids)} |")
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    index = {
-        "schema_version": "rolo-mvp-artifact-index/v1",
-        "run_id": report.run_id,
-        "target_id": report.target_id,
-        "artifacts": [
-            {"path": json_path.name, "sha256": hashlib.sha256(json_path.read_bytes()).hexdigest()},
-            {"path": md_path.name, "sha256": hashlib.sha256(md_path.read_bytes()).hexdigest()},
-        ],
-    }
-    json_path.with_name("artifact-index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    index = build_artifact_index(
+        run_id=report.run_id,
+        target_id=report.target_id,
+        files=[json_path, md_path],
+        root=json_path.parent,
+        secret=signing_secret,
+        previous_index=previous_index,
+    )
+    write_artifact_index(json_path.with_name("artifact-index.json"), index)
     return json_path, md_path
 
 
