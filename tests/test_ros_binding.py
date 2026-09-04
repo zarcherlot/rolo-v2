@@ -96,7 +96,7 @@ def test_controller_uses_one_target_call_and_serialized_parameters():
     assert result['status'] == 'SUCCEEDED'
     assert len(calls) == 1
     assert calls[0][0][:2] == ['python3', '-c']
-    assert json.loads(calls[0][0][-1])['duration_s'] == pytest.approx(1.308996938995747)
+    assert json.loads(calls[0][0][-1])['duration_s'] == pytest.approx(1.9634954074936207)
     assert calls[0][1]['timeout_s'] < 20
 
 

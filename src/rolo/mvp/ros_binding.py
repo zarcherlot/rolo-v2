@@ -36,7 +36,10 @@ class RosBindingExecutor:
             return {'status': 'BLOCKED', 'error': 'SPEED_OUT_OF_BOUNDS', 'motion_started': False}
         if angle == 0:
             return {'status': 'SUCCEEDED', 'motion_started': False, 'measured_angle_degrees': 0}
-        duration = abs(math.radians(angle)) / speed
+        # The requested speed is an upper bound; real platforms commonly run
+        # below it under load.  Give the feedback loop bounded settling margin
+        # instead of timing out at the ideal kinematic duration.
+        duration = abs(math.radians(angle)) / speed * 1.5
         if duration > 60:
             return {'status': 'BLOCKED', 'error': 'MOTION_DURATION_EXCEEDS_60_SECONDS', 'motion_started': False}
         request = {
