@@ -1,6 +1,8 @@
 """Static type and safety checks for DSL mappings and bounded composition."""
+
 from .diagnostics import Diagnostic, DiagnosticReport, DiagnosticSeverity
 from .models import DslDocument, OperationKind
+
 
 def check_types(document: DslDocument) -> DiagnosticReport:
     diagnostics: list[Diagnostic] = []
@@ -15,7 +17,13 @@ def check_types(document: DslDocument) -> DiagnosticReport:
         limits = document.composition.get("limits", {})
         max_steps, max_runtime = limits.get("max_steps"), limits.get("max_runtime_ms")
         if not isinstance(max_steps, int) or max_steps <= 0:
-            diagnostics.append(Diagnostic(code="COMPOSITION_MAX_STEPS_REQUIRED", path="composition.limits.max_steps", severity=DiagnosticSeverity.ERROR, message="COMPOSE requires a positive max_steps limit"))
+            diagnostics.append(
+                Diagnostic(code="COMPOSITION_MAX_STEPS_REQUIRED", path="composition.limits.max_steps", severity=DiagnosticSeverity.ERROR, message="COMPOSE requires a positive max_steps limit")
+            )
         if not isinstance(max_runtime, int) or max_runtime <= 0:
-            diagnostics.append(Diagnostic(code="COMPOSITION_MAX_RUNTIME_REQUIRED", path="composition.limits.max_runtime_ms", severity=DiagnosticSeverity.ERROR, message="COMPOSE requires a positive max_runtime_ms limit"))
+            diagnostics.append(
+                Diagnostic(
+                    code="COMPOSITION_MAX_RUNTIME_REQUIRED", path="composition.limits.max_runtime_ms", severity=DiagnosticSeverity.ERROR, message="COMPOSE requires a positive max_runtime_ms limit"
+                )
+            )
     return DiagnosticReport(diagnostics=tuple(diagnostics))

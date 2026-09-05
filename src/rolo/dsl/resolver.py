@@ -1,7 +1,10 @@
 """Probe Context reference resolution for the DSL frontend."""
+
 from typing import Any
+
 from .diagnostics import Diagnostic, DiagnosticReport, DiagnosticSeverity
 from .models import DslDocument
+
 
 def resolve_evidence(document: DslDocument, context: dict[str, Any]) -> DiagnosticReport:
     diagnostics: list[Diagnostic] = []

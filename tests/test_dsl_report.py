@@ -1,4 +1,5 @@
-from rolo.dsl.report import ConformanceReport, GateStatus
+from rolo.dsl.report import ConformanceReport
+
 
 def test_conformance_report_requires_all_gates():
     report = ConformanceReport(c1_dsl="PASS", c2_evidence="PASS", c3_compile="PASS", c4_behavior="PASS")

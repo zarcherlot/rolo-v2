@@ -1,6 +1,10 @@
 """Canonical intermediate representation for deterministic compilation."""
+
 from typing import Any
+
 from .models import OperationKind, StrictModel, TargetBinding
+
+
 class CanonicalIR(StrictModel):
     tool_id: str
     kind: OperationKind

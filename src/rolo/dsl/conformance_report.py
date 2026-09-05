@@ -1,9 +1,10 @@
 """Build layered C1-C4 conformance from an offline compile result."""
+
 from .canonical import ir_digest
 from .compiler import CompileResult
-from .diagnostics import DiagnosticReport
 from .report import ConformanceReport, GateStatus
 from .resolver import resolve_evidence
+
 
 def report_for(result: CompileResult, context: dict | None = None) -> ConformanceReport:
     c1 = GateStatus.PASS if result.document is not None and result.report.ok else GateStatus.FAIL

@@ -1,7 +1,10 @@
 """Conformance checks for generated fake bundles."""
+
 from .canonical import ir_digest
 from .compiler import CompileResult
 from .diagnostics import Diagnostic, DiagnosticReport, DiagnosticSeverity
+
+
 def conformance(result: CompileResult) -> DiagnosticReport:
     diagnostics = list(result.report.diagnostics)
     if result.bundle is None and result.report.ok:
