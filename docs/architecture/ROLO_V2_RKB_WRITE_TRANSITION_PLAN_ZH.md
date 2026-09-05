@@ -138,7 +138,7 @@ W0 是本计划最重要的阶段。它产出的是“只读是否完成”的�
 | 门 | 完工判据 | 必须证据 |
 |---|---|---|
 | A 契约 | schema、版本、canonicalization、迁移和 query 所有权唯一 | schema 校验、兼容 fixture、实现地图 |
-| B 身份/完整性 | 每个 snapshot/fact 可独立验证 robot、fingerprint、collector、nonce、digest | 正/负向 envelope 测试、签名验证 artifact |
+| B 身份/完整性 | 每个 snapshot/fact 可独立验证 robot、fingerprint、probe runner、nonce、digest | 正/负向 envelope 测试、签名验证 artifact |
 | C freshness/来源 | observed、declared、verified、inferred、decision 不混淆；事实 TTL 可拒绝过期读取 | stale/future/clock-skew/source-only 测试 |
 | D 只读行为 | 固定 argv、allowlist、预算、无写入口；UNKNOWN/UNAVAILABLE 不压缩成成功 | ToolPlan/Conformance、拒绝路径和审计记录 |
 | E 数据/恢复 | secret 不进入 RKB/query；latest 原子更新；写失败或损坏不覆盖上一 snapshot | artifact manifest、损坏注入、回滚演练 |
@@ -152,7 +152,7 @@ W0 是本计划最重要的阶段。它产出的是“只读是否完成”的�
   未收集的 examples 测试；
 - 固定目标机至少两次独立只读采集的 identity、schema/digest、资源绑定和 freshness policy
   一致；middleware graph、进程和状态等动态字段允许变化，但必须有 revision、差异和限制说明；
-- 任一 fingerprint、collector、digest、TTL 或 schema mismatch 都能在 query 前拒绝；
+- 任一 fingerprint、probe runner、digest、TTL 或 schema mismatch 都能在 query 前拒绝；
 - 不能以“无 `/cmd_vel`”“Provider 可注册”或“读到一个数”推断安全、停止或物理正确。
 
 ### 3.4 审计结果处理
@@ -232,7 +232,7 @@ lease owner、`quiescent_since` 和 `expires_at`。获取、释放、过期、�
 
 ```text
 WriteRequest:
-  request_id, write_session_id, robot_id, target_fingerprint, collector_id,
+  request_id, write_session_id, robot_id, target_fingerprint, source_id,
   write_challenge, challenge_expires_at,
   operation_id, hardware_resource_id, route_resource_ids,
   manifest_digest, driver_digest, route_schema_digest,
@@ -282,7 +282,7 @@ timeout → cancel → stop/compensation → post-read → VERIFIED / UNKNOWN / 
 
 每个 operation 的 Gate 必须检查：
 
-1. robot identity、target fingerprint、collector 和 request nonce 一致；
+1. robot identity、target fingerprint、probe runner 和 request nonce 一致；
 2. hardware resource identity 稳定，manifest/driver digest 与已审核版本一致；
 3. route resource ID、provider、interface/schema digest 和 runtime revision 精确匹配；
 4. state/safety 快照在该 operation 的 TTL 内，所需字段不是 `UNKNOWN`；

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-agent-discovery-envelope/v1",
+  "type": "object",
+  "required": ["schema_version", "target_id", "catalog", "context_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-agent-discovery-envelope/v1"},
+    "target_id": {"type": "string", "minLength": 1},
+    "catalog": {"type": "object", "required": ["target_id", "target_fingerprint", "snapshot_digest", "freshness", "tools"], "properties": {"target_id": {"type": "string"}, "target_fingerprint": {"type": "string"}, "snapshot_digest": {"type": "string"}, "freshness": {"enum": ["fresh", "stale", "unknown"]}, "tools": {"type": "array"}}, "additionalProperties": true},
+    "context_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

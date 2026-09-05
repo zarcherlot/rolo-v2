@@ -7,6 +7,7 @@ from rolo.stages.contracts import (
     StageName,
     StageStatus,
 )
+from rolo.stages.targetd_session import TargetdStageSession
 
 __all__ = [
     "AgentRequirement",
@@ -14,4 +15,5 @@ __all__ = [
     "StageAssessment",
     "StageName",
     "StageStatus",
+    "TargetdStageSession",
 ]

@@ -4,7 +4,7 @@
   "scope": {
     "network": "192.168.10.0/24",
     "gateway": "192.168.10.1",
-    "collector_id": "rolo.discovery.local-20260902",
+    "probe runner_id": "rolo.discovery.local-20260902",
     "deployment_mode": "remote",
     "access": "READ_ONLY"
   },

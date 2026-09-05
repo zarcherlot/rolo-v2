@@ -10,7 +10,7 @@ RKB snapshot/read model → Agent 关联候选 → rolo-vis 展示。Probe 不�
 
 一次 Probe 只有同时满足以下条件才通过：
 
-- 目标 profile、host fingerprint、collector 和 evidence digest 可追溯；
+- 目标 profile、host fingerprint、probe runner 和 evidence digest 可追溯；
 - MHS 只输出发现到的 ID/Manifest 引用、来源、route、digest 和状态；
 - vendor Manifest 缺失时为 `UNAVAILABLE`/`UNKNOWN`，没有 Rolo 猜测字段；
 - LanderPi 人工整理的 Manifest 明确为 `PROVISIONAL / TEST_FIXTURE / READ_ONLY`，不覆盖 observed evidence；
@@ -46,7 +46,7 @@ uv run robotctl probe status --robot mentorpi
 |---|---|---|
 | `01-profile.json` | profile、target URI、host-key fingerprint | 证明采集目标没有漂移 |
 | `02-probe-result.json` | `ProbeStartResult`、evidence ref/digest、限制 | 证明 Probe 入口结果 |
-| `03-target-evidence.json` | 签名、collector、各 provider probe、时间窗 | 事实和证据源 |
+| `03-target-evidence.json` | 签名、probe runner、各 provider probe、时间窗 | 事实和证据源 |
 | `04-mhs-discovery.json` | MHS ID/Manifest 引用、来源、route、状态、digest | 证明“发现”而非“填充” |
 | `05-rkb-snapshot.json` | snapshot identity、facts、digest、freshness | 证明 RKB 投影没有丢失 provenance |
 | `06-tool-surface.json` | Tool descriptor、allowlist、session、surface digest | 证明 Agent 只能看到只读能力 |

@@ -40,7 +40,7 @@ python scripts/rkb2_landerpi_smoke.py bundle.json --deployment-config .../mentor
   deployment/HMAC verification + typed query; fresh live canary
 pytest (RKB-1 envelope/compatibility + RKB-2 typed queries/storage/schema): passed
 pytest (full suite) + compileall src tests: passed, 1 skipped
-rkb2_landerpi_smoke.py --live (fresh collector bundle): exit 0;
+rkb2_landerpi_smoke.py --live (fresh probe runner bundle): exit 0;
   bundle payload_sha256=0b2bbd5a075fd8435f9c7a2727e4d1f1ecb67b8143036fa1559324cf33f2ed40;
   snapshot digest=089a70877ab1b01e2b214f830d467289928016dcb38765b45b27e72acbbdb6a6
 ```
@@ -50,7 +50,7 @@ middleware 图因运行时采样未稳定及缺少 RMW/schema/provider 信息保
 state safety 没有观察证据，状态为 `UNKNOWN`。这些是目标机证据限制，不是查询层推断。
 
 本轮 verifier 加固后，容器内旧 Bundle 仍按预期被拒绝为 `payload hash mismatch`；协调冲突的
-临时调试进程后，重新 collector → HMAC/deployment verification → snapshot → typed query
+临时调试进程后，重新 probe runner → HMAC/deployment verification → snapshot → typed query
 的 live 链路已 exit 0。长期 bringup 进程未被停止；middleware/state-safety 的保守状态仍按
 目标机实际观测记录，不将 UNKNOWN 误报为运行成功。
 

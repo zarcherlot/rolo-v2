@@ -19,7 +19,7 @@
     "resource_id": {"type": ["string", "null"]},
     "route": {"type": ["string", "null"]},
     "source_ref": {"type": ["string", "null"]},
-    "collector_id": {"type": ["string", "null"]},
+    "source_id": {"type": ["string", "null"]},
     "observed_at": {"type": ["string", "null"], "format": "date-time"},
     "freshness": {"type": "string", "enum": ["FRESH", "STALE", "UNKNOWN"]},
     "digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},

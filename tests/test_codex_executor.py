@@ -114,7 +114,7 @@ def prepare_plan(artifact_root: Path, source_root: Path) -> AdaptPlan:
     )
     binding = {
         "robot_id": "demo_diff",
-        "collector_id": "collector-test",
+        "source_id": "source-test",
         "target_host_fingerprint": "f" * 64,
         "bundle_payload_sha256": "a" * 64,
         "access": "READ_ONLY",

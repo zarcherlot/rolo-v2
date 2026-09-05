@@ -18,8 +18,8 @@ def _episode() -> DiagnosisEpisode:
     now = datetime.now(timezone.utc)
     provenance = TargetProvenance(
         target_id="robot-1",
-        source="target-collector",
-        collector_version="1.0.0",
+        source="target-probe_runner",
+        probe_runner_version="1.0.0",
         collected_at=now,
         clock_offset_ms=1.5,
     )

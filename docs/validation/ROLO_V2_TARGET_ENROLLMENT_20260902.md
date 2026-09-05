@@ -19,12 +19,12 @@ pinned `known_hosts` file, and no password fallback.
 
 ## Current evidence and conformance
 
-The current collector was run inside the target's Middleware container with the v2
-collector implementation. The resulting bundle is retained locally as the
+The current probe runner was run inside the target's Middleware container with the v2
+probe runner implementation. The resulting bundle is retained locally as the
 ignored runtime artifact `.rolo/config/target-evidence/mentorpi-bundle.json` and covers
 hardware, OS, and Middleware in read-only mode.
 
-- Collector: `collector-6c07d8c4c07844a0af54db60012d1810`
+- Probe runner: `probe runner-6c07d8c4c07844a0af54db60012d1810`
 - Target fingerprint: `70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`
 - Bundle payload SHA-256: `59b2163b2af173bb6a1096804d2ba830d53d6f4891ce915097c7aeb4c0cd87c2`
 - Bundle observed at: `2026-09-02T07:54:31Z`
@@ -85,7 +85,7 @@ bytes.
 - Deployment: `.rolo/config/target-evidence/mentorpi.json`
 - Pinned host key: `.rolo/config/keys/raspberrypi_known_hosts`
 - Dedicated identity: `.rolo/config/keys/raspberrypi_192_168_10_167`
-- Verification secret: `.rolo/config/secrets/mentorpi-collector.key`
+- Verification secret: `.rolo/config/secrets/mentorpi-Probe Runner.key`
 
 All of these runtime artifacts are ignored by Git. The private key and
 verification secret must never be copied into source control or conversation

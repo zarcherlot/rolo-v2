@@ -28,7 +28,7 @@ Agent
 Provider 注册成功只能得到 `DISCOVERED_UNVERIFIED`，不能直接得到 `ELIGIBLE` 或 `VERIFIED`。
 要进入后续 gate，Probe 必须把以下字段写入 RKB evidence envelope：
 
-- `robot_id`、target fingerprint、collector、deployment mode 和 request nonce；
+- `robot_id`、target fingerprint、probe runner、deployment mode 和 request nonce；
 - manifest canonical SHA-256、driver id/version/SHA-256；
 - canonical route `mhs://<device_id>/read`（以及 inspect/status）；
 - `observed_at`、`fresh_until`、fact IDs 和 limitations；

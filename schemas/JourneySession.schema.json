@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-journey-session-v1.json",
+  "title": "Rolo journey session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "target_id", "profile_id", "phase", "resume_token", "created_at", "expires_at", "closed"],
+  "properties": {
+    "schema_version": {"const": "rolo-journey-session/v1"},
+    "session_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "profile_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "phase": {"enum": ["BOOTSTRAP", "PROBE", "WAITING_CONFIRMATION", "TRACE", "CERTIFY", "COMPLETE"]},
+    "resume_token": {"type": "string", "pattern": "^[A-Za-z0-9_-]{22,128}$"},
+    "surface_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "closed": {"type": "boolean"}
+  }
+}

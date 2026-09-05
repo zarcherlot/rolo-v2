@@ -11,8 +11,8 @@ from .storage import RKBStore
 from .validation import validate_snapshot
 
 
-class SnapshotCollector:
-    """Adapt a target collector callback into immutable RKB persistence."""
+class SnapshotProbeRunner:
+    """Adapt a target probe_runner callback into immutable RKB persistence."""
 
     def __init__(self, store: RKBStore, collect: Callable[[], Snapshot | EvidenceEnvelope]) -> None:
         self.store = store
@@ -41,6 +41,6 @@ class SnapshotCollector:
 
 
 def collect_snapshot(
-    store: RKBStore, collector: Callable[[], Snapshot | EvidenceEnvelope], **kwargs: Any
+    store: RKBStore, probe_runner: Callable[[], Snapshot | EvidenceEnvelope], **kwargs: Any
 ) -> Snapshot:
-    return SnapshotCollector(store, collector).collect_and_persist(**kwargs)
+    return SnapshotProbeRunner(store, probe_runner).collect_and_persist(**kwargs)

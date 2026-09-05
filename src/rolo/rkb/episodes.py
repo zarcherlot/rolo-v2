@@ -563,7 +563,7 @@ class EpisodeStore:
     @staticmethod
     def _matches_source(episode: EpisodeMetadata, source: str) -> bool:
         token = source.casefold()
-        values = [episode.identity.collector_id]
+        values = [episode.identity.source_id]
         for ref in (episode.bundle, episode.report, episode.snapshot):
             if ref is not None:
                 values.append(ref.ref)

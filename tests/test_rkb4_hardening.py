@@ -71,7 +71,7 @@ def _crash_publisher(snapshot_json: str, root: str) -> None:
 def test_episode_record_survives_publisher_sigkill(tmp_path: Path) -> None:
     identity = {
         "robot_id": "mentorpi", "target_host_fingerprint": "a" * 64,
-        "collector_id": "kill9-test", "deployment_mode": "local",
+        "source_id": "kill9-test", "deployment_mode": "local",
         "request_nonce": "1" * 32, "observed_at": "2026-09-03T00:00:00Z",
         "fresh_until": "2026-09-03T00:05:00Z", "identity_status": "VERIFIED",
         "access": "READ_ONLY",

@@ -1,0 +1,32 @@
+{
+  "schema_version": "rolo-rotation-execution-evidence/v1",
+  "target_id": "mentorpi",
+  "target_host": "192.168.10.167",
+  "transport": "ordinary_ssh_password",
+  "execution_location": "MentorPi Docker container",
+  "tool_id": "app.base.rotate",
+  "arguments": {
+    "angle_degrees": 360,
+    "max_speed_rad_s": 0.2
+  },
+  "binding": {
+    "command_endpoint": "/cmd_vel",
+    "feedback_endpoints": ["/odom_raw", "/odom_rf2o"],
+    "interface_type": "geometry_msgs/msg/Twist",
+    "stop_strategy": "zero_velocity"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "error": null,
+    "motion_started": true,
+    "motion_elapsed_s": 31.3438,
+    "measured_angle_degrees": 359.2788,
+    "angle_error_degrees": -0.7212,
+    "stop_published": true,
+    "stopped_observed": true,
+    "final_speed_rad_s": 0.0,
+    "feedback_topic": "/odom_raw"
+  },
+  "executed_at": "2026-09-04T12:55:08Z",
+  "cleanup": "temporary harness removed from host and container"
+}

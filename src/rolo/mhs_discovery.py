@@ -2,7 +2,7 @@
 
 The module deliberately stops at candidate and evidence production.  It does
 not open transports, execute shell commands, or invoke write capabilities.
-Callers supply observations collected by an approved target-side collector.
+Callers supply observations collected by an approved target-side probe_runner.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class DiscoveryTrace(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trace_id: str = Field(default_factory=lambda: f"trace-{uuid4().hex}")
-    collector_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(min_length=1, max_length=128)
     target_host_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     deployment_mode: Literal["local", "remote"]
     source_kind: FactSourceKind
@@ -88,7 +88,7 @@ class DiscoveryTrace(BaseModel):
     def from_output(
         cls,
         *,
-        collector_id: str,
+        source_id: str,
         target_host_fingerprint: str,
         deployment_mode: Literal["local", "remote"],
         source_kind: FactSourceKind,
@@ -101,7 +101,7 @@ class DiscoveryTrace(BaseModel):
     ) -> DiscoveryTrace:
         redacted_output, changed = redact_secrets(output)
         return cls(
-            collector_id=collector_id,
+            source_id=source_id,
             target_host_fingerprint=target_host_fingerprint,
             deployment_mode=deployment_mode,
             source_kind=source_kind,
@@ -185,7 +185,7 @@ class LinuxDiscoverySnapshot(BaseModel):
     schema_version: str = "rolo-mhs-discovery-snapshot/v1"
     robot_id: str = Field(min_length=1)
     target_host_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    collector_id: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
     deployment_mode: Literal["local", "remote"]
     observed_at: datetime
     fresh_until: datetime
@@ -215,7 +215,7 @@ def collect_linux_snapshot(
     root: str | Path,
     robot_id: str,
     target_host_fingerprint: str,
-    collector_id: str,
+    source_id: str,
     deployment_mode: Literal["local", "remote"] = "local",
     observed_at: datetime | None = None,
     freshness: timedelta = timedelta(minutes=5),
@@ -344,7 +344,7 @@ def collect_linux_snapshot(
     }
     traces = [
         DiscoveryTrace.from_output(
-            collector_id=collector_id,
+            source_id=source_id,
             target_host_fingerprint=target_host_fingerprint,
             deployment_mode=deployment_mode,
             source_kind=FactSourceKind.OBSERVED_RUNTIME,
@@ -359,7 +359,7 @@ def collect_linux_snapshot(
     return LinuxDiscoverySnapshot(
         robot_id=robot_id,
         target_host_fingerprint=target_host_fingerprint,
-        collector_id=collector_id,
+        source_id=source_id,
         deployment_mode=deployment_mode,
         observed_at=point,
         fresh_until=point + freshness,
@@ -385,7 +385,7 @@ def snapshot_evidence_envelope(snapshot: LinuxDiscoverySnapshot) -> EvidenceEnve
     identity = SnapshotIdentity(
         robot_id=snapshot.robot_id,
         target_host_fingerprint=snapshot.target_host_fingerprint,
-        collector_id=snapshot.collector_id,
+        source_id=snapshot.source_id,
         deployment_mode=snapshot.deployment_mode,
         access="READ_ONLY",
         observed_at=snapshot.observed_at,
@@ -394,7 +394,7 @@ def snapshot_evidence_envelope(snapshot: LinuxDiscoverySnapshot) -> EvidenceEnve
     fact = Fact(
         robot_id=identity.robot_id,
         target_host_fingerprint=identity.target_host_fingerprint,
-        collector_id=identity.collector_id,
+        source_id=identity.source_id,
         deployment_mode=identity.deployment_mode,
         access=identity.access,
         source_kind=FactSourceKind.OBSERVED_RUNTIME,
@@ -597,7 +597,7 @@ def mhs_evidence_envelope(
             Fact(
                 robot_id=identity.robot_id,
                 target_host_fingerprint=identity.target_host_fingerprint,
-                collector_id=identity.collector_id,
+                source_id=identity.source_id,
                 deployment_mode=identity.deployment_mode,
                 access=identity.access,
                 request_nonce=identity.request_nonce,

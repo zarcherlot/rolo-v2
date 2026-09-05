@@ -1,6 +1,6 @@
 """Typed conformance layers for offline compiler artifacts."""
 
-from enum import StrEnum
+from rolo._compat import StrEnum
 
 from .models import StrictModel
 

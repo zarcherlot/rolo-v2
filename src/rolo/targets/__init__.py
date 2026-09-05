@@ -11,6 +11,7 @@ from rolo.targets.executor import (
     SshTargetExecutor,
     SubprocessCommandRunner,
     TargetExecutor,
+    create_profile_execution_target_executor,
     create_profile_target_executor,
     create_target_executor,
 )
@@ -50,4 +51,5 @@ __all__ = [
     "ResolvedCredential",
     "create_target_executor",
     "create_profile_target_executor",
+    "create_profile_execution_target_executor",
 ]

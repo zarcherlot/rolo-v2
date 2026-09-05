@@ -67,7 +67,7 @@ def validate(payload: dict[str, Any]) -> dict[str, Any]:
     identity = SnapshotIdentity(
         robot_id=f"recorded-{device_id}",
         target_host_fingerprint=fingerprint,
-        collector_id="mhs-recording-replay",
+        source_id="mhs-recording-replay",
         deployment_mode="remote",
         request_nonce=hashlib.md5(device_id.encode()).hexdigest(),  # noqa: S324 - test nonce only
         observed_at=observed_at,
@@ -77,7 +77,7 @@ def validate(payload: dict[str, Any]) -> dict[str, Any]:
         Fact(
             robot_id=identity.robot_id,
             target_host_fingerprint=identity.target_host_fingerprint,
-            collector_id=identity.collector_id,
+            source_id=identity.source_id,
             deployment_mode=identity.deployment_mode,
             request_nonce=identity.request_nonce,
             source_kind=FactSourceKind.OBSERVED_RUNTIME,

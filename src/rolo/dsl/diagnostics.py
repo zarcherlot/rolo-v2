@@ -1,8 +1,8 @@
 """Stable machine-readable diagnostics emitted by the DSL frontend."""
 
-from enum import StrEnum
-
 from pydantic import Field
+
+from rolo._compat import StrEnum
 
 from .models import StrictModel
 

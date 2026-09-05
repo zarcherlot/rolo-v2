@@ -40,7 +40,7 @@ def _bundle(*routes: RouteEvidence) -> TargetEvidenceBundle:
     )
     return TargetEvidenceBundle(
         robot_id="testbot",
-        collector_id="collector-test",
+        source_id="source-test",
         target_host_fingerprint="1" * 64,
         request_nonce="2" * 32,
         requested_layers=["ros"],

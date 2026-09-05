@@ -49,7 +49,7 @@ Probe，但不能提交任意 shell 或自造运行时事实。
 
 所有 Probe 结果必须是结构化、目标绑定和可追溯的：
 
-- `robot_id`、`target_fingerprint`、`collector_id`；
+- `robot_id`、`target_fingerprint`、`source_id`；
 - 一次性 request/nonce、采集时间和 freshness window；
 - route 的 kind、resource ID、endpoint、接口类型/Schema、provider 和 revision；
 - 原始结果的 artifact ref、SHA-256 和限制说明；
@@ -61,7 +61,7 @@ Middleware Tool 的执行环境必须来自同一份目标 Evidence：至少绑�
 失败或 `environment_limited`，不得用控制器环境补齐后宣称目标可用。
 
 静态源码、文档、模拟和 Agent 自述只能形成候选或待验证缺口，不能单独证明目标工具
-存在。目标证据可以来自本地 Collector 或固定的远程 Collector，但控制器不得把自身环境
+存在。目标证据可以来自本地 Probe runner 或固定的远程 Probe runner，但控制器不得把自身环境
 冒充为目标环境。
 
 ### 2.3 Conformance Standard：工具何时可信

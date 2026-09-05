@@ -71,7 +71,7 @@ class RobotIdentityModel(BaseModel):
     schema_version: str = "robot-snapshot-identity/v1"
     robot_id: str
     target_host_fingerprint: str
-    collector_id: str
+    source_id: str
     deployment_mode: str
     access: str = "READ_ONLY"
     request_nonce: str | None = None

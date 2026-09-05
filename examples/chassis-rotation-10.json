@@ -1,0 +1,16 @@
+{
+  "schema_version": "rolo-chassis-rotation-certify/v1",
+  "tool_id": "app.base.rotate",
+  "cases": [
+    {"case_id": "rotate-01", "angle_degrees": -360, "max_speed_rad_s": 0.1},
+    {"case_id": "rotate-02", "angle_degrees": -180, "max_speed_rad_s": 0.1},
+    {"case_id": "rotate-03", "angle_degrees": -90, "max_speed_rad_s": 0.2},
+    {"case_id": "rotate-04", "angle_degrees": -15, "max_speed_rad_s": 0.2},
+    {"case_id": "rotate-05", "angle_degrees": -1, "max_speed_rad_s": 0.2},
+    {"case_id": "rotate-06", "angle_degrees": 1, "max_speed_rad_s": 0.2},
+    {"case_id": "rotate-07", "angle_degrees": 15, "max_speed_rad_s": 0.2},
+    {"case_id": "rotate-08", "angle_degrees": 90, "max_speed_rad_s": 0.2},
+    {"case_id": "rotate-09", "angle_degrees": 180, "max_speed_rad_s": 0.1},
+    {"case_id": "rotate-10", "angle_degrees": 360, "max_speed_rad_s": 0.1}
+  ]
+}

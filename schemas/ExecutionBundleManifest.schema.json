@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-execution-bundle-v1.json",
+  "title": "Rolo execution bundle manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "bundle_digest", "signer_key_id", "signature", "tool_id", "runtime", "entrypoint", "source_digest", "binding_digest", "dependencies", "observation_contract", "limits", "release_version"],
+  "properties": {
+    "schema_version": {"const": "rolo-execution-bundle/v1"},
+    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signer_key_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "signature": {"type": "string", "minLength": 16, "maxLength": 512},
+    "tool_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "runtime": {"const": "python3"},
+    "entrypoint": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "source_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "binding_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "dependencies": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+    "observation_contract": {"type": "object"},
+    "limits": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}},
+    "release_version": {"type": "string", "minLength": 1, "maxLength": 128}
+  }
+}

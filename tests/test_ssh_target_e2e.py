@@ -18,7 +18,7 @@ from rolo.stages.adapt.target_evidence import (
     EvidenceDeploymentMode,
     collect_over_ssh,
     configure_deployment,
-    initialize_collector,
+    initialize_probe_runner,
     new_request,
     verify_evidence_bundle,
 )
@@ -108,9 +108,9 @@ def test_real_sshd_collects_twice_and_passes_preflight(tmp_path: Path) -> None:
     )
     try:
         _wait_for_sshd(process, port)
-        state = tmp_path / "collector.json"
-        secret = tmp_path / "collector.key"
-        descriptor = initialize_collector(
+        state = tmp_path / "probe_runner.json"
+        secret = tmp_path / "probe_runner.key"
+        descriptor = initialize_probe_runner(
             robot_id="ssh-e2e",
             state_path=state,
             secret_path=secret,
@@ -134,8 +134,8 @@ def test_real_sshd_collects_twice_and_passes_preflight(tmp_path: Path) -> None:
             known_hosts_path=known_hosts,
             ssh_port=port,
             ssh_identity_file=client_key,
-            collector_executable=str(robotctl),
-            collector_config=str(state),
+            probe_runner_executable=str(robotctl),
+            probe_runner_config=str(state),
         )
         first_request = new_request("ssh-e2e")
         first = collect_over_ssh(deployment, first_request, timeout_s=30)
@@ -159,7 +159,7 @@ def test_real_sshd_collects_twice_and_passes_preflight(tmp_path: Path) -> None:
         )
 
         assert first.request_nonce != second.request_nonce
-        assert first.collector_id == second.collector_id == descriptor.collector_id
+        assert first.source_id == second.source_id == descriptor.source_id
         assert preflight.exit_code == 0, preflight.output
         assert json.loads(preflight.output)["status"] == "READY"
     finally:

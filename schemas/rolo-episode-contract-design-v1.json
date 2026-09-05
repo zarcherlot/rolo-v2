@@ -59,7 +59,7 @@
     "local_path",
     "remote_path",
     "signed_url",
-    "collector_identity",
+    "source_identity",
     "credential",
     "command_payload",
     "model_prompt",

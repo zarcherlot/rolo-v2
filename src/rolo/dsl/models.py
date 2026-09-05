@@ -1,9 +1,10 @@
 """Schema-level models for the versioned Rolo DSL contract."""
 
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from rolo._compat import StrEnum
 
 
 class OperationKind(StrEnum):

@@ -23,7 +23,7 @@ def test_typed_query_schema_and_model_round_trip():
     identity = SnapshotIdentity(
         robot_id="robot-1",
         target_host_fingerprint="a" * 64,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="local",
         request_nonce="b" * 32,
         observed_at=NOW,
@@ -32,7 +32,7 @@ def test_typed_query_schema_and_model_round_trip():
     fact = Fact(
         robot_id="robot-1",
         target_host_fingerprint="a" * 64,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="local",
         request_nonce="b" * 32,
         source_kind=FactSourceKind.OBSERVED_RUNTIME,

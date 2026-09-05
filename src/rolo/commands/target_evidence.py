@@ -13,8 +13,8 @@ from rolo.commands.common import emit
 from rolo.core.config import get_settings
 from rolo.stages.probe.ros_environment import select_ros_setup_files
 from rolo.stages.probe.target_evidence import (
-    CollectorDescriptor,
     EvidenceDeploymentMode,
+    ProbeRunnerDescriptor,
     SSHTransportError,
     TargetEvidenceBundle,
     TargetEvidenceRequest,
@@ -22,14 +22,13 @@ from rolo.stages.probe.target_evidence import (
     collect_target_evidence,
     configure_deployment,
     discover_help_executables,
-    initialize_collector,
-    load_collector_state,
+    initialize_probe_runner,
     load_deployment,
+    load_probe_runner_state,
     new_request,
     reenroll_deployment,
     refresh_local_deployment,
-    restricted_collector_authorized_key,
-    stage_collector_rotation,
+    stage_probe_runner_rotation,
     verify_evidence_bundle,
 )
 
@@ -38,43 +37,21 @@ target_evidence_app = typer.Typer(
 )
 
 
-@target_evidence_app.command("ssh-authorized-key")
-def ssh_authorized_key(
-    public_key: Annotated[Path, typer.Option("--public-key")],
-    collector_executable: Annotated[
-        str, typer.Option("--collector-executable")
-    ] = "robotctl",
-    collector_config: Annotated[
-        str, typer.Option("--collector-config")
-    ] = ".rolo/config/target-evidence-collector.json",
-) -> None:
-    """Generate a forced-command authorized_keys entry for a dedicated Collector account."""
-    try:
-        entry = restricted_collector_authorized_key(
-            public_key.read_text(encoding="utf-8"),
-            collector_executable=collector_executable,
-            collector_config=collector_config,
-        )
-    except (OSError, ValueError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-    emit({"status": "GENERATED", "authorized_keys_entry": entry})
-
-
 def deployment_path(robot_id: str) -> Path:
     return get_settings().rolo_config_dir / "target-evidence" / f"{robot_id}.json"
 
 
-@target_evidence_app.command("collector-init")
-def collector_init(
+@target_evidence_app.command("probe-runner-init")
+def probe_runner_init(
     robot_id: Annotated[str, typer.Option("--robot-id", "--robot")],
     config: Annotated[
         Path,
-        typer.Option("--config", help="Target-local collector state path"),
-    ] = Path(".rolo/config/target-evidence-collector.json"),
+        typer.Option("--config", help="Target-local probe_runner state path"),
+    ] = Path(".rolo/config/target-evidence-probe-runner.json"),
     secret_file: Annotated[
         Path,
         typer.Option("--secret-file", help="Target-local 0600 signing secret"),
-    ] = Path(".rolo/config/target-evidence-collector.key"),
+    ] = Path(".rolo/config/target-evidence-probe-runner.key"),
     descriptor_out: Annotated[
         Path | None,
         typer.Option("--descriptor-out", help="Non-secret descriptor for the controller"),
@@ -95,7 +72,7 @@ def collector_init(
         typer.Option("--ros-setup", help="Approved ROS setup file; repeat in source order"),
     ] = None,
 ) -> None:
-    """Initialize the target-side collector and print its pinned identity."""
+    """Initialize the target-side probe_runner and print its pinned identity."""
     try:
         settings = get_settings()
         install_roots = (
@@ -107,7 +84,7 @@ def collector_init(
             project_root=project_root,
             install_roots=install_roots,
         )
-        descriptor = initialize_collector(
+        descriptor = initialize_probe_runner(
             robot_id=robot_id,
             state_path=config,
             secret_path=secret_file,
@@ -125,7 +102,7 @@ def collector_init(
         descriptor_out.write_text(descriptor.model_dump_json(indent=2) + "\n", encoding="utf-8")
     emit(
         {
-            "status": "COLLECTOR_READY",
+            "status": "PROBE_RUNNER_READY",
             "descriptor": descriptor.model_dump(mode="json"),
             "descriptor_path": str(descriptor_out) if descriptor_out else None,
             "secret_path": str(secret_file.resolve()),
@@ -135,11 +112,11 @@ def collector_init(
     )
 
 
-@target_evidence_app.command("collector-rotate")
-def collector_rotate(
+@target_evidence_app.command("probe-runner-rotate")
+def probe_runner_rotate(
     previous_config: Annotated[Path, typer.Option("--previous-config")],
-    expected_collector_id: Annotated[str, typer.Option("--expected-collector-id")],
-    config: Annotated[Path, typer.Option("--config", help="New parallel collector state")],
+    expected_source_id: Annotated[str, typer.Option("--expected-probe-runner-id")],
+    config: Annotated[Path, typer.Option("--config", help="New parallel probe_runner state")],
     secret_file: Annotated[
         Path, typer.Option("--secret-file", help="New parallel 0600 signing secret")
     ],
@@ -148,7 +125,7 @@ def collector_rotate(
         list[Path] | None,
         typer.Option(
             "--allow-executable",
-            help="Exact executable permitted by the replacement collector; repeatable",
+            help="Exact executable permitted by the replacement probe_runner; repeatable",
         ),
     ] = None,
     project_root: Annotated[Path | None, typer.Option("--project-root")] = None,
@@ -157,7 +134,7 @@ def collector_rotate(
         typer.Option("--ros-setup", help="Approved replacement setup file; repeatable"),
     ] = None,
 ) -> None:
-    """Stage rotated target credentials without overwriting the active collector."""
+    """Stage rotated target credentials without overwriting the active probe_runner."""
     try:
         settings = get_settings()
         install_roots = (
@@ -169,9 +146,9 @@ def collector_rotate(
             project_root=project_root,
             install_roots=install_roots,
         )
-        descriptor = stage_collector_rotation(
+        descriptor = stage_probe_runner_rotation(
             previous_state_path=previous_config,
-            expected_collector_id=expected_collector_id,
+            expected_source_id=expected_source_id,
             new_state_path=config,
             new_secret_path=secret_file,
             help_executables=(
@@ -190,24 +167,24 @@ def collector_rotate(
         raise typer.BadParameter(str(exc)) from exc
     emit(
         {
-            "status": "COLLECTOR_ROTATION_STAGED",
+            "status": "PROBE_RUNNER_ROTATION_STAGED",
             "descriptor": descriptor.model_dump(mode="json"),
             "descriptor_path": str(descriptor_out),
             "secret_path": str(secret_file.resolve()),
-            "previous_collector_preserved": True,
+            "previous_probe_runner_preserved": True,
             "next": "transfer the new descriptor and secret, then run re-enroll",
         }
     )
 
 
-@target_evidence_app.command("collector-refresh")
-def collector_refresh(
+@target_evidence_app.command("probe-runner-refresh")
+def probe_runner_refresh(
     robot_id: Annotated[str, typer.Option("--robot-id", "--robot")],
     project_root: Annotated[
         Path, typer.Option("--project-root", help="Target workspace used to discover entrypoints")
     ],
-    expected_collector_id: Annotated[
-        str, typer.Option("--expected-collector-id", help="Current pinned collector identity")
+    expected_source_id: Annotated[
+        str, typer.Option("--expected-probe-runner-id", help="Current pinned probe_runner identity")
     ],
     config_root: Annotated[
         Path | None, typer.Option("--config-root", help="Rolo config root; defaults to settings")
@@ -227,7 +204,7 @@ def collector_refresh(
         str, typer.Option("--reason", help="Immutable transition reason")
     ] = "refresh target executable help allowlist",
 ) -> None:
-    """Explicitly expand a local collector's bounded executable-help allowlist."""
+    """Explicitly expand a local probe_runner's bounded executable-help allowlist."""
     try:
         settings = get_settings()
         root = config_root or settings.rolo_config_dir
@@ -242,7 +219,7 @@ def collector_refresh(
             robot_id=robot_id,
             config_root=root,
             project_root=project_root,
-            expected_collector_id=expected_collector_id,
+            expected_source_id=expected_source_id,
             help_executables=allow_executable or (),
             ros_setup_files=ros_setup_files,
             reason=reason,
@@ -251,13 +228,13 @@ def collector_refresh(
         raise typer.BadParameter(str(exc)) from exc
     emit(
         {
-            "status": "COLLECTOR_REFRESHED",
+            "status": "PROBE_RUNNER_REFRESHED",
             "deployment": deployment.model_dump(mode="json"),
             "transition": transition.model_dump(mode="json"),
             "transition_path": str(transition_path),
-            "collector_state": str(state_path),
+            "probe_runner_state": str(state_path),
             "help_executables": [
-                item.model_dump(mode="json") for item in deployment.collector.help_executables
+                item.model_dump(mode="json") for item in deployment.probe_runner.help_executables
             ],
             "next": f"robotctl target-evidence collect --robot {robot_id}",
         }
@@ -269,11 +246,11 @@ def configure(
     robot_id: Annotated[str, typer.Option("--robot-id", "--robot")],
     mode: Annotated[EvidenceDeploymentMode, typer.Option("--mode")],
     descriptor_path: Annotated[
-        Path, typer.Option("--collector-descriptor", help="Pinned collector descriptor JSON")
+        Path, typer.Option("--probe-runner-descriptor", help="Pinned probe_runner descriptor JSON")
     ],
     verification_secret: Annotated[
         Path,
-        typer.Option("--verification-secret", help="Securely provisioned collector secret"),
+        typer.Option("--verification-secret", help="Securely provisioned probe_runner secret"),
     ],
     ssh_target: Annotated[str | None, typer.Option("--ssh-target")] = None,
     known_hosts: Annotated[
@@ -285,14 +262,14 @@ def configure(
         Path | None,
         typer.Option("--ssh-identity-file", help="Pinned controller-side SSH private key"),
     ] = None,
-    collector_config: Annotated[
+    probe_runner_config: Annotated[
         str,
-        typer.Option("--collector-config", help="Collector state path on the target"),
-    ] = ".rolo/config/target-evidence-collector.json",
-    collector_executable: Annotated[
+        typer.Option("--probe-runner-config", help="ProbeRunner state path on the target"),
+    ] = ".rolo/config/target-evidence-probe-runner.json",
+    probe_runner_executable: Annotated[
         str,
         typer.Option(
-            "--collector-executable",
+            "--probe-runner-executable",
             help="Pinned robotctl executable name or absolute path on the remote target",
         ),
     ] = "robotctl",
@@ -300,7 +277,7 @@ def configure(
 ) -> None:
     """Select local or remote evidence mode for this Rolo installation."""
     try:
-        descriptor = CollectorDescriptor.model_validate_json(
+        descriptor = ProbeRunnerDescriptor.model_validate_json(
             descriptor_path.read_text(encoding="utf-8")
         )
         result = configure_deployment(
@@ -313,10 +290,10 @@ def configure(
             known_hosts_path=known_hosts,
             ssh_port=ssh_port,
             ssh_identity_file=ssh_identity_file,
-            collector_config=collector_config,
-            collector_executable=collector_executable,
-            local_collector_state_path=(
-                Path(collector_config) if mode == EvidenceDeploymentMode.LOCAL else None
+            probe_runner_config=probe_runner_config,
+            probe_runner_executable=probe_runner_executable,
+            local_probe_runner_state_path=(
+                Path(probe_runner_config) if mode == EvidenceDeploymentMode.LOCAL else None
             ),
         )
     except (OSError, ValueError) as exc:
@@ -333,9 +310,9 @@ def configure(
 @target_evidence_app.command("re-enroll")
 def re_enroll(
     robot_id: Annotated[str, typer.Option("--robot-id", "--robot")],
-    expected_collector_id: Annotated[str, typer.Option("--expected-collector-id")],
+    expected_source_id: Annotated[str, typer.Option("--expected-probe-runner-id")],
     reason: Annotated[str, typer.Option("--reason")],
-    descriptor_path: Annotated[Path, typer.Option("--collector-descriptor")],
+    descriptor_path: Annotated[Path, typer.Option("--probe-runner-descriptor")],
     verification_secret: Annotated[Path, typer.Option("--verification-secret")],
     mode: Annotated[EvidenceDeploymentMode | None, typer.Option("--mode")] = None,
     ssh_target: Annotated[str | None, typer.Option("--ssh-target")] = None,
@@ -344,24 +321,24 @@ def re_enroll(
     ssh_identity_file: Annotated[
         Path | None, typer.Option("--ssh-identity-file")
     ] = None,
-    collector_config: Annotated[str | None, typer.Option("--collector-config")] = None,
-    collector_executable: Annotated[
+    probe_runner_config: Annotated[str | None, typer.Option("--probe-runner-config")] = None,
+    probe_runner_executable: Annotated[
         str | None,
-        typer.Option("--collector-executable"),
+        typer.Option("--probe-runner-executable"),
     ] = None,
-    collector_state: Annotated[Path | None, typer.Option("--collector-state")] = None,
+    probe_runner_state: Annotated[Path | None, typer.Option("--probe-runner-state")] = None,
     deployment_config: Annotated[Path | None, typer.Option("--deployment-config")] = None,
     transition_dir: Annotated[Path | None, typer.Option("--transition-dir")] = None,
 ) -> None:
-    """Explicitly replace a pinned collector or verification credential."""
+    """Explicitly replace a pinned probe_runner or verification credential."""
     output_path = deployment_config or deployment_path(robot_id)
     try:
-        descriptor = CollectorDescriptor.model_validate_json(
+        descriptor = ProbeRunnerDescriptor.model_validate_json(
             descriptor_path.read_text(encoding="utf-8")
         )
         deployment, transition, transition_path = reenroll_deployment(
             output_path=output_path,
-            expected_collector_id=expected_collector_id,
+            expected_source_id=expected_source_id,
             reason=reason,
             descriptor=descriptor,
             verification_secret_path=verification_secret,
@@ -370,9 +347,9 @@ def re_enroll(
             known_hosts_path=known_hosts,
             ssh_port=ssh_port,
             ssh_identity_file=ssh_identity_file,
-            collector_config=collector_config,
-            collector_executable=collector_executable,
-            local_collector_state_path=collector_state,
+            probe_runner_config=probe_runner_config,
+            probe_runner_executable=probe_runner_executable,
+            local_probe_runner_state_path=probe_runner_state,
             transition_dir=transition_dir,
         )
     except (OSError, ValueError) as exc:
@@ -388,8 +365,8 @@ def re_enroll(
     )
 
 
-@target_evidence_app.command("collector-run", hidden=True)
-def collector_run(
+@target_evidence_app.command("probe-runner", hidden=True)
+def probe_runner_run(
     config: Annotated[Path, typer.Option("--config")],
 ) -> None:
     """Run one target-side, stdin/stdout, read-only evidence request."""
@@ -398,7 +375,7 @@ def collector_run(
         if len(raw) > 64_000:
             raise ValueError("target evidence request exceeded its size limit")
         request = TargetEvidenceRequest.model_validate_json(raw)
-        bundle = collect_target_evidence(request, load_collector_state(config))
+        bundle = collect_target_evidence(request, load_probe_runner_state(config))
     except (OSError, ValueError) as exc:
         typer.echo(json.dumps({"status": "REJECTED", "error": str(exc)}), err=True)
         raise typer.Exit(code=1) from exc
@@ -409,9 +386,9 @@ def collector_run(
 def collect(
     robot_id: Annotated[str, typer.Option("--robot-id", "--robot")],
     deployment_config: Annotated[Path | None, typer.Option("--deployment-config")] = None,
-    collector_state: Annotated[
+    probe_runner_state: Annotated[
         Path | None,
-        typer.Option("--collector-state", help="Required only for local mode"),
+        typer.Option("--probe-runner-state", help="Required only for local mode"),
     ] = None,
     output: Annotated[Path | None, typer.Option("--output")] = None,
     timeout: Annotated[float, typer.Option("--timeout", min=1.0, max=300.0)] = 45.0,
@@ -420,7 +397,7 @@ def collect(
         list[str] | None,
         typer.Option(
             "--executable-help-id",
-            help="Collector allowlist ID to probe with bounded --help; repeatable",
+            help="ProbeRunner allowlist ID to probe with bounded --help; repeatable",
         ),
     ] = None,
 ) -> None:
@@ -430,12 +407,12 @@ def collect(
         requested_help_ids = (
             executable_help_id
             if executable_help_id is not None
-            else [item.executable_id for item in deployment.collector.help_executables]
+            else [item.executable_id for item in deployment.probe_runner.help_executables]
         )
         request = new_request(robot_id, executable_help_ids=requested_help_ids)
         if deployment.mode == EvidenceDeploymentMode.LOCAL:
-            state_path = collector_state or Path(deployment.local_collector_state_path or "")
-            bundle = collect_target_evidence(request, load_collector_state(state_path))
+            state_path = probe_runner_state or Path(deployment.local_probe_runner_state_path or "")
+            bundle = collect_target_evidence(request, load_probe_runner_state(state_path))
         else:
             bundle = collect_over_ssh(
                 deployment, request, timeout_s=timeout, max_attempts=attempts
@@ -456,7 +433,7 @@ def collect(
             "status": "VERIFIED",
             "robot_id": robot_id,
             "mode": deployment.mode.value,
-            "collector_id": bundle.collector_id,
+            "source_id": bundle.source_id,
             "target_host_fingerprint": bundle.target_host_fingerprint,
             "access": bundle.access,
             "bundle": str(destination),
@@ -515,7 +492,7 @@ def preflight(
             "robot_id": robot_id,
             "ssh_target": deployment.ssh_target,
             "ssh_port": deployment.ssh_port,
-            "collector_id": bundle.collector_id,
+            "source_id": bundle.source_id,
             "target_host_fingerprint": bundle.target_host_fingerprint,
             "known_hosts_sha256": deployment.known_hosts_sha256,
             "elapsed_ms": round((time.monotonic() - started) * 1000),

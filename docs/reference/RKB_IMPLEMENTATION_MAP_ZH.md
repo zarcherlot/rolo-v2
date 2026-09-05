@@ -8,7 +8,7 @@
 | 契约对象 | 唯一代码所有者 | 输入 | 输出/边界 |
 |---|---|---|---|
 | `ProbeResult` v2 metadata | `src/rolo/core/models.py` | Probe 采集器 | 只读 `identity/access/fresh_until` 元数据，不改变现有 `data` |
-| Target identity / bundle verification | `src/rolo/stages/probe/target_evidence.py` | `TargetEvidenceBundle`、deployment、request | 校验 fingerprint、collector、nonce、digest、签名和 replay；输出 verified probes |
+| Target identity / bundle verification | `src/rolo/stages/probe/target_evidence.py` | `TargetEvidenceBundle`、deployment、request | 校验 fingerprint、probe runner、nonce、digest、签名和 replay；输出 verified probes |
 | `SnapshotIdentity`、`Fact`、`EvidenceEnvelope` | `src/rolo/rkb/models.py` | verified probe/bundle | canonical envelope、fact provenance、freshness 和 digest |
 | typed read-only query | `src/rolo/rkb/query.py`; `src/rolo/rkb/read_models.py` | verified snapshot reference | 分层 identity/runtime/hardware/middleware/application/capability/state_safety 查询；不得读取未校验原始 bundle |
 | MHS device manifest/provider | `src/rolo/mhs_hardware.py` | manifest + bounded backend | canonical `mhs://<device>/<capability>`，仅 inspect/status/read |

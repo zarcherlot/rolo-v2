@@ -40,6 +40,7 @@ packages = ["src/rolo"]
 [tool.hatch.build.targets.wheel.force-include]
 "skills/rolo-tool-planning" = "rolo/bundled_skills/rolo-tool-planning"
 "skills/rolo" = "rolo/bundled_skills/rolo"
+"skills/rolo-harness-codegen" = "rolo/bundled_skills/rolo-harness-codegen"
 
 [tool.pytest.ini_options]
 addopts = "-q"
@@ -52,6 +53,8 @@ python_files = [
   "test_probe_evidence_contract.py",
   "test_probe_session_factory.py",
   "test_product_cli_v2.py",
+  "test_mvp_rotation_execution.py",
+  "test_ros_binding.py",
   "test_probe_pipeline.py",
   "test_application_bundles.py",
   "test_rkb_envelope.py",
@@ -63,6 +66,11 @@ python_files = [
   "test_http_server.py",
   "test_target_credentials.py",
   "test_target_executors.py",
+  "test_targetd_protocol.py",
+  "test_targetd_ssh_handoff.py",
+  "test_signed_artifacts.py",
+  "test_targetd_certify_replay.py",
+  "test_targetd_api_read_model.py",
   "test_tool_conformance.py",
   "test_tool_planning.py",
   "test_rkb_*.py",

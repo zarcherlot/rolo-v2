@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-agent-tool-invocation/v1",
+  "type": "object",
+  "required": ["schema_version", "target_id", "session_id", "tool_id", "arguments"],
+  "properties": {
+    "schema_version": {"const": "rolo-agent-tool-invocation/v1"},
+    "target_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "tool_id": {"type": "string", "minLength": 1},
+    "arguments": {"type": "object"}
+  },
+  "additionalProperties": false
+}

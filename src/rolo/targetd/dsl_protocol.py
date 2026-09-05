@@ -1,10 +1,10 @@
 """Typed DSL protocol frames exchanged with targetd."""
 
-from enum import StrEnum
 from typing import Any
 
 from pydantic import Field
 
+from rolo._compat import StrEnum
 from rolo.dsl.models import StrictModel
 
 

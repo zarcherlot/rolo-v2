@@ -131,7 +131,7 @@ def test_mhs_results_project_to_target_bound_rkb_snapshot():
     identity = SnapshotIdentity(
         robot_id="robot-1",
         target_host_fingerprint="b" * 64,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="remote",
         observed_at=datetime.now(timezone.utc),
         fresh_until=datetime.now(timezone.utc) + timedelta(minutes=1),
@@ -160,7 +160,7 @@ def test_canary_publishes_verified_rkb_snapshot(tmp_path: Path):
     identity = SnapshotIdentity(
         robot_id="robot-1",
         target_host_fingerprint="b" * 64,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="remote",
         observed_at=now,
         fresh_until=now + timedelta(minutes=5),
@@ -179,7 +179,7 @@ def test_mhs_snapshot_is_visible_to_hardware_and_capability_queries():
     identity = SnapshotIdentity(
         robot_id="robot-1",
         target_host_fingerprint="b" * 64,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="remote",
         observed_at=now,
         fresh_until=now + timedelta(minutes=5),

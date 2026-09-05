@@ -15,8 +15,8 @@ from rolo.stages.adapt.journey import detect_project_evidence
 from rolo.stages.adapt.models import AdaptPlanStatus, AdaptRunSummary
 from rolo.stages.adapt.target_evidence import (
     collect_target_evidence,
-    initialize_collector,
-    load_collector_state,
+    initialize_probe_runner,
+    load_probe_runner_state,
 )
 
 
@@ -198,9 +198,9 @@ def test_adapt_start_collects_and_binds_fresh_local_target_evidence(
     assert Path(target["bundle_path"]).is_file()
     bundle = json.loads(Path(target["bundle_path"]).read_text(encoding="utf-8"))
     assert bundle["executable_help"][0]["help_probe"]["status"] == "SUCCEEDED"
-    assert second_payload["target_evidence"]["collector_id"] == target["collector_id"]
+    assert second_payload["target_evidence"]["source_id"] == target["source_id"]
     assert (config_root / "target-evidence/signed_robot.json").is_file()
-    assert (config_root / "target-evidence/signed_robot-collector.json").is_file()
+    assert (config_root / "target-evidence/signed_robot-probe_runner.json").is_file()
 
     acceptance = runner.invoke(
         app,
@@ -255,9 +255,9 @@ def test_adapt_start_collects_remote_pinned_evidence_in_the_same_journey(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _stub_target_probes(monkeypatch)
-    target_state = tmp_path / "target/collector.json"
-    target_secret = tmp_path / "target/collector.key"
-    descriptor = initialize_collector(
+    target_state = tmp_path / "target/probe_runner.json"
+    target_secret = tmp_path / "target/probe_runner.key"
+    descriptor = initialize_probe_runner(
         robot_id="remote_robot",
         state_path=target_state,
         secret_path=target_secret,
@@ -274,7 +274,7 @@ def test_adapt_start_collects_remote_pinned_evidence_in_the_same_journey(
         "rolo.stages.adapt.journey.collect_over_ssh",
         lambda deployment, request, *, timeout_s, max_attempts: collect_target_evidence(
             request,
-            load_collector_state(target_state),
+            load_probe_runner_state(target_state),
         ),
     )
     project = _project(tmp_path)
@@ -290,7 +290,7 @@ def test_adapt_start_collects_remote_pinned_evidence_in_the_same_journey(
             str(project),
             "--evidence-mode",
             "remote",
-            "--collector-descriptor",
+            "--source-descriptor",
             str(descriptor_path),
             "--verification-secret",
             str(target_secret),
@@ -313,7 +313,7 @@ def test_adapt_start_collects_remote_pinned_evidence_in_the_same_journey(
     assert result.exit_code == 0, result.output
     target = json.loads(result.output)["target_evidence"]
     assert target["mode"] == "remote"
-    assert target["collector_id"] == descriptor.collector_id
+    assert target["source_id"] == descriptor.source_id
     assert Path(target["bundle_path"]).is_file()
 
 

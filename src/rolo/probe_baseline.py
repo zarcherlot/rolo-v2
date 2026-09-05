@@ -71,7 +71,7 @@ class ProbeBaselineManifest(BaseModel):
     feature_flags: dict[str, bool] = Field(default_factory=dict)
     target_profile: str | None = None
     target_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
-    collector_id: str | None = None
+    source_id: str | None = None
     fixture: str | None = None
     freshness_policy: dict[str, int] = Field(default_factory=dict)
     snapshot_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
@@ -215,7 +215,7 @@ def build_manifest(
     baseline_version: str = "v1.0.0",
     target_profile: str | None = None,
     target_fingerprint: str | None = None,
-    collector_id: str | None = None,
+    source_id: str | None = None,
     fixture: str | None = "offline-fixture",
 ) -> ProbeBaselineManifest:
     """Create a baseline from repository state without contacting a target."""
@@ -258,7 +258,7 @@ def build_manifest(
         feature_flags={"write": False, "write_execution": False, "trace_write": False},
         target_profile=target_profile,
         target_fingerprint=target_fingerprint,
-        collector_id=collector_id,
+        source_id=source_id,
         fixture=fixture,
         freshness_policy={"clock_skew_seconds": 30, "default_ttl_seconds": 300},
         rollback_pointer="immutable://previous-baseline",

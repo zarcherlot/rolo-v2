@@ -99,7 +99,7 @@ client authority to request another capture.
 - references to assets already published in the same Episode revision;
 - bounded limitations.
 
-`source_id` is a product identity, never a collector, hostname, process, credential,
+`source_id` is a product identity, never a probe runner, hostname, process, credential,
 adapter, topic, device path, or storage identity. `REJECTED` indicates a policy or
 contract refusal, not a physical failure. `MISSING`, `STALE`, and `UNAVAILABLE` remain
 distinct and visible. `AVAILABLE` and `STALE` may reference published assets;
@@ -127,7 +127,7 @@ revision. The public model must recursively reject or omit the complete publicat
 when it encounters:
 
 - artifact references, local/remote paths, URIs, signed URLs, raw hostnames, device or
-  topic names, collector/provider identity, credentials, or storage locations;
+  topic names, probe runner/provider identity, credentials, or storage locations;
 - raw command, telemetry, state, TF, point-cloud, map, calibration, renderer, or model
   payloads;
 - prompts, model responses, arbitrary JSON, image bytes, media URLs, or content keys;

@@ -10,7 +10,7 @@ contents to the Agent.
 
 Configuration and artifacts live outside the checkout in the platform's user configuration and
 state directories. A project-local `.rolo/config` is also supported for an explicitly isolated
-enrollment. Private identities, host-key files and collector secrets are ignored runtime state;
+enrollment. Private identities, host-key files and probe runner secrets are ignored runtime state;
 they must never be committed or copied into plans and logs.
 
 ## Target profile

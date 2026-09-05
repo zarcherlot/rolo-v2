@@ -23,10 +23,10 @@
       "title": "Source",
       "type": "string"
     },
-    "collector_version": {
+    "probe_runner_version": {
       "maxLength": 128,
       "minLength": 1,
-      "title": "Collector Version",
+      "title": "Probe Runner Version",
       "type": "string"
     },
     "collected_at": {
@@ -64,7 +64,7 @@
       "default": null,
       "title": "Target Binding Sha256"
     },
-    "collector_session_id": {
+    "probe_runner_session_id": {
       "anyOf": [
         {
           "maxLength": 256,
@@ -76,7 +76,7 @@
         }
       ],
       "default": null,
-      "title": "Collector Session Id"
+      "title": "Probe Runner Session Id"
     },
     "clock_source": {
       "anyOf": [
@@ -109,7 +109,7 @@
   "required": [
     "target_id",
     "source",
-    "collector_version",
+    "probe_runner_version",
     "collected_at",
     "clock_offset_ms"
   ],
