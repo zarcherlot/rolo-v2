@@ -1,11 +1,11 @@
 """Typed request/result contracts for controller-side DSL compilation."""
 from pathlib import Path
-from typing import Any
+from typing import Any`nfrom pydantic import Field
 from .models import StrictModel
 from .report import ConformanceReport
 class DslCheckRequest(StrictModel):
     dsl: dict[str, Any]
-    context: dict[str, Any] = {}
+    context: dict[str, Any] = Field(default_factory=dict)
     compiler_version: str = "rolo-compiler/0.1"
 class DslCompileRequest(DslCheckRequest):
     dsl_digest: str
@@ -20,3 +20,4 @@ class DslCompileResult(StrictModel):
     bundle_digest: str | None = None
     diagnostics: tuple[str, ...] = ()
     conformance: ConformanceReport | None = None
+
