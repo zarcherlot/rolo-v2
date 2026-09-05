@@ -39,7 +39,6 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [Probe/Trace/Certify 最大并发计划](architecture/ROLO_V2_PHASE_CONSUMPTION_MAX_CONCURRENCY_PLAN_ZH.md)：各阶段并发工作流；不重复定义阶段语义。
 - [LanderPi Agent 用户旅程 MVP 开发计划](architecture/ROLO_V2_LANDERPI_AGENT_JOURNEY_MVP_PLAN_ZH.md)：单目标用户旅程和真机验收特化。
 - [Agent Harness 增量开发计划](architecture/ROLO_V2_AGENT_HARNESS_INCREMENTAL_DEVELOPMENT_PLAN_ZH.md)：外部 Agent 的调用适配和交付方式。
-- [SSH 签名 Bundle 与 rolo-targetd 开发计划](architecture/ROLO_V2_SSH_SIGNED_BUNDLE_TARGETD_PLAN_ZH.md)：普通 SSH 基础层、targetd 默认安装、单通道 stdio、digest Bundle 缓存和 LanderPi 执行验收。
 - [Rolo DSL Compiler 技术方案与开发计划](architecture/ROLO_V2_DSL_COMPILER_DEVELOPMENT_PLAN_ZH.md)：Compiler 独立实现、DSL/IR、fake backend、Bundle Plan 和离线 Conformance。
 - [Rolo DSL Compiler 完成后的互补开发计划](architecture/ROLO_V2_DSL_POST_COMPILER_REMAINING_DEVELOPMENT_PLAN_ZH.md)：Compiler G7 后的 Probe Context、Agent、targetd、自动发布、Trace/Certify 和 LanderPi 集成。
 
