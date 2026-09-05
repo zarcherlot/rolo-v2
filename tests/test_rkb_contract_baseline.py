@@ -37,14 +37,14 @@ def test_identity_contract_rejects_invalid_window_and_freezes_access() -> None:
     values = {
         "robot_id": "robot-1",
         "target_host_fingerprint": "a" * 64,
-        "collector_id": "collector-1",
+        "source_id": "source-1",
         "deployment_mode": "remote",
         "observed_at": now,
         "fresh_until": now + timedelta(seconds=30),
     }
     identity = SnapshotIdentity(**values)
     assert identity.access == "READ_ONLY"
-    assert identity.tuple()[:4] == ("robot-1", "a" * 64, "collector-1", "remote")
+    assert identity.tuple()[:4] == ("robot-1", "a" * 64, "source-1", "remote")
 
 
 def test_canonical_json_is_sorted_and_whitespace_free() -> None:
@@ -75,7 +75,7 @@ def test_schema_required_fields_match_the_read_only_artifact_contract() -> None:
         "schema_version",
         "robot_id",
         "target_host_fingerprint",
-        "collector_id",
+        "source_id",
         "deployment_mode",
         "access",
         "observed_at",

@@ -6,11 +6,9 @@ authority: guide
 1. 在设备周围确认急停、网络、地图区域和数据目录，启动 loopback runtime。
 2. 执行 `rolo target inspect-profile --profile mentorpi` 和新鲜 `rolo probe`，保存
    Probe manifest、Tool Surface、RKB snapshot、MHS inventory 及 digest。
-   若 profile 使用受限的 enrollment key（`authorized_keys` 配置了强制
-   `target-evidence probe-runner`），通用 `uname` 检查会被目标端忽略并等待超时；
-   这表示传输认证正常但 shell 检查路径不适用。请改用
-   `rolo probe target-evidence preflight --robot-id mentorpi` 或 `collect` 验证 pinned
-   collector，不要为通过通用检查而移除强制命令限制。
+   Probe、Trace、Certify 和已注册 Tool 共用 profile 的普通 SSH 登录。目标端只需提供
+   已存在的 Python/驱动运行时；Rolo 通过 stdin 发送受约束的 Probe Runner 或 Harness，
+   不生成额外 key，也不依赖强制命令入口。
 3. 通过 `register_catalog` 或 HTTP adapter 发布 `TargetCatalog`。先运行旋转只读预检，确认
    `/cmd_vel`/`/odom` 路由和目标证据 digest 一致。如果目录没有目标绑定、已注册且
    `agent_callable=true` 的旋转实验性 Tool，任何旋转 Trace 创建会返回

@@ -542,11 +542,11 @@ def probe(
             active_probe=active_probe,
             evidence_mode=evidence_mode,
             allow_executable=allow_executable,
-            collector_descriptor=None,
+            probe_runner_descriptor=None,
             verification_secret=None,
             ssh_target=None,
             known_hosts=None,
-            collector_config=".rolo/config/target-evidence-collector.json",
+            probe_runner_config=".rolo/config/target-evidence-probe-runner.json",
             evidence_timeout=evidence_timeout,
         )
     except (FileNotFoundError, OSError, ValueError) as exc:
@@ -642,7 +642,6 @@ def execute_rotation(
                 profile,
                 config_root=get_settings().rolo_config_dir,
                 timeout_s=timeout,
-                purpose="execution",
             )
             connection = target_executor.inspect()
             if connection.state != TargetConnectionState.READY:

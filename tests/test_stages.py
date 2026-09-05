@@ -72,7 +72,7 @@ def _runtime_ros_probe() -> ProbeResult:
 def _bound_target_probes() -> dict[str, ProbeResult]:
     binding = {
         "robot_id": "demo_diff",
-        "collector_id": "collector-test",
+        "source_id": "source-test",
         "target_host_fingerprint": "f" * 64,
         "bundle_payload_sha256": "a" * 64,
         "access": "READ_ONLY",

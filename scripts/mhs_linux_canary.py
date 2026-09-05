@@ -26,7 +26,7 @@ def main() -> int:
     parser.add_argument("--target-fingerprint")
     parser.add_argument("--deployment-mode", choices=("local", "remote"), default="local")
     parser.add_argument("--robot-id")
-    parser.add_argument("--collector-id", default="mhs-linux-canary")
+    parser.add_argument("--source-id", default="mhs-linux-source")
     parser.add_argument("--rkb-root", type=Path)
     args = parser.parse_args()
     backend = LinuxHardwareBackend(args.root)
@@ -47,7 +47,7 @@ def main() -> int:
         identity = SnapshotIdentity(
             robot_id=args.robot_id,
             target_host_fingerprint=args.target_fingerprint,
-            collector_id=args.collector_id,
+            source_id=args.source_id,
             deployment_mode=args.deployment_mode,
             observed_at=observed_at,
             fresh_until=observed_at + timedelta(minutes=5),

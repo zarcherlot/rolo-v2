@@ -78,8 +78,8 @@
         "mode": {
           "$ref": "#/$defs/EvidenceDeploymentMode"
         },
-        "collector_id": {
-          "title": "Collector Id",
+        "source_id": {
+          "title": "Source Id",
           "type": "string"
         },
         "target_host_fingerprint": {
@@ -101,7 +101,7 @@
       },
       "required": [
         "mode",
-        "collector_id",
+        "source_id",
         "target_host_fingerprint",
         "bundle_payload_sha256",
         "bundle_path",

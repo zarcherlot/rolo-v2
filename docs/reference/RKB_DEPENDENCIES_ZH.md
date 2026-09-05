@@ -21,7 +21,7 @@ python -m compileall -q src tests examples
 ```
 
 CI 在 Probe job 中复用同一入口，并覆盖 Python 3.10–3.13；package job 继续执行 release-check
-和 wheel/sdist 构建。真机 canary 另需固定目标机、已批准 host key、只读 collector、ROS/驱动
+和 wheel/sdist 构建。真机 canary 另需固定目标机、已批准 host key、只读 probe runner、ROS/驱动
 运行时和人工授权；缺失任一条件必须标记 `BLOCKED`。
 
 ## 依赖失败处理

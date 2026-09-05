@@ -11,7 +11,7 @@
 
 Probe 基线表示以下内容可重复验证：
 
-- 目标身份、host key、collector、evidence digest 和 freshness；
+- 目标身份、host key、probe runner、evidence digest 和 freshness；
 - MHS ID/Manifest 引用及其来源、digest、状态和限制；
 - RKB 只读 snapshot/query、Agent 关联候选和审计链；
 - Tool Surface、schema、allowlist、预算、错误码和兼容版本；
@@ -24,7 +24,7 @@ Probe 基线表示以下内容可重复验证：
 
 ### 2.1 冻结输入
 
-锁定代码 commit、schema/API 版本、错误码、目标 profile、collector、fixture、测试清单、
+锁定代码 commit、schema/API 版本、错误码、目标 profile、probe runner、fixture、测试清单、
 已知限制和责任人，生成 `probe-baseline-manifest.json`。manifest 必须列出所有输入/输出
 artifact 的 digest、父子关系和回滚指针。
 
@@ -33,7 +33,7 @@ artifact 的 digest、父子关系和回滚指针。
 | 硬门 | 必须证明 | 失败结果 |
 |---|---|---|
 | A 契约 | schema、版本、canonical digest、迁移和所有权唯一 | `READ_ONLY_BLOCKED` |
-| B 身份 | robot、fingerprint、collector、nonce、digest 独立一致 | `READ_ONLY_BLOCKED` |
+| B 身份 | robot、fingerprint、probe runner、nonce、digest 独立一致 | `READ_ONLY_BLOCKED` |
 | C freshness/来源 | observed、declared、verified、inferred、provisional 不混淆 | 过期/冲突值不可读 |
 | D 只读行为 | 固定 argv、allowlist、预算和零写入口 | 写调用非零即阻断 |
 | E 数据/恢复 | secret 脱敏、append-only、原子 latest、损坏隔离 | 保留上一版本并阻断 |

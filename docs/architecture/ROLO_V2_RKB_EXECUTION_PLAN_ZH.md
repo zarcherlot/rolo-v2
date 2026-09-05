@@ -115,7 +115,7 @@ envelope；旧调用继续读取旧字段，直到 RKB-4 完成迁移。
 
 ```text
 SnapshotIdentity:
-  robot_id, target_host_fingerprint, collector_id, deployment_mode,
+  robot_id, target_host_fingerprint, source_id, deployment_mode,
   access, request_nonce, observed_at, fresh_until
 
 EvidenceEnvelope:
@@ -126,7 +126,7 @@ EvidenceEnvelope:
 ### 测试
 
 - 正向：合法 Bundle 生成 snapshot，digest 可重复，JSON Pointer 可定位原始事实；
-- 负向：robot/fingerprint/collector/nonce 不一致、未来时间、过期 freshness、payload digest
+- 负向：robot/fingerprint/probe runner/nonce 不一致、未来时间、过期 freshness、payload digest
   或 HMAC 错误全部拒绝；
 - 边界：旧 v2/v3 Bundle、缺 optional 字段、`UNKNOWN`/`UNAVAILABLE` Probe 保留原状态；
 - 安全：secret 不进入 envelope、原始大 payload 不进入 startup context。
@@ -263,7 +263,7 @@ python scripts/check_docs.py
 
 | 类别 | 最少覆盖 |
 |---|---|
-| 身份/完整性 | robot、fingerprint、collector、nonce、payload digest、HMAC |
+| 身份/完整性 | robot、fingerprint、probe runner、nonce、payload digest、HMAC |
 | 时间 | future、replay window、事实 TTL、snapshot TTL、clock skew |
 | 来源 | declared、observed、verified、inferred、decision 的隔离 |
 | 运行时 | 目标 PATH、executable hash、interpreter/shebang、Domain/RMW UNKNOWN |

@@ -17,7 +17,7 @@ authority: guide
 
 ## LanderPi 真机门禁（发布前执行）
 
-最近一次只读验证（2026-09-04）已确认 SSH 网络、host key 和 ED25519 identity 正常；collector preflight 返回 `READY`（37.9s）。`mentorpi` collector 返回了新鲜且可验证的 `hw`/`linux` bundle：目标指纹为
+最近一次只读验证（2026-09-04）已确认 SSH 网络、host key 和 ED25519 identity 正常；probe runner preflight 返回 `READY`（37.9s）。`mentorpi` probe runner 返回了新鲜且可验证的 `hw`/`linux` bundle：目标指纹为
 `70c798f35729aec4e4ca083b561f37dd45cf70c8dcbecfbe7ecc1110bd1d74c9`，设备为 Raspberry Pi 5、aarch64、Ubuntu 22.04。早期短超时曾使 `ros` layer 未及时返回；不得用 controller 环境替代该证据，也不得把旋转写能力标记为已验证。
 
 后续使用足够的 120 秒窗口完成了完整 Probe（`hw=PARTIAL`、`linux=SUCCEEDED`、`ros=SUCCEEDED`），并修复了 bundle JSON round-trip digest 校验。新鲜 bundle 观察到 `/cmd_vel`、`/controller/cmd_vel` 和 `/odom*` 路由，旋转预检可进入 `READY_FOR_SUPERVISED_REVIEW`；这只是路由和里程计前置条件。只有目标绑定、注册并通过 conformance 的 `experimental_write` Tool 才能在 `SUPERVISED_FIELD_DEBUG` 中执行 `app.base.rotate`。

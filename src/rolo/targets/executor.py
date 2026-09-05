@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Protocol
 
 from rolo.target_ref import LocalTargetRef, SshTargetRef, TargetRef
 from rolo.targets.models import (
@@ -483,61 +483,11 @@ def create_profile_target_executor(
     config_root: Path,
     timeout_s: float = 10.0,
     runner: CommandRunner | None = None,
-    purpose: Literal["collector", "execution"] = "collector",
 ) -> TargetExecutor:
-    """Build a connector from one persisted profile without exposing secrets.
+    """Build the ordinary SSH or local connector owned by a target profile."""
 
-    The profile owns target identity and host-key approval. The evidence
-    deployment owns pinned transport files. Credential resolution is performed
-    once here, so callers only provide a profile id and never choose an SSH
-    identity ad hoc.
-    """
-
-    if purpose == "execution":
-        return create_profile_execution_target_executor(
-            profile_id, config_root=config_root, timeout_s=timeout_s, runner=runner
-        )
-
-    from rolo.stages.probe.target_evidence import load_deployment, verify_ssh_transport_pins
-    from rolo.targets.credentials import PinnedCredentialBroker
-    from rolo.targets.profiles import TargetProfileStore
-
-    profile = TargetProfileStore(config_root).load(profile_id)
-    if isinstance(profile.target, LocalTargetRef):
-        return create_target_executor(profile.target, timeout_s=timeout_s, runner=runner)
-
-    if profile.host_key is None or profile.host_key.status != "APPROVED":
-        raise ValueError("SSH target profile requires an approved host key")
-    deployment_path = config_root.expanduser().resolve() / "target-evidence" / f"{profile_id}.json"
-    deployment = load_deployment(deployment_path)
-    if deployment.mode.value != "remote":
-        raise ValueError("SSH target profile requires a remote evidence deployment")
-    expected_target = (
-        f"{profile.target.user}@{profile.target.host}"
-        if profile.target.user
-        else profile.target.host
-    )
-    if deployment.ssh_target != expected_target or (
-        deployment.ssh_port or 22
-    ) != (profile.target.port or 22):
-        raise ValueError("target profile and evidence deployment transport do not match")
-    verify_ssh_transport_pins(deployment)
-    credential = PinnedCredentialBroker().resolve(
-        profile.credential,
-        identity_file=(
-            Path(deployment.ssh_identity_file)
-            if deployment.ssh_identity_file and profile.credential.kind != "ssh-agent"
-            else None
-        ),
-    )
-    return create_target_executor(
-        profile.target,
-        known_hosts=Path(deployment.known_hosts_path or ""),
-        identity_file=credential.identity_file,
-        ros_setup_files=tuple(item.path for item in deployment.collector.ros_setup_files),
-        remote_command_prefix=tuple(profile.remote_command_prefix),
-        timeout_s=timeout_s,
-        runner=runner,
+    return create_profile_execution_target_executor(
+        profile_id, config_root=config_root, timeout_s=timeout_s, runner=runner
     )
 
 

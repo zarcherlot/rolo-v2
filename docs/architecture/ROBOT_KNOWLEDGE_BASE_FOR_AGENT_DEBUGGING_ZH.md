@@ -42,7 +42,7 @@ Robot Knowledge Base
   "fact_id": "fact-...",
   "robot_id": "rover-01",
   "target_host_fingerprint": "sha256...",
-  "collector_id": "collector-...",
+  "source_id": "probe runner-...",
   "deployment_mode": "remote",
   "access": "READ_ONLY",
   "request_nonce": "0123456789abcdef0123456789abcdef",
@@ -63,7 +63,7 @@ Bundle 的签名和 payload digest 证明制品未被篡改；fact envelope 的 
 
 ### 4.1 Identity
 
-Identity 是所有事实的根，至少包含 robot_id、target_host_fingerprint、collector_id、deployment_mode、access、observed_at、fresh_until 和 identity_status。Agent 必须先验证 identity，再读取其他层。控制器自身的 hostname、PATH、Python 或设备列表不能自动归因给远端目标。
+Identity 是所有事实的根，至少包含 robot_id、target_host_fingerprint、source_id、deployment_mode、access、observed_at、fresh_until 和 identity_status。Agent 必须先验证 identity，再读取其他层。控制器自身的 hostname、PATH、Python 或设备列表不能自动归因给远端目标。
 
 ### 4.2 Hardware
 
@@ -152,7 +152,7 @@ Episode 保存 target fingerprint、evidence/discovery snapshot、Tool 输入输
 
 ### 4.9 Provenance
 
-每条事实定位到不可变 artifact 的 JSON pointer、行号或日志区间，并保存 hash、采集时间、Collector、限制、置信度和输入 fact IDs。
+每条事实定位到不可变 artifact 的 JSON pointer、行号或日志区间，并保存 hash、采集时间、Probe runner、限制、置信度和输入 fact IDs。
 
 ## 5. Agent 消费协议
 
@@ -189,7 +189,7 @@ episode.timeline(episode_id)
 DECLARED + OBSERVED -> RECONCILED -> ADOPTED -> ELIGIBLE/VERIFIED
 ~~~
 
-禁止用控制器环境填补远端事实、用静态声明覆盖观察、用 route 存在升级 VERIFIED、用缺失 route 推断安全停止，或在 fingerprint、Collector、digest、freshness 不一致时继续消费。
+禁止用控制器环境填补远端事实、用静态声明覆盖观察、用 route 存在升级 VERIFIED、用缺失 route 推断安全停止，或在 fingerprint、Probe runner、digest、freshness 不一致时继续消费。
 
 ## 7. MHS 在 RKB 中的位置
 

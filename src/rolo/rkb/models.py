@@ -41,8 +41,7 @@ class IdentityStatus(str, Enum):
 
 
 class FactSourceKind(str, Enum):
-    # Layer vocabulary used by the RKB contract.  The more specific values
-    # below remain accepted for compatibility with the initial P0 prototype.
+    # Layer vocabulary used by the RKB contract.
     DECLARED = "DECLARED"
     OBSERVED = "OBSERVED"
     VERIFIED = "VERIFIED"
@@ -74,7 +73,7 @@ class SnapshotIdentity(BaseModel):
     schema_version: str = "robot-snapshot-identity/v1"
     robot_id: str = Field(min_length=1, max_length=128)
     target_host_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    collector_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(min_length=1, max_length=128)
     deployment_mode: str = Field(pattern=r"^(local|remote)$")
     access: str = Field(default="READ_ONLY", pattern=r"^READ_ONLY$")
     request_nonce: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
@@ -92,7 +91,7 @@ class SnapshotIdentity(BaseModel):
         return (
             self.robot_id,
             self.target_host_fingerprint,
-            self.collector_id,
+            self.source_id,
             self.deployment_mode,
             self.access,
             self.request_nonce or "",
@@ -114,7 +113,7 @@ class Fact(BaseModel):
     fact_id: str = Field(default_factory=lambda: f"fact-{uuid4().hex}", min_length=1)
     robot_id: str = Field(min_length=1, max_length=128)
     target_host_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    collector_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(min_length=1, max_length=128)
     deployment_mode: str = Field(pattern=r"^(local|remote)$")
     access: str = Field(default="READ_ONLY", pattern=r"^READ_ONLY$")
     request_nonce: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
@@ -169,7 +168,7 @@ class EvidenceEnvelope(BaseModel):
             fact_id=raw.pop("fact_id"),
             robot_id=identity.robot_id,
             target_host_fingerprint=identity.target_host_fingerprint,
-            collector_id=identity.collector_id,
+            source_id=identity.source_id,
             deployment_mode=identity.deployment_mode,
             access=identity.access,
             request_nonce=identity.request_nonce,
@@ -205,7 +204,7 @@ class EvidenceEnvelope(BaseModel):
             if (
                 fact.robot_id,
                 fact.target_host_fingerprint,
-                fact.collector_id,
+                fact.source_id,
                 fact.deployment_mode,
                 fact.access,
                 fact.request_nonce or "",
@@ -285,8 +284,7 @@ class Snapshot(BaseModel):
 
     A snapshot is intentionally self-describing: it contains the target
     identity, all facts and the digest of exactly the serialized payload being
-    read.  ``EvidenceEnvelope`` remains the compatibility name used by the
-    first RKB prototype and can be converted with :meth:`from_envelope`.
+    read. ``EvidenceEnvelope`` can be converted with :meth:`from_envelope`.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -300,14 +298,6 @@ class Snapshot(BaseModel):
     signature_hmac_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     created_at: datetime = Field(default_factory=_utc_now)
 
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_metadata_alias(cls, value: Any) -> Any:
-        if isinstance(value, dict) and "metadata" in value and "snapshot" not in value:
-            value = dict(value)
-            value["snapshot"] = value.pop("metadata")
-        return value
-
     @model_validator(mode="after")
     def validate_fact_identity(self) -> Snapshot:
         identity = self.identity.tuple()
@@ -315,7 +305,7 @@ class Snapshot(BaseModel):
             if (
                 fact.robot_id,
                 fact.target_host_fingerprint,
-                fact.collector_id,
+                fact.source_id,
                 fact.deployment_mode,
                 fact.access,
                 fact.request_nonce or "",
@@ -356,12 +346,6 @@ class Snapshot(BaseModel):
             created_at=self.created_at,
         )
 
-    @property
-    def metadata(self) -> dict[str, Any]:
-        """Compatibility alias for the pre-RKB-1 field name."""
-
-        return self.snapshot
-
     def with_hmac(self, secret: bytes) -> Snapshot:
         if not self.digest:
             raise ValueError("snapshot digest is required before signing")
@@ -393,7 +377,7 @@ def envelope_from_probe(
     fact = Fact(
         robot_id=identity.robot_id,
         target_host_fingerprint=identity.target_host_fingerprint,
-        collector_id=identity.collector_id,
+        source_id=identity.source_id,
         deployment_mode=identity.deployment_mode,
         access=identity.access,
         request_nonce=identity.request_nonce,
@@ -424,7 +408,7 @@ def snapshot_from_target_bundle(
     identity = SnapshotIdentity(
         robot_id=bundle.robot_id,
         target_host_fingerprint=bundle.target_host_fingerprint,
-        collector_id=bundle.collector_id,
+        source_id=bundle.source_id,
         deployment_mode=deployment_mode,
         access=bundle.access,
         request_nonce=bundle.request_nonce,
@@ -435,7 +419,7 @@ def snapshot_from_target_bundle(
         Fact(
             robot_id=identity.robot_id,
             target_host_fingerprint=identity.target_host_fingerprint,
-            collector_id=identity.collector_id,
+            source_id=identity.source_id,
             deployment_mode=identity.deployment_mode,
             access=identity.access,
             request_nonce=identity.request_nonce,

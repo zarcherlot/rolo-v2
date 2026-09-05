@@ -24,7 +24,7 @@ Trace session、Tool registration、binding、参数边界、超时、停止/取
 - Certify 负责固定测试套件、逐例 expected/actual、报告和 artifact digest。
 - 当前真机 MVP 是旋转；10 条真机 Certify、真机恢复和非 ROS 实机 provider 暂延期。
 - MHS 只是可选上下文来源，不是 UI 执行入口，也不定义 `app.base.rotate` 语义。
-- 目标连接使用普通 SSH profile；UI 不显示、不管理 SSH key 或 Collector credential。
+- 目标连接使用普通 SSH profile；UI 不显示、不管理 SSH key 或 Probe runner credential。
 
 ## 已有后端接口
 
@@ -150,7 +150,7 @@ Certify 真机执行入口属于后续后端工作，UI 不得伪造“运行完
 
 ## 明确不做
 
-- 不实现 SSH、Collector、Rolo runtime 或 ROS 客户端。
+- 不实现 SSH、Probe runner、Rolo runtime 或 ROS 客户端。
 - 不在浏览器执行 Harness source，不在浏览器拼接 transport payload。
 - 不提供“确认后直接旋转”的 UI 按钮；执行仍由 Agent Harness 调用 Rolo。
 - 不把 route presence、MHS manifest 或 UI 状态升级成 VERIFIED capability。

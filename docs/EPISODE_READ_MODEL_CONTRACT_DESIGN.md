@@ -192,7 +192,7 @@ Each asset summary includes:
 - frame, clock domain, synchronization, media type, byte count, and digest;
 - data classification, evidence ID, availability, and limitations.
 
-Forbidden fields include `artifact_ref`, local/remote path, collector identity,
+Forbidden fields include `artifact_ref`, local/remote path, probe runner identity,
 credentials, signed URLs, raw hostnames, and arbitrary renderer configuration.
 
 Media delivery requires a separately reviewed endpoint with server-owned

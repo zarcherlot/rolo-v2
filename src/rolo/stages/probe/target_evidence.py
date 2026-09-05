@@ -1,14 +1,12 @@
 """Target-bound evidence collection for local and remote deployments.
 
-The remote Probe runner is a narrow stdin/stdout protocol.  Ordinary SSH owns
+The remote ProbeRunner is a narrow stdin/stdout protocol.  Ordinary SSH owns
 transport authentication and host-key pinning; the bundle adds target identity,
 freshness and an integrity signature that remains verifiable after transport.
 """
 
 from __future__ import annotations
 
-import base64
-import binascii
 import hashlib
 import hmac
 import json
@@ -67,10 +65,6 @@ _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 _SSH_TARGET_PATTERN = re.compile(r"^(?:[A-Za-z0-9_.-]+@)?[A-Za-z0-9_.-]+$")
 _REMOTE_PATH_PATTERN = re.compile(r"^[/A-Za-z0-9_.-]+$")
 _SOURCE_ROOT_PATTERN = re.compile(r"^(?:[/A-Za-z0-9_.-]+|[A-Za-z]:[/A-Za-z0-9_.-]+)$")
-_SSH_PUBLIC_KEY_TYPE_PATTERN = re.compile(
-    r"^(?:ssh-(?:ed25519|rsa)|ecdsa-sha2-nistp(?:256|384|521)|"
-    r"sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)$"
-)
 
 
 def _utc_now() -> datetime:
@@ -87,40 +81,6 @@ def _canonical_json(value: Any) -> bytes:
     ).encode("utf-8")
 
 
-def restricted_collector_authorized_key(
-    public_key: str,
-    *,
-    collector_executable: str,
-    collector_config: str,
-) -> str:
-    """Build the legacy forced-command entry.
-
-    Kept only for migration compatibility.  The v2 MVP path uses ordinary
-    profile SSH and :func:`collect_over_ssh_user`; new enrollments must not
-    provision this entry.
-    """
-    if not _REMOTE_PATH_PATTERN.fullmatch(collector_executable):
-        raise ValueError("collector_executable contains unsupported characters")
-    if not _REMOTE_PATH_PATTERN.fullmatch(collector_config):
-        raise ValueError("collector_config contains unsupported characters")
-    parts = public_key.strip().split()
-    if len(parts) < 2 or not _SSH_PUBLIC_KEY_TYPE_PATTERN.fullmatch(parts[0]):
-        raise ValueError("unsupported or invalid SSH public key")
-    try:
-        decoded = base64.b64decode(parts[1], validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError("SSH public key payload is invalid") from exc
-    if len(decoded) < 32:
-        raise ValueError("SSH public key payload is invalid")
-    forced_command = (
-        f"{collector_executable} target-evidence collector-run --config {collector_config}"
-    )
-    restrictions = (
-        "restrict,no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding"
-    )
-    return f'{restrictions},command="{forced_command}" {parts[0]} {parts[1]}'
-
-
 class EvidenceDeploymentMode(str, Enum):
     LOCAL = "local"
     REMOTE = "remote"
@@ -135,7 +95,7 @@ class SSHTransportError(ValueError):
         super().__init__(f"{code}: {message}")
 
 
-class CollectorHelpExecutable(BaseModel):
+class ProbeRunnerHelpExecutable(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     executable_id: str = Field(pattern=r"^target-exe-[0-9a-f]{24}$")
@@ -143,21 +103,19 @@ class CollectorHelpExecutable(BaseModel):
     sha256: str = Field(pattern=_SHA256_PATTERN)
 
 
-class CollectorDescriptor(BaseModel):
+class ProbeRunnerDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal[
-        "robot-target-evidence-collector/v1",
-        "robot-target-evidence-collector/v2",
-        "robot-target-evidence-collector/v3",
-    ] = "robot-target-evidence-collector/v3"
+    schema_version: Literal["robot-target-evidence-probe-runner/v4"] = (
+        "robot-target-evidence-probe-runner/v4"
+    )
     robot_id: str = Field(min_length=1, max_length=128)
-    collector_id: str = Field(min_length=1, max_length=128)
+    source_id: str = Field(min_length=1, max_length=128)
     target_host_fingerprint: str = Field(pattern=_SHA256_PATTERN)
-    # Target-side workspace used by the collector for ROS overlay/source
+    # Target-side workspace used by the probe_runner for ROS overlay/source
     # context.  This is descriptive evidence, not a controller-local path.
     source_root: str | None = Field(default=None, max_length=4096)
-    help_executables: list[CollectorHelpExecutable] = Field(
+    help_executables: list[ProbeRunnerHelpExecutable] = Field(
         default_factory=list,
         max_length=MAX_HELP_EXECUTABLES,
     )
@@ -165,39 +123,37 @@ class CollectorDescriptor(BaseModel):
     created_at: datetime = Field(default_factory=_utc_now)
 
     @model_validator(mode="after")
-    def require_canonical_help_allowlist(self) -> CollectorDescriptor:
+    def require_canonical_help_allowlist(self) -> ProbeRunnerDescriptor:
         if self.source_root is not None and not _SOURCE_ROOT_PATTERN.fullmatch(self.source_root):
-            raise ValueError("collector source_root contains unsupported characters")
+            raise ValueError("probe_runner source_root contains unsupported characters")
         identities = [item.executable_id for item in self.help_executables]
         paths = [item.path for item in self.help_executables]
         if identities != sorted(set(identities)) or len(paths) != len(set(paths)):
-            raise ValueError("collector help executable allowlist must be unique and sorted")
+            raise ValueError("probe_runner help executable allowlist must be unique and sorted")
         setup_paths = [item.path for item in self.ros_setup_files]
         if len(setup_paths) != len(setup_paths):
-            raise ValueError("collector ROS setup file pins must be unique")
+            raise ValueError("probe_runner ROS setup file pins must be unique")
         return self
 
 
-class CollectorState(CollectorDescriptor):
+class ProbeRunnerState(ProbeRunnerDescriptor):
     secret_path: str = Field(min_length=1, max_length=4096)
 
 
 class EvidenceDeploymentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal[
-        "robot-target-evidence-deployment/v1",
-        "robot-target-evidence-deployment/v2",
-        "robot-target-evidence-deployment/v3",
-    ] = "robot-target-evidence-deployment/v3"
+    schema_version: Literal["robot-target-evidence-deployment/v4"] = (
+        "robot-target-evidence-deployment/v4"
+    )
     robot_id: str = Field(min_length=1, max_length=128)
     mode: EvidenceDeploymentMode
-    collector: CollectorDescriptor
+    probe_runner: ProbeRunnerDescriptor
     verification_secret_path: str = Field(min_length=1, max_length=4096)
     verification_secret_sha256: str = Field(pattern=_SHA256_PATTERN)
-    local_collector_state_path: str | None = None
-    collector_config: str = ".rolo/config/target-evidence-collector.json"
-    collector_executable: str = "robotctl"
+    local_probe_runner_state_path: str | None = None
+    probe_runner_config: str = ".rolo/config/target-evidence-probe-runner.json"
+    probe_runner_executable: str = "robotctl"
     ssh_target: str | None = None
     known_hosts_path: str | None = None
     known_hosts_sha256: str | None = Field(default=None, pattern=_SHA256_PATTERN)
@@ -209,20 +165,19 @@ class EvidenceDeploymentConfig(BaseModel):
 
     @model_validator(mode="after")
     def require_mode_specific_transport(self) -> EvidenceDeploymentConfig:
-        if self.collector.robot_id != self.robot_id:
-            raise ValueError("collector descriptor robot identity mismatch")
+        if self.probe_runner.robot_id != self.robot_id:
+            raise ValueError("probe_runner descriptor robot identity mismatch")
         if self.mode == EvidenceDeploymentMode.REMOTE:
             if not self.ssh_target or not self.known_hosts_path:
                 raise ValueError("remote mode requires ssh_target and known_hosts_path")
-            if self.schema_version == "robot-target-evidence-deployment/v3":
-                if not self.known_hosts_sha256 or self.ssh_port is None:
-                    raise ValueError("remote mode requires pinned known_hosts content and SSH port")
+            if not self.known_hosts_sha256 or self.ssh_port is None:
+                raise ValueError("remote mode requires pinned known_hosts content and SSH port")
             if not _SSH_TARGET_PATTERN.fullmatch(self.ssh_target):
                 raise ValueError("ssh_target contains unsupported characters")
-            if not _REMOTE_PATH_PATTERN.fullmatch(self.collector_config):
-                raise ValueError("collector_config contains unsupported characters")
-            if not _REMOTE_PATH_PATTERN.fullmatch(self.collector_executable):
-                raise ValueError("collector_executable contains unsupported characters")
+            if not _REMOTE_PATH_PATTERN.fullmatch(self.probe_runner_config):
+                raise ValueError("probe_runner_config contains unsupported characters")
+            if not _REMOTE_PATH_PATTERN.fullmatch(self.probe_runner_executable):
+                raise ValueError("probe_runner_executable contains unsupported characters")
             if bool(self.ssh_identity_file) != bool(self.ssh_identity_sha256):
                 raise ValueError("SSH identity path and digest must be configured together")
         elif (
@@ -232,39 +187,39 @@ class EvidenceDeploymentConfig(BaseModel):
             or self.ssh_port is not None
             or self.ssh_identity_file
             or self.ssh_identity_sha256
-            or self.collector_executable != "robotctl"
+            or self.probe_runner_executable != "robotctl"
         ):
             raise ValueError("local mode cannot configure a remote transport")
-        if self.mode == EvidenceDeploymentMode.LOCAL and not self.local_collector_state_path:
-            raise ValueError("local mode requires local_collector_state_path")
-        if self.mode == EvidenceDeploymentMode.REMOTE and self.local_collector_state_path:
-            raise ValueError("remote mode cannot configure local collector state")
+        if self.mode == EvidenceDeploymentMode.LOCAL and not self.local_probe_runner_state_path:
+            raise ValueError("local mode requires local_probe_runner_state_path")
+        if self.mode == EvidenceDeploymentMode.REMOTE and self.local_probe_runner_state_path:
+            raise ValueError("remote mode cannot configure local probe_runner state")
         return self
 
 
 class EvidenceDeploymentTransition(BaseModel):
-    """Auditable authorization for one explicit collector re-enrollment."""
+    """Auditable authorization for one explicit probe_runner re-enrollment."""
 
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal[
-        "robot-target-evidence-transition/v1", "robot-target-evidence-transition/v2"
-    ] = "robot-target-evidence-transition/v2"
+    schema_version: Literal["robot-target-evidence-transition/v3"] = (
+        "robot-target-evidence-transition/v3"
+    )
     transition_id: str = Field(pattern=r"^transition-[0-9a-f]{32}$")
     robot_id: str = Field(min_length=1, max_length=128)
     reason: str = Field(min_length=8, max_length=500)
-    previous_collector_id: str
-    new_collector_id: str
+    previous_source_id: str
+    new_source_id: str
     previous_target_host_fingerprint: str = Field(pattern=_SHA256_PATTERN)
     new_target_host_fingerprint: str = Field(pattern=_SHA256_PATTERN)
     previous_verification_secret_sha256: str = Field(pattern=_SHA256_PATTERN)
     new_verification_secret_sha256: str = Field(pattern=_SHA256_PATTERN)
     previous_mode: EvidenceDeploymentMode
     new_mode: EvidenceDeploymentMode
-    previous_collector_executable: str
-    new_collector_executable: str
-    previous_collector_config: str | None = None
-    new_collector_config: str | None = None
+    previous_probe_runner_executable: str
+    new_probe_runner_executable: str
+    previous_probe_runner_config: str | None = None
+    new_probe_runner_config: str | None = None
     previous_ssh_target: str | None = None
     new_ssh_target: str | None = None
     previous_ssh_port: int | None = None
@@ -330,11 +285,11 @@ class TargetExecutableHelpEvidence(BaseModel):
 class TargetEvidenceBundle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal[
-        "robot-target-evidence-bundle/v2", "robot-target-evidence-bundle/v3"
-    ] = "robot-target-evidence-bundle/v2"
+    schema_version: Literal["robot-target-evidence-bundle/v4"] = (
+        "robot-target-evidence-bundle/v4"
+    )
     robot_id: str
-    collector_id: str
+    source_id: str
     target_host_fingerprint: str = Field(pattern=_SHA256_PATTERN)
     request_nonce: str = Field(pattern=r"^[0-9a-f]{32}$")
     requested_layers: list[Literal["hw", "linux", "ros"]] = Field(min_length=1, max_length=3)
@@ -345,8 +300,8 @@ class TargetEvidenceBundle(BaseModel):
         default_factory=list,
         max_length=MAX_HELP_EXECUTABLES,
     )
-    # Optional signed source snapshot emitted by newer target collectors.  It
-    # is intentionally opaque to the Probe controller: the collector's
+    # Optional signed source snapshot emitted by newer target probe_runners.  It
+    # is intentionally opaque to the Probe controller: the probe_runner's
     # signature and bundle size limits provide integrity and resource bounds,
     # while later products may add a dedicated source-evidence schema.
     source_snapshot: dict[str, Any] | None = None
@@ -362,7 +317,7 @@ class TargetEvidenceBundle(BaseModel):
 
 
 def target_host_fingerprint() -> str:
-    """Return a non-reversible stable identity for the host running the collector."""
+    """Return a non-reversible stable identity for the host running the probe_runner."""
     stable_id = ""
     for candidate in (Path("/etc/machine-id"), Path("/var/lib/dbus/machine-id")):
         try:
@@ -396,50 +351,50 @@ def _write_private_secret(path: Path, secret: bytes) -> None:
     path = path.expanduser().resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
-        raise ValueError(f"collector secret already exists: {path}")
+        raise ValueError(f"probe_runner secret already exists: {path}")
     path.write_bytes(secret)
     try:
         path.chmod(stat.S_IRUSR | stat.S_IWUSR)
     except OSError as exc:
         path.unlink(missing_ok=True)
-        raise ValueError(f"cannot restrict collector secret permissions: {exc}") from exc
+        raise ValueError(f"cannot restrict probe_runner secret permissions: {exc}") from exc
 
 
 def _load_secret(path: Path) -> bytes:
     path = path.expanduser().resolve()
     if not path.is_file():
-        raise ValueError(f"collector secret is unavailable: {path}")
+        raise ValueError(f"probe_runner secret is unavailable: {path}")
     if os.name != "nt" and stat.S_IMODE(path.stat().st_mode) & 0o077:
-        raise ValueError("collector secret permissions must not allow group or other access")
+        raise ValueError("probe_runner secret permissions must not allow group or other access")
     secret = path.read_bytes()
     if len(secret) != 32:
-        raise ValueError("collector secret must contain exactly 32 bytes")
+        raise ValueError("probe_runner secret must contain exactly 32 bytes")
     return secret
 
 
-def initialize_collector(
+def initialize_probe_runner(
     *,
     robot_id: str,
     state_path: Path,
     secret_path: Path,
     help_executables: Sequence[Path] = (),
     ros_setup_files: Sequence[RosSetupFileRecord] = (),
-) -> CollectorDescriptor:
+) -> ProbeRunnerDescriptor:
     fingerprint = target_host_fingerprint()
     state_path = state_path.expanduser().resolve()
     if state_path.exists():
-        raise ValueError(f"collector state already exists: {state_path}")
+        raise ValueError(f"probe_runner state already exists: {state_path}")
     allowlist = _build_help_allowlist(help_executables)
     verify_pinned_setup_files(ros_setup_files)
     _write_private_secret(secret_path, secrets.token_bytes(32))
-    descriptor = CollectorDescriptor(
+    descriptor = ProbeRunnerDescriptor(
         robot_id=robot_id,
-        collector_id=f"collector-{uuid4().hex}",
+        source_id=f"source-{uuid4().hex}",
         target_host_fingerprint=fingerprint,
         help_executables=allowlist,
         ros_setup_files=list(ros_setup_files),
     )
-    state = CollectorState(
+    state = ProbeRunnerState(
         **descriptor.model_dump(),
         secret_path=str(secret_path.expanduser().resolve()),
     )
@@ -456,7 +411,7 @@ def discover_help_executables(project_root: Path) -> list[Path]:
 
     Enrollment inspects only project metadata and conventional virtualenv or
     install ``bin`` directories. Paths are still pinned and hashed by
-    :func:`initialize_collector` before any later bounded ``--help`` probe.
+    :func:`initialize_probe_runner` before any later bounded ``--help`` probe.
     """
 
     root = project_root.expanduser().resolve()
@@ -534,26 +489,26 @@ def discover_help_executables(project_root: Path) -> list[Path]:
     return sorted(candidates.values(), key=lambda item: str(item).casefold())[:MAX_HELP_EXECUTABLES]
 
 
-def _build_help_allowlist(paths: Sequence[Path]) -> list[CollectorHelpExecutable]:
+def _build_help_allowlist(paths: Sequence[Path]) -> list[ProbeRunnerHelpExecutable]:
     if len(paths) > MAX_HELP_EXECUTABLES:
-        raise ValueError(f"collector allows at most {MAX_HELP_EXECUTABLES} help executables")
-    allowed: list[CollectorHelpExecutable] = []
+        raise ValueError(f"probe_runner allows at most {MAX_HELP_EXECUTABLES} help executables")
+    allowed: list[ProbeRunnerHelpExecutable] = []
     seen: set[Path] = set()
     for requested in paths:
         path = requested.expanduser().resolve()
         if path in seen:
-            raise ValueError("collector help executable paths must be unique")
+            raise ValueError("probe_runner help executable paths must be unique")
         seen.add(path)
         if not path.is_file():
-            raise ValueError(f"collector help executable is not a regular file: {path}")
+            raise ValueError(f"probe_runner help executable is not a regular file: {path}")
         if path.stat().st_size > MAX_HELP_EXECUTABLE_BYTES:
-            raise ValueError(f"collector help executable exceeds size limit: {path}")
+            raise ValueError(f"probe_runner help executable exceeds size limit: {path}")
         digest = sha256_file(path)
         identity_digest = hashlib.sha256(
             _canonical_json({"path": str(path), "sha256": digest})
         ).hexdigest()
         allowed.append(
-            CollectorHelpExecutable(
+            ProbeRunnerHelpExecutable(
                 executable_id=f"target-exe-{identity_digest[:24]}",
                 path=str(path),
                 sha256=digest,
@@ -562,20 +517,20 @@ def _build_help_allowlist(paths: Sequence[Path]) -> list[CollectorHelpExecutable
     return sorted(allowed, key=lambda item: item.executable_id)
 
 
-def stage_collector_rotation(
+def stage_probe_runner_rotation(
     *,
     previous_state_path: Path,
-    expected_collector_id: str,
+    expected_source_id: str,
     new_state_path: Path,
     new_secret_path: Path,
     help_executables: Sequence[Path] = (),
     ros_setup_files: Sequence[RosSetupFileRecord] = (),
-) -> CollectorDescriptor:
-    """Stage parallel collector credentials while preserving the active collector."""
-    previous = load_collector_state(previous_state_path)
-    if previous.collector_id != expected_collector_id:
-        raise ValueError("active collector identity differs from the expected rotation pin")
-    descriptor = initialize_collector(
+) -> ProbeRunnerDescriptor:
+    """Stage parallel probe_runner credentials while preserving the active probe_runner."""
+    previous = load_probe_runner_state(previous_state_path)
+    if previous.source_id != expected_source_id:
+        raise ValueError("active probe_runner identity differs from the expected rotation pin")
+    descriptor = initialize_probe_runner(
         robot_id=previous.robot_id,
         state_path=new_state_path,
         secret_path=new_secret_path,
@@ -583,17 +538,17 @@ def stage_collector_rotation(
         ros_setup_files=ros_setup_files,
     )
     if descriptor.target_host_fingerprint != previous.target_host_fingerprint:
-        raise ValueError("staged collector rotation changed target host identity")
+        raise ValueError("staged probe_runner rotation changed target host identity")
     return descriptor
 
 
-def load_collector_state(path: Path) -> CollectorState:
+def load_probe_runner_state(path: Path) -> ProbeRunnerState:
     try:
-        state = CollectorState.model_validate_json(path.read_text(encoding="utf-8"))
+        state = ProbeRunnerState.model_validate_json(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        raise ValueError(f"invalid collector state: {exc}") from exc
+        raise ValueError(f"invalid probe_runner state: {exc}") from exc
     if target_host_fingerprint() != state.target_host_fingerprint:
-        raise ValueError("collector state belongs to a different target host")
+        raise ValueError("probe_runner state belongs to a different target host")
     _load_secret(Path(state.secret_path))
     verify_pinned_setup_files(state.ros_setup_files)
     return state
@@ -603,16 +558,16 @@ def configure_deployment(
     *,
     robot_id: str,
     mode: EvidenceDeploymentMode,
-    descriptor: CollectorDescriptor,
+    descriptor: ProbeRunnerDescriptor,
     verification_secret_path: Path,
     output_path: Path,
     ssh_target: str | None = None,
     known_hosts_path: Path | None = None,
     ssh_port: int | None = None,
     ssh_identity_file: Path | None = None,
-    collector_config: str = ".rolo/config/target-evidence-collector.json",
-    collector_executable: str = "robotctl",
-    local_collector_state_path: Path | None = None,
+    probe_runner_config: str = ".rolo/config/target-evidence-probe-runner.json",
+    probe_runner_executable: str = "robotctl",
+    local_probe_runner_state_path: Path | None = None,
 ) -> EvidenceDeploymentConfig:
     config = _build_deployment_config(
         robot_id=robot_id,
@@ -623,21 +578,21 @@ def configure_deployment(
         known_hosts_path=known_hosts_path,
         ssh_port=ssh_port,
         ssh_identity_file=ssh_identity_file,
-        collector_config=collector_config,
-        collector_executable=collector_executable,
-        local_collector_state_path=local_collector_state_path,
+        probe_runner_config=probe_runner_config,
+        probe_runner_executable=probe_runner_executable,
+        local_probe_runner_state_path=local_probe_runner_state_path,
     )
     if output_path.exists():
         existing = load_deployment(output_path)
         stable_fields = {
             "robot_id",
             "mode",
-            "collector",
+            "probe_runner",
             "verification_secret_path",
             "verification_secret_sha256",
-            "local_collector_state_path",
-            "collector_config",
-            "collector_executable",
+            "local_probe_runner_state_path",
+            "probe_runner_config",
+            "probe_runner_executable",
             "ssh_target",
             "known_hosts_path",
             "known_hosts_sha256",
@@ -649,7 +604,7 @@ def configure_deployment(
         proposed_stable = config.model_dump(mode="json", include=stable_fields)
         if existing_stable != proposed_stable:
             raise ValueError(
-                "target evidence deployment is already pinned; collector identity or transport "
+                "target evidence deployment is already pinned; probe_runner identity or transport "
                 "changes require an explicit re-enroll/rotate workflow"
             )
         return existing
@@ -665,30 +620,30 @@ def ensure_local_deployment(
     help_executables: Sequence[Path] = (),
     ros_setup_files: Sequence[RosSetupFileRecord] = (),
 ) -> tuple[EvidenceDeploymentConfig, Path]:
-    """Idempotently establish the target-local collector used by product journeys."""
+    """Idempotently establish the target-local probe_runner used by product journeys."""
     if not help_executables and project_root is not None:
         help_executables = discover_help_executables(project_root)
     deployment_root = config_root.expanduser().resolve() / "target-evidence"
     deployment_path = deployment_root / f"{robot_id}.json"
-    default_state_path = deployment_root / f"{robot_id}-collector.json"
-    default_secret_path = deployment_root / f"{robot_id}-collector.key"
+    default_state_path = deployment_root / f"{robot_id}-probe_runner.json"
+    default_secret_path = deployment_root / f"{robot_id}-probe_runner.key"
     if deployment_path.exists():
         deployment = load_deployment(deployment_path)
         if deployment.mode != EvidenceDeploymentMode.LOCAL:
             raise ValueError("existing target evidence deployment is not local")
-        state_path = Path(deployment.local_collector_state_path or "")
-        state = load_collector_state(state_path)
-        descriptor = CollectorDescriptor.model_validate(state.model_dump(exclude={"secret_path"}))
+        state_path = Path(deployment.local_probe_runner_state_path or "")
+        state = load_probe_runner_state(state_path)
+        descriptor = ProbeRunnerDescriptor.model_validate(state.model_dump(exclude={"secret_path"}))
         if help_executables:
             requested_allowlist = _build_help_allowlist(help_executables)
             if requested_allowlist != descriptor.help_executables:
                 raise ValueError(
-                    "local executable help allowlist changed; use collector rotation and "
+                    "local executable help allowlist changed; use probe_runner rotation and "
                     "explicit re-enrollment"
                 )
         if list(ros_setup_files) != descriptor.ros_setup_files:
             raise ValueError(
-                "local ROS setup file pins changed; use collector rotation and explicit "
+                "local ROS setup file pins changed; use probe_runner rotation and explicit "
                 "re-enrollment"
             )
         configured = configure_deployment(
@@ -697,14 +652,14 @@ def ensure_local_deployment(
             descriptor=descriptor,
             verification_secret_path=Path(deployment.verification_secret_path),
             output_path=deployment_path,
-            local_collector_state_path=state_path,
+            local_probe_runner_state_path=state_path,
         )
         return configured, state_path
     if default_state_path.exists() or default_secret_path.exists():
         raise ValueError(
             "local target evidence enrollment is incomplete; explicit recovery is required"
         )
-    descriptor = initialize_collector(
+    descriptor = initialize_probe_runner(
         robot_id=robot_id,
         state_path=default_state_path,
         secret_path=default_secret_path,
@@ -717,7 +672,7 @@ def ensure_local_deployment(
         descriptor=descriptor,
         verification_secret_path=default_secret_path,
         output_path=deployment_path,
-        local_collector_state_path=default_state_path,
+        local_probe_runner_state_path=default_state_path,
     )
     return deployment, default_state_path
 
@@ -727,40 +682,40 @@ def refresh_local_deployment(
     robot_id: str,
     config_root: Path,
     project_root: Path,
-    expected_collector_id: str,
+    expected_source_id: str,
     help_executables: Sequence[Path] = (),
     ros_setup_files: Sequence[RosSetupFileRecord] = (),
     reason: str = "refresh target executable help allowlist",
 ) -> tuple[EvidenceDeploymentConfig, EvidenceDeploymentTransition, Path, Path]:
-    """Expand a local collector's pinned help allowlist through explicit rotation.
+    """Expand a local probe_runner's pinned help allowlist through explicit rotation.
 
     Existing deployments remain immutable during normal Probe starts. This
-    helper stages a new collector and secret, re-enrolls the deployment only
-    after the expected collector pin matches, and preserves an immutable
+    helper stages a new probe_runner and secret, re-enrolls the deployment only
+    after the expected probe_runner pin matches, and preserves an immutable
     transition record.
     """
 
     deployment_root = config_root.expanduser().resolve() / "target-evidence"
     deployment_path = deployment_root / f"{robot_id}.json"
     if not deployment_path.is_file():
-        raise ValueError("target evidence deployment must exist before collector refresh")
+        raise ValueError("target evidence deployment must exist before probe_runner refresh")
     previous = load_deployment(deployment_path)
     if previous.mode != EvidenceDeploymentMode.LOCAL:
-        raise ValueError("collector refresh requires a local target evidence deployment")
-    if previous.collector.collector_id != expected_collector_id:
-        raise ValueError("pinned collector identity differs from the expected refresh pin")
+        raise ValueError("probe_runner refresh requires a local target evidence deployment")
+    if previous.probe_runner.source_id != expected_source_id:
+        raise ValueError("pinned probe_runner identity differs from the expected refresh pin")
     discovered_help = (
         list(help_executables) if help_executables else discover_help_executables(project_root)
     )
     if not discovered_help:
         raise ValueError(
-            "collector refresh discovered no safe project entrypoints; "
+            "probe_runner refresh discovered no safe project entrypoints; "
             "provide --allow-executable explicitly"
         )
 
     # Refresh is additive: operator input may add entries, but cannot silently
-    # drop an already pinned executable from the replacement collector.
-    pinned_paths = [Path(item.path) for item in previous.collector.help_executables]
+    # drop an already pinned executable from the replacement probe_runner.
+    pinned_paths = [Path(item.path) for item in previous.probe_runner.help_executables]
     merged_help: list[Path] = []
     seen_help: set[Path] = set()
     for requested in [*pinned_paths, *discovered_help]:
@@ -769,13 +724,13 @@ def refresh_local_deployment(
             seen_help.add(resolved)
             merged_help.append(resolved)
     if not ros_setup_files:
-        ros_setup_files = list(previous.collector.ros_setup_files)
+        ros_setup_files = list(previous.probe_runner.ros_setup_files)
 
     refresh_id = uuid4().hex
-    new_state_path = deployment_root / f"{robot_id}-collector-refresh-{refresh_id}.json"
-    new_secret_path = deployment_root / f"{robot_id}-collector-refresh-{refresh_id}.key"
+    new_state_path = deployment_root / f"{robot_id}-probe-runner-refresh-{refresh_id}.json"
+    new_secret_path = deployment_root / f"{robot_id}-probe-runner-refresh-{refresh_id}.key"
     try:
-        descriptor = initialize_collector(
+        descriptor = initialize_probe_runner(
             robot_id=robot_id,
             state_path=new_state_path,
             secret_path=new_secret_path,
@@ -784,13 +739,13 @@ def refresh_local_deployment(
         )
         deployment, transition, transition_path = reenroll_deployment(
             output_path=deployment_path,
-            expected_collector_id=expected_collector_id,
+            expected_source_id=expected_source_id,
             reason=reason,
             descriptor=descriptor,
             verification_secret_path=new_secret_path,
             mode=EvidenceDeploymentMode.LOCAL,
-            collector_config=previous.collector_config,
-            local_collector_state_path=new_state_path,
+            probe_runner_config=previous.probe_runner_config,
+            local_probe_runner_state_path=new_state_path,
         )
     except Exception:
         # These exact staged files are not active if re-enrollment fails; leave
@@ -805,36 +760,36 @@ def _build_deployment_config(
     *,
     robot_id: str,
     mode: EvidenceDeploymentMode,
-    descriptor: CollectorDescriptor,
+    descriptor: ProbeRunnerDescriptor,
     verification_secret_path: Path,
     ssh_target: str | None,
     known_hosts_path: Path | None,
     ssh_port: int | None,
     ssh_identity_file: Path | None,
-    collector_config: str,
-    collector_executable: str,
-    local_collector_state_path: Path | None,
+    probe_runner_config: str,
+    probe_runner_executable: str,
+    local_probe_runner_state_path: Path | None,
     transition_id: str | None = None,
 ) -> EvidenceDeploymentConfig:
     verification_secret_path = verification_secret_path.expanduser().resolve()
     verification_secret_sha256 = hashlib.sha256(_load_secret(verification_secret_path)).hexdigest()
     resolved_local_state = (
-        local_collector_state_path.expanduser().resolve()
-        if local_collector_state_path is not None
+        local_probe_runner_state_path.expanduser().resolve()
+        if local_probe_runner_state_path is not None
         else None
     )
     if mode == EvidenceDeploymentMode.LOCAL and resolved_local_state is not None:
-        local_state = load_collector_state(resolved_local_state)
+        local_state = load_probe_runner_state(resolved_local_state)
         if (
             local_state.robot_id != descriptor.robot_id
-            or local_state.collector_id != descriptor.collector_id
+            or local_state.source_id != descriptor.source_id
             or local_state.target_host_fingerprint != descriptor.target_host_fingerprint
         ):
-            raise ValueError("local collector state differs from its descriptor")
+            raise ValueError("local probe_runner state differs from its descriptor")
         if hashlib.sha256(_load_secret(Path(local_state.secret_path))).hexdigest() != (
             verification_secret_sha256
         ):
-            raise ValueError("local collector signing and verification secrets differ")
+            raise ValueError("local probe_runner signing and verification secrets differ")
     known_hosts = None
     known_hosts_sha256 = None
     if known_hosts_path is not None:
@@ -856,7 +811,7 @@ def _build_deployment_config(
     config = EvidenceDeploymentConfig(
         robot_id=robot_id,
         mode=mode,
-        collector=descriptor,
+        probe_runner=descriptor,
         verification_secret_path=str(verification_secret_path),
         verification_secret_sha256=verification_secret_sha256,
         ssh_target=ssh_target,
@@ -867,9 +822,9 @@ def _build_deployment_config(
         else None,
         ssh_identity_file=identity_file,
         ssh_identity_sha256=identity_sha256,
-        collector_config=collector_config,
-        collector_executable=collector_executable,
-        local_collector_state_path=(
+        probe_runner_config=probe_runner_config,
+        probe_runner_executable=probe_runner_executable,
+        local_probe_runner_state_path=(
             str(resolved_local_state) if resolved_local_state is not None else None
         ),
         transition_id=transition_id,
@@ -894,30 +849,30 @@ def _atomic_write_text(path: Path, text: str) -> None:
 def reenroll_deployment(
     *,
     output_path: Path,
-    expected_collector_id: str,
+    expected_source_id: str,
     reason: str,
-    descriptor: CollectorDescriptor,
+    descriptor: ProbeRunnerDescriptor,
     verification_secret_path: Path,
     mode: EvidenceDeploymentMode | None = None,
     ssh_target: str | None = None,
     known_hosts_path: Path | None = None,
     ssh_port: int | None = None,
     ssh_identity_file: Path | None = None,
-    collector_config: str | None = None,
-    collector_executable: str | None = None,
-    local_collector_state_path: Path | None = None,
+    probe_runner_config: str | None = None,
+    probe_runner_executable: str | None = None,
+    local_probe_runner_state_path: Path | None = None,
     transition_dir: Path | None = None,
 ) -> tuple[EvidenceDeploymentConfig, EvidenceDeploymentTransition, Path]:
     """Explicitly replace a pinned deployment and preserve an immutable transition record."""
     if not output_path.is_file():
         raise ValueError("target evidence deployment must exist before re-enrollment")
     previous = load_deployment(output_path)
-    if previous.collector.collector_id != expected_collector_id:
-        raise ValueError("pinned collector identity differs from the expected re-enrollment pin")
+    if previous.probe_runner.source_id != expected_source_id:
+        raise ValueError("pinned probe_runner identity differs from the expected re-enrollment pin")
     transition_id = f"transition-{uuid4().hex}"
     selected_mode = mode or previous.mode
-    selected_collector_config = collector_config or previous.collector_config
-    selected_collector_executable = collector_executable or previous.collector_executable
+    selected_probe_runner_config = probe_runner_config or previous.probe_runner_config
+    selected_probe_runner_executable = probe_runner_executable or previous.probe_runner_executable
     selected_ssh_target = ssh_target if selected_mode == EvidenceDeploymentMode.REMOTE else None
     selected_known_hosts = (
         known_hosts_path if selected_mode == EvidenceDeploymentMode.REMOTE else None
@@ -936,8 +891,8 @@ def reenroll_deployment(
         selected_ssh_identity = selected_ssh_identity or (
             Path(previous.ssh_identity_file) if previous.ssh_identity_file else None
         )
-    elif local_collector_state_path is None and previous.local_collector_state_path:
-        local_collector_state_path = Path(previous.local_collector_state_path)
+    elif local_probe_runner_state_path is None and previous.local_probe_runner_state_path:
+        local_probe_runner_state_path = Path(previous.local_probe_runner_state_path)
     proposed = _build_deployment_config(
         robot_id=previous.robot_id,
         mode=selected_mode,
@@ -947,44 +902,44 @@ def reenroll_deployment(
         known_hosts_path=selected_known_hosts,
         ssh_port=selected_ssh_port,
         ssh_identity_file=selected_ssh_identity,
-        collector_config=selected_collector_config,
-        collector_executable=selected_collector_executable,
-        local_collector_state_path=local_collector_state_path,
+        probe_runner_config=selected_probe_runner_config,
+        probe_runner_executable=selected_probe_runner_executable,
+        local_probe_runner_state_path=local_probe_runner_state_path,
         transition_id=transition_id,
     )
     if (
-        proposed.collector == previous.collector
+        proposed.probe_runner == previous.probe_runner
         and proposed.verification_secret_sha256 == previous.verification_secret_sha256
         and proposed.mode == previous.mode
-        and proposed.collector_config == previous.collector_config
-        and proposed.collector_executable == previous.collector_executable
+        and proposed.probe_runner_config == previous.probe_runner_config
+        and proposed.probe_runner_executable == previous.probe_runner_executable
         and proposed.ssh_target == previous.ssh_target
         and proposed.known_hosts_path == previous.known_hosts_path
         and proposed.known_hosts_sha256 == previous.known_hosts_sha256
         and proposed.ssh_port == previous.ssh_port
         and proposed.ssh_identity_file == previous.ssh_identity_file
         and proposed.ssh_identity_sha256 == previous.ssh_identity_sha256
-        and proposed.local_collector_state_path == previous.local_collector_state_path
+        and proposed.local_probe_runner_state_path == previous.local_probe_runner_state_path
     ):
         raise ValueError(
-            "re-enrollment must change collector identity, credentials, mode, or transport"
+            "re-enrollment must change probe_runner identity, credentials, mode, or transport"
         )
     transition = EvidenceDeploymentTransition(
         transition_id=transition_id,
         robot_id=previous.robot_id,
         reason=reason.strip(),
-        previous_collector_id=previous.collector.collector_id,
-        new_collector_id=proposed.collector.collector_id,
-        previous_target_host_fingerprint=(previous.collector.target_host_fingerprint),
-        new_target_host_fingerprint=proposed.collector.target_host_fingerprint,
+        previous_source_id=previous.probe_runner.source_id,
+        new_source_id=proposed.probe_runner.source_id,
+        previous_target_host_fingerprint=(previous.probe_runner.target_host_fingerprint),
+        new_target_host_fingerprint=proposed.probe_runner.target_host_fingerprint,
         previous_verification_secret_sha256=(previous.verification_secret_sha256),
         new_verification_secret_sha256=proposed.verification_secret_sha256,
         previous_mode=previous.mode,
         new_mode=proposed.mode,
-        previous_collector_executable=previous.collector_executable,
-        new_collector_executable=proposed.collector_executable,
-        previous_collector_config=previous.collector_config,
-        new_collector_config=proposed.collector_config,
+        previous_probe_runner_executable=previous.probe_runner_executable,
+        new_probe_runner_executable=proposed.probe_runner_executable,
+        previous_probe_runner_config=previous.probe_runner_config,
+        new_probe_runner_config=proposed.probe_runner_config,
         previous_ssh_target=previous.ssh_target,
         new_ssh_target=proposed.ssh_target,
         previous_ssh_port=previous.ssh_port,
@@ -1015,34 +970,6 @@ def load_deployment(path: Path) -> EvidenceDeploymentConfig:
         deployment = EvidenceDeploymentConfig.model_validate_json(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise ValueError(f"invalid target evidence deployment: {exc}") from exc
-    if (
-        deployment.mode == EvidenceDeploymentMode.REMOTE
-        and deployment.schema_version != "robot-target-evidence-deployment/v3"
-    ):
-        known_hosts = Path(deployment.known_hosts_path or "").expanduser().resolve()
-        if not known_hosts.is_file():
-            raise ValueError(
-                "legacy remote deployment cannot migrate because known_hosts is unavailable"
-            )
-        identity = (
-            Path(deployment.ssh_identity_file).expanduser().resolve()
-            if deployment.ssh_identity_file
-            else None
-        )
-        if identity is not None and not identity.is_file():
-            raise ValueError(
-                "legacy remote deployment cannot migrate because its SSH identity is unavailable"
-            )
-        deployment = deployment.model_copy(
-            update={
-                "schema_version": "robot-target-evidence-deployment/v3",
-                "known_hosts_sha256": sha256_file(known_hosts),
-                "ssh_port": deployment.ssh_port or 22,
-                "ssh_identity_sha256": sha256_file(identity) if identity is not None else None,
-            }
-        )
-        deployment = EvidenceDeploymentConfig.model_validate(deployment.model_dump(mode="json"))
-        _atomic_write_text(path, deployment.model_dump_json(indent=2) + "\n")
     return deployment
 
 
@@ -1093,7 +1020,7 @@ def new_request(
 
 
 def _validate_request(
-    request: TargetEvidenceRequest, state: CollectorState, *, now: datetime
+    request: TargetEvidenceRequest, state: ProbeRunnerState, *, now: datetime
 ) -> None:
     if request.robot_id != state.robot_id:
         raise ValueError("evidence request robot identity mismatch")
@@ -1105,7 +1032,7 @@ def _validate_request(
 
 def collect_target_evidence(
     request: TargetEvidenceRequest,
-    state: CollectorState,
+    state: ProbeRunnerState,
     *,
     now: datetime | None = None,
     environment: Mapping[str, str] | None = None,
@@ -1116,7 +1043,7 @@ def collect_target_evidence(
         state.ros_setup_files,
         environment=environment,
     )
-    collectors = {
+    probe_runners = {
         "hw": lambda: HardwareProbe().run(robot_id=state.robot_id),
         "linux": lambda: LinuxProbe().run(),
         # Target evidence is the source of truth used by the controller's
@@ -1128,7 +1055,7 @@ def collect_target_evidence(
     }
     with _temporary_environment(ros_environment.environment):
         probes = {
-            layer: persist_route_evidence(collectors[layer]()) for layer in request.requested_layers
+            layer: persist_route_evidence(probe_runners[layer]()) for layer in request.requested_layers
         }
         help_evidence = _collect_executable_help(request, state)
     if ros_probe := probes.get("ros"):
@@ -1138,9 +1065,9 @@ def collect_target_evidence(
         )
         ros_probe.warnings.extend(ros_environment.warnings)
     base = {
-        "schema_version": "robot-target-evidence-bundle/v2",
+        "schema_version": "robot-target-evidence-bundle/v4",
         "robot_id": state.robot_id,
-        "collector_id": state.collector_id,
+        "source_id": state.source_id,
         "target_host_fingerprint": state.target_host_fingerprint,
         "request_nonce": request.nonce,
         "requested_layers": request.requested_layers,
@@ -1187,7 +1114,7 @@ def _temporary_environment(environment: Mapping[str, str]):
 
 def _collect_executable_help(
     request: TargetEvidenceRequest,
-    state: CollectorState,
+    state: ProbeRunnerState,
 ) -> list[TargetExecutableHelpEvidence]:
     allowed = {item.executable_id: item for item in state.help_executables}
     unknown = sorted(set(request.requested_executable_help_ids) - set(allowed))
@@ -1247,7 +1174,7 @@ def bind_target_executable_routes(
     """Derive application CLI routes from already verified target help evidence.
 
     The derivation happens on the controller after bundle signature validation.
-    It therefore does not trust a collector-supplied route assertion and remains
+    It therefore does not trust a probe_runner-supplied route assertion and remains
     compatible with older v2 bundles that contain help evidence but no CLI route.
     """
     existing = {route.resource_id: route for route in probe_routes(probe)}
@@ -1281,11 +1208,11 @@ def verify_evidence_bundle(
     now: datetime | None = None,
 ) -> dict[str, ProbeResult]:
     observed_at = now or _utc_now()
-    descriptor = deployment.collector
+    descriptor = deployment.probe_runner
     if bundle.robot_id != deployment.robot_id:
         raise ValueError("evidence bundle robot identity mismatch")
-    if bundle.collector_id != descriptor.collector_id:
-        raise ValueError("evidence bundle collector identity mismatch")
+    if bundle.source_id != descriptor.source_id:
+        raise ValueError("evidence bundle probe_runner identity mismatch")
     if bundle.target_host_fingerprint != descriptor.target_host_fingerprint:
         raise ValueError("evidence bundle target host fingerprint mismatch")
     if request is not None:
@@ -1314,73 +1241,19 @@ def verify_evidence_bundle(
             raise ValueError("evidence bundle executable help is outside the pinned allowlist")
         if hashlib.sha256(item.output_text.encode("utf-8")).hexdigest() != (item.output_sha256):
             raise ValueError("evidence bundle executable help output hash mismatch")
-    # Collector v2 computes the digest from the JSON model with null fields
-    # preserved, except that ``source_snapshot`` was introduced in v3 and is
-    # omitted entirely by v2 collectors.  Keep this canonicalization aligned
-    # with the target-side implementation so live bundles remain verifiable
-    # across the deployment boundary.
+    # v4 signs the canonical Pydantic payload exactly once. Historical
+    # payload variants are intentionally rejected after the destructive schema migration.
     base = bundle.model_dump(
         mode="json",
         exclude={"payload_sha256", "signature_hmac_sha256"},
+        exclude_none=True,
     )
-    if bundle.schema_version in {
-        "robot-target-evidence-bundle/v1",
-        "robot-target-evidence-bundle/v2",
-    } and bundle.source_snapshot is None:
-        base.pop("source_snapshot", None)
-    # Older collectors serialized ProbeResult without the v2 metadata fields.
-    # Pydantic fills those fields with compatibility defaults during parsing;
-    # remove only fields that were not present in the input so the signed
-    # payload remains byte-for-byte compatible while explicit metadata stays
-    # covered by the digest.
-    for layer, probe in bundle.probes.items():
-        serialized = base.get("probes", {}).get(layer)
-        if not isinstance(serialized, dict):
-            continue
-        for field in ("identity", "access", "fresh_until"):
-            if field not in probe.model_fields_set:
-                serialized.pop(field, None)
     actual_payload_sha256 = hashlib.sha256(_canonical_json(base)).hexdigest()
-    # RKB-1 local fixtures and early collectors used recursive ``exclude_none``
-    # canonicalization.  Accept that historical form only as an exact second
-    # candidate; all other payload mutations remain rejected fail-closed.
-    if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
-        legacy_base = bundle.model_dump(
-            mode="json",
-            exclude={"payload_sha256", "signature_hmac_sha256"},
-            exclude_none=True,
-        )
-        legacy_base.pop("source_snapshot", None)
-        actual_payload_sha256 = hashlib.sha256(_canonical_json(legacy_base)).hexdigest()
-    # JSON round-trips mark Pydantic compatibility defaults as explicitly set.
-    # Older target collectors omitted these fields, so accept the exact
-    # round-trip candidate only when the values are still their defaults. The
-    # digest remains authoritative; explicit non-default metadata is retained.
-    if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
-        roundtrip_base = bundle.model_dump(
-            mode="json",
-            exclude={"payload_sha256", "signature_hmac_sha256"},
-        )
-        if bundle.schema_version in {
-            "robot-target-evidence-bundle/v1",
-            "robot-target-evidence-bundle/v2",
-        } and bundle.source_snapshot is None:
-            roundtrip_base.pop("source_snapshot", None)
-        for serialized_probe in roundtrip_base.get("probes", {}).values():
-            if not isinstance(serialized_probe, dict):
-                continue
-            if serialized_probe.get("identity") is None:
-                serialized_probe.pop("identity", None)
-            if serialized_probe.get("fresh_until") is None:
-                serialized_probe.pop("fresh_until", None)
-            if serialized_probe.get("access") == "READ_ONLY":
-                serialized_probe.pop("access", None)
-        actual_payload_sha256 = hashlib.sha256(_canonical_json(roundtrip_base)).hexdigest()
     if not hmac.compare_digest(actual_payload_sha256, bundle.payload_sha256):
         raise ValueError("evidence bundle payload hash mismatch")
     verification_secret = _load_secret(secret_path or Path(deployment.verification_secret_path))
     if hashlib.sha256(verification_secret).hexdigest() != (deployment.verification_secret_sha256):
-        raise ValueError("collector verification secret differs from its pinned digest")
+        raise ValueError("probe_runner verification secret differs from its pinned digest")
     expected_signature = hmac.new(
         verification_secret,
         bundle.payload_sha256.encode("ascii"),
@@ -1394,7 +1267,7 @@ def verify_evidence_bundle(
         target_binding = {
             "schema_version": "robot-target-evidence-binding/v2",
             "robot_id": bundle.robot_id,
-            "collector_id": bundle.collector_id,
+            "source_id": bundle.source_id,
             "target_host_fingerprint": bundle.target_host_fingerprint,
             "bundle_payload_sha256": bundle.payload_sha256,
             "access": bundle.access,
@@ -1490,11 +1363,11 @@ def _ssh_transport_command(
             ]
         )
     remote_argv = [
-        deployment.collector_executable,
+        deployment.probe_runner_executable,
         "target-evidence",
         "probe-runner",
         "--config",
-        deployment.collector_config,
+        deployment.probe_runner_config,
     ]
     command.extend([deployment.ssh_target or "", *quote_remote_argv(remote_argv)])
     return command
@@ -1540,7 +1413,7 @@ def _classify_ssh_failure(returncode: int, stderr: str) -> SSHTransportError:
         return SSHTransportError("SSH_CONNECTION_LOST", message, retryable=True)
     if returncode == 255:
         return SSHTransportError("SSH_TRANSPORT_FAILED", message)
-    return SSHTransportError("COLLECTOR_REJECTED", message)
+    return SSHTransportError("PROBE_RUNNER_REJECTED", message)
 
 
 def _run_ssh_transport(command: Sequence[str], request: bytes, *, timeout_s: float) -> bytes:
@@ -1608,10 +1481,10 @@ def collect_over_ssh_user(
 ) -> TargetEvidenceBundle:
     """Collect evidence over the target profile's ordinary SSH session.
 
-    The request is sent on stdin to a bounded target-side probe runner.  No
-    forced-command authorized key or separate Collector SSH credential is
-    required; host-key and user credential policy remain owned by the profile.
-    ``deployment.collector`` describes the runner and signed evidence schema,
+    The request is sent on stdin to a bounded target-side Probe Runner. No
+    special SSH credential is required; host-key and user credential policy
+    remain owned by the profile.
+    ``deployment.probe_runner`` describes the runner and signed evidence schema,
     not an SSH authorization channel.
     """
     if deployment.mode != EvidenceDeploymentMode.REMOTE:
@@ -1645,7 +1518,7 @@ def collect_over_ssh_user(
         return TargetEvidenceBundle.model_validate_json(response)
     except ValueError as exc:
         raise SSHTransportError(
-            "COLLECTOR_INVALID_BUNDLE", f"remote collector returned invalid JSON: {exc}"
+            "PROBE_RUNNER_INVALID_BUNDLE", f"remote probe_runner returned invalid JSON: {exc}"
         ) from exc
 
 

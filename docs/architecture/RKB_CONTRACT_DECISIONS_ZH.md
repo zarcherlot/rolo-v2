@@ -32,7 +32,7 @@ RKB-0 只完成基线清点、契约冻结和依赖准备，不改变 Probe CLI 
 每个 envelope/fact 的 identity tuple 固定为：
 
 ```text
-(robot_id, target_host_fingerprint, collector_id,
+(robot_id, target_host_fingerprint, source_id,
  deployment_mode, access, request_nonce)
 ```
 

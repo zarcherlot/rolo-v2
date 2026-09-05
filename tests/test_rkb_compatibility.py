@@ -18,9 +18,9 @@ from rolo.rkb import (
     verified_bundle_to_snapshot,
 )
 from rolo.stages.probe.target_evidence import (
-    CollectorDescriptor,
     EvidenceDeploymentConfig,
     EvidenceDeploymentMode,
+    ProbeRunnerDescriptor,
     TargetEvidenceBundle,
 )
 
@@ -33,7 +33,7 @@ def make_identity(**changes):
     values = {
         "robot_id": "robot-1",
         "target_host_fingerprint": FP,
-        "collector_id": "collector-1",
+        "source_id": "source-1",
         "deployment_mode": "remote",
         "request_nonce": NONCE,
         "observed_at": NOW,
@@ -55,10 +55,10 @@ def test_probe_migration_preserves_unknown_status_and_pointer_source():
     assert json_pointer(snapshot.model_dump(mode="json"), "/facts/0/value/data/domain_id") is None
 
 
-def test_legacy_v2_bundle_is_read_only_migrated_and_projects_back():
+def test_v4_bundle_projects_into_snapshot():
     bundle = TargetEvidenceBundle(
         robot_id="robot-1",
-        collector_id="collector-1",
+        source_id="source-1",
         target_host_fingerprint=FP,
         request_nonce=NONCE,
         requested_layers=["linux"],
@@ -68,7 +68,7 @@ def test_legacy_v2_bundle_is_read_only_migrated_and_projects_back():
         signature_hmac_sha256="d" * 64,
     )
     snapshot = bundle_to_snapshot(bundle, deployment_mode="remote")
-    assert snapshot.metadata["source_schema_version"] == "robot-target-evidence-bundle/v2"
+    assert snapshot.snapshot["source_schema_version"] == "robot-target-evidence-bundle/v4"
     assert snapshot_to_legacy_probes(snapshot)["linux"].status == DiscoveryStatus.PARTIAL
 
 
@@ -97,7 +97,7 @@ def test_nested_null_is_part_of_payload_digest():
 def test_bundle_hmac_is_required_when_requested_and_report_projection_is_compatible():
     bundle = TargetEvidenceBundle(
         robot_id="robot-1",
-        collector_id="collector-1",
+        source_id="source-1",
         target_host_fingerprint=FP,
         request_nonce=NONCE,
         requested_layers=["linux"],
@@ -143,27 +143,27 @@ def test_future_identity_and_access_fail_closed():
 
 def test_verified_bundle_projection_requires_pinned_deployment(tmp_path):
     secret = b"s" * 32
-    secret_path = tmp_path / "collector.key"
+    secret_path = tmp_path / "probe_runner.key"
     secret_path.write_bytes(secret)
-    # Linux CI enforces the collector's private-key mode at load time;
+    # Linux CI enforces the probe_runner's private-key mode at load time;
     # Windows does not expose POSIX mode bits, so make the fixture explicit.
     secret_path.chmod(0o600)
-    descriptor = CollectorDescriptor(
+    descriptor = ProbeRunnerDescriptor(
         robot_id="robot-1",
-        collector_id="collector-1",
+        source_id="source-1",
         target_host_fingerprint=FP,
     )
     deployment = EvidenceDeploymentConfig(
         robot_id="robot-1",
         mode=EvidenceDeploymentMode.LOCAL,
-        collector=descriptor,
+        probe_runner=descriptor,
         verification_secret_path=str(secret_path),
         verification_secret_sha256=hashlib.sha256(secret).hexdigest(),
-        local_collector_state_path=str(tmp_path / "collector-state.json"),
+        local_probe_runner_state_path=str(tmp_path / "source-state.json"),
     )
     bundle = TargetEvidenceBundle(
         robot_id="robot-1",
-        collector_id="collector-1",
+        source_id="source-1",
         target_host_fingerprint=FP,
         request_nonce=NONCE,
         requested_layers=["linux"],

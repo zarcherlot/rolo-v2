@@ -567,7 +567,7 @@ def mhs_results_to_snapshot(identity, results: list[MhsResult]):
         kind = FactSourceKind.DECLARED if result.capability_id == "inspect" else FactSourceKind.OBSERVED
         facts.append(Fact(robot_id=identity.robot_id,
             target_host_fingerprint=identity.target_host_fingerprint,
-            collector_id=identity.collector_id, deployment_mode=identity.deployment_mode,
+            source_id=identity.source_id, deployment_mode=identity.deployment_mode,
             access=identity.access, request_nonce=identity.request_nonce,
             source_kind=kind, source_ref=result.route,
             observed_at=result.observed_at or identity.observed_at,

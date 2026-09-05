@@ -19,7 +19,7 @@
     "feature_flags": {"type": "object", "additionalProperties": {"type": "boolean"}},
     "target_profile": {"type": ["string", "null"]},
     "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
-    "collector_id": {"type": ["string", "null"]},
+    "source_id": {"type": ["string", "null"]},
     "fixture": {"type": ["string", "null"]},
     "freshness_policy": {"type": "object", "additionalProperties": {"type": "integer"}},
     "snapshot_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},

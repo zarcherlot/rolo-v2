@@ -163,7 +163,7 @@ def test_episode_api_adapts_legacy_diagnose_publication_for_vis(
             provenance=TargetProvenance(
                 target_id="demo_diff",
                 source="fixture",
-                collector_version="1",
+                probe_runner_version="1",
                 collected_at=started_at + timedelta(seconds=index),
                 clock_offset_ms=0,
             ),

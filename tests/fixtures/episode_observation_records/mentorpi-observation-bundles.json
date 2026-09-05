@@ -35,7 +35,7 @@
           "public_limitations": [
             "Runtime graph probes were incomplete and spatial alignment was not applicable."
           ],
-          "provider_identity": "ros-graph-collector",
+          "provider_identity": "ros-graph-probe runner",
           "topic_name": "/rosout",
           "device_path": null,
           "internal_metadata": {

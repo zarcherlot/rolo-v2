@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-class LinuxObservationCollector:
+class LinuxObservationProbe Runner:
     def __init__(self, root: str | Path = "/") -> None:
         self.root = Path(root)
 
@@ -45,4 +45,4 @@ class LinuxObservationCollector:
 
 
 if __name__ == "__main__":
-    print(json.dumps(LinuxObservationCollector().collect(), sort_keys=True, separators=(",", ":")))
+    print(json.dumps(LinuxObservationProbe Runner().collect(), sort_keys=True, separators=(",", ":")))

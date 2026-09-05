@@ -106,7 +106,7 @@ def fact_identity_tuple(fact: Fact) -> tuple[str, ...]:
     return (
         fact.robot_id,
         fact.target_host_fingerprint,
-        fact.collector_id,
+        fact.source_id,
         fact.deployment_mode,
         fact.access,
         fact.request_nonce or "",
