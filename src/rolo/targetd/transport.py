@@ -6,6 +6,8 @@ import subprocess
 from collections.abc import Callable
 from typing import BinaryIO, Protocol
 
+from .dsl_protocol import DslFrame
+from .dsl_service import TargetdDslService
 from .protocol import (
     ExecutionBundleManifest,
     ExecutionRequest,
@@ -16,6 +18,19 @@ from .protocol import (
     decode_frame,
     encode_frame,
 )
+
+
+class InMemoryTargetdTransport:
+    """In-memory transport used for targetd DSL protocol integration tests."""
+
+    def __init__(self, service: TargetdDslService):
+        self.service = service
+        self.connected = True
+
+    def request(self, frame: DslFrame) -> DslFrame:
+        if not self.connected:
+            raise ConnectionError("disconnected")
+        return self.service.handle(frame)
 
 
 class FrameChannel(Protocol):

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-dsl/v1/dsl.json",
+  "title": "Rolo DSL v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool_id", "kind", "target"],
+  "properties": {
+    "schema_version": {"const": "rolo-dsl/v1"},
+    "tool_id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["OBSERVE", "COMPOSE", "INVOKE", "EXECUTE"]},
+    "status": {"enum": ["PROPOSED", "CONFORMANT", "PUBLISHED", "STALE", "BLOCKED"], "default": "PROPOSED"},
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["robot_id", "evidence_digest"],
+      "properties": {
+        "robot_id": {"type": "string", "minLength": 1},
+        "evidence_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]+$"},
+        "mhs_manifest_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "binding": {"type": "object"},
+    "input_schema": {"type": "object"},
+    "output_schema": {"type": "object"},
+    "mapping": {"type": "object"},
+    "preconditions": {"type": "array", "items": {"type": "object"}},
+    "error_mapping": {"type": "object"},
+    "composition": {"type": "object"},
+    "implementation": {"type": "object"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}}
+  }
+}
