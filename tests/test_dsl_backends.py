@@ -10,7 +10,7 @@ def test_each_kind_has_fake_backend(tmp_path: Path):
         ("OBSERVE", {"binding": {"resource_id": "route:x"}}),
         ("COMPOSE", {"composition": {"steps": [], "limits": {"max_steps": 1, "max_runtime_ms": 1000}}}),
         ("INVOKE", {"binding": {"operation": "x"}}),
-        ("EXECUTE", {"implementation": {"source_bundle_digest": "sha256:src"}}),
+        ("EXECUTE", {"implementation": {"source_bundle_digest": "sha256:src", "entrypoint": "main:run", "runtime": "python3.12", "implementation_contract": "v1"}}),
     ]:
         raw = {"tool_id": "app.test", "kind": kind, "target": {"robot_id": "r", "evidence_digest": "sha256:e"}, **extra}
         doc, parsed = parse_document(raw)

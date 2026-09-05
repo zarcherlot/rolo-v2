@@ -1,4 +1,4 @@
-"""Static type and safety checks for DSL mappings and bounded composition."""
+"""Static type and safety checks for DSL mappings, composition, and EXECUTE."""
 
 from .diagnostics import Diagnostic, DiagnosticReport, DiagnosticSeverity
 from .models import DslDocument, OperationKind
@@ -51,4 +51,17 @@ def check_types(document: DslDocument) -> DiagnosticReport:
             )
         if isinstance(steps, list) and _has_cycle(steps):
             diagnostics.append(Diagnostic(code="COMPOSITION_CYCLE", path="composition.steps", severity=DiagnosticSeverity.ERROR, message="composition graph must be acyclic"))
+    if document.kind == OperationKind.EXECUTE:
+        implementation = document.implementation
+        required = ("source_bundle_digest", "entrypoint", "runtime", "implementation_contract")
+        for field in required:
+            if not implementation.get(field):
+                diagnostics.append(
+                    Diagnostic(code="EXECUTE_IMPLEMENTATION_FIELD_REQUIRED", path=f"implementation.{field}", severity=DiagnosticSeverity.ERROR, message=f"EXECUTE requires implementation.{field}")
+                )
+        digest = implementation.get("source_bundle_digest")
+        if digest and not str(digest).startswith("sha256:"):
+            diagnostics.append(
+                Diagnostic(code="SOURCE_BUNDLE_DIGEST_INVALID", path="implementation.source_bundle_digest", severity=DiagnosticSeverity.ERROR, message="source bundle digest must use sha256:<hex>")
+            )
     return DiagnosticReport(diagnostics=tuple(diagnostics))
