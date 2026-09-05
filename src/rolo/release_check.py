@@ -19,8 +19,8 @@ from rolo.agent_tools import (
     ToolPlan,
     reduced_agent_native_catalog,
 )
-from rolo.mvp import CertificationReport, TargetCatalog, TraceSessionRequest
 from rolo.core.signed_artifacts import SignedArtifact, SignedArtifactStore
+from rolo.mvp import CertificationReport, TargetCatalog, TraceSessionRequest
 from rolo.probe_baseline import (
     BaselineArtifactIndex,
     ProbeBaselineManifest,

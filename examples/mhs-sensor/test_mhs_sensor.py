@@ -8,6 +8,7 @@ from rolo.capabilities import (
     SemanticLayer,
     TransportDescriptor,
 )
+
 from rolo.mhs_sensor import MhsSensorProvider, SensorChannel, SensorManifest
 
 

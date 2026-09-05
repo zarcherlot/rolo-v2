@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
 from rolo.capabilities.models import (
     CapabilityAccess,
     CapabilityDescriptor,
