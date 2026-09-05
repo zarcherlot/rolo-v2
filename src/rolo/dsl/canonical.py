@@ -8,6 +8,8 @@ from .models import DslDocument
 
 
 def canonical_dict(document: Any) -> dict[str, Any]:
+    if isinstance(document, dict):
+        return document
     return document.model_dump(mode="json", exclude_none=True)
 
 
