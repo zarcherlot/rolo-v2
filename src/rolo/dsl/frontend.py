@@ -3,6 +3,8 @@ from .canonical import dsl_digest
 from .diagnostics import Diagnostic, DiagnosticReport, DiagnosticSeverity
 from .ir import CanonicalIR
 from .models import DslDocument, OperationKind
+from .typecheck import check_types
+
 def lower(document: DslDocument) -> CanonicalIR:
     return CanonicalIR.model_validate(document.model_dump(exclude={"schema_version", "status"}))
 def check_semantics(document: DslDocument) -> DiagnosticReport:
@@ -15,6 +17,7 @@ def check_semantics(document: DslDocument) -> DiagnosticReport:
         diagnostics.append(Diagnostic(code="COMPOSITION_REQUIRED", path="composition", severity=DiagnosticSeverity.ERROR, message="COMPOSE requires a bounded composition graph"))
     if document.kind == OperationKind.EXECUTE and not document.implementation:
         diagnostics.append(Diagnostic(code="IMPLEMENTATION_REQUIRED", path="implementation", severity=DiagnosticSeverity.ERROR, message="EXECUTE requires an implementation contract"))
+    diagnostics.extend(check_types(document).diagnostics)
     return DiagnosticReport(diagnostics=tuple(diagnostics))
 def compile_frontend(document: DslDocument) -> tuple[CanonicalIR | None, DiagnosticReport, str]:
     report = check_semantics(document)
