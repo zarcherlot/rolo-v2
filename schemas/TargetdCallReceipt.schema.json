@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-targetd-call-receipt-v1.json",
+  "title": "Rolo targetd call receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "idempotency_key", "session_id", "bundle_digest", "status", "updated_at"],
+  "properties": {
+    "schema_version": {"const": "rolo-targetd-call-receipt/v1"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "session_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["ACCEPTED", "STARTED", "SUCCEEDED", "FAILED", "STOPPED", "CANCELLED", "UNKNOWN", "NOT_ACCEPTED"]},
+    "result": {"type": ["object", "null"]},
+    "evidence_refs": {"type": "array", "maxItems": 64, "items": {"type": "string"}},
+    "artifact_refs": {"type": "array", "maxItems": 64, "items": {"type": "string"}},
+    "updated_at": {"type": "string", "format": "date-time"}
+  }
+}

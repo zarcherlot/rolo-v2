@@ -58,8 +58,10 @@ from rolo.targets.profiles import CredentialReference, TargetProfileStore
 app = typer.Typer(help="Probe a local or remote robot target.", no_args_is_help=True)
 target_app = typer.Typer(help="Inspect an enrolled target and consume its Tool Surface.")
 profile_app = typer.Typer(help="Manage non-secret target connection profiles.")
+targetd_app = typer.Typer(help="Bootstrap and inspect the targetd session bridge.")
 app.add_typer(target_app, name="target")
 target_app.add_typer(profile_app, name="profile")
+app.add_typer(targetd_app, name="targetd")
 
 
 @app.command("release-check")
@@ -71,6 +73,91 @@ def release_check(
     emit(result)
     if result.status != "PASS":
         raise typer.Exit(code=2)
+
+
+@targetd_app.command("status")
+def targetd_status(
+    target: Annotated[str, typer.Argument(help="ssh://user@host[:port]/workspace")],
+    known_hosts: Annotated[Path, typer.Option("--known-hosts")],
+    identity_file: Annotated[Path, typer.Option("--identity-file")],
+    timeout: Annotated[float, typer.Option("--timeout", min=1.0, max=300.0)] = 10.0,
+) -> None:
+    """Check pinned SSH reachability before opening a targetd session."""
+    try:
+        assessment = _target_executor(target, known_hosts, timeout, identity_file).inspect()
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit({"targetd": "UNKNOWN", "assessment": assessment.model_dump(mode="json")})
+    if assessment.state != TargetConnectionState.READY:
+        raise typer.Exit(code=2)
+
+
+@targetd_app.command("health")
+def targetd_health(
+    target: Annotated[str, typer.Argument(help="ssh://user@host[:port]/workspace")],
+    known_hosts: Annotated[Path, typer.Option("--known-hosts")],
+    identity_file: Annotated[Path, typer.Option("--identity-file")],
+    remote_root: Annotated[str, typer.Option("--remote-root")],
+    state_root: Annotated[str, typer.Option("--state-root")],
+    signing_key: Annotated[str, typer.Option("--signing-key")],
+    target_id: Annotated[str, typer.Option("--target-id")] = "mentorpi",
+) -> None:
+    """Open a journey session and return targetd health/capability evidence."""
+    from rolo.stages.targetd_session import TargetdStageSession
+    from rolo.targetd import JourneySession
+    from rolo.targetd.controller import TargetdJourneyController
+
+    parsed = parse_target_ref(target)
+    if not hasattr(parsed, "host"):
+        raise typer.BadParameter("targetd health requires an SSH target")
+    executor = create_target_executor(
+        parsed, known_hosts=known_hosts, identity_file=identity_file
+    )
+    session = JourneySession.create(
+        session_id=f"health-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+        target_id=target_id,
+        profile_id="cli",
+        ttl_s=300,
+    )
+    controller = TargetdJourneyController(
+        executor, session, remote_root=remote_root, state_root=state_root,
+        signing_key=signing_key, execute_calls=False,
+    )
+    try:
+        controller.open()
+        health, handoff = controller.bootstrap()
+        # Health bootstrap is the first business-stage entry: route Probe
+        # through the same facade used by Trace and Certify callers.
+        TargetdStageSession.from_controller(controller).probe()
+        emit({"status": "HEALTHY", "health": health.payload, "handoff": handoff.payload})
+    finally:
+        controller.close()
+
+
+@targetd_app.command("install")
+def targetd_install(
+    target: Annotated[str, typer.Argument(help="ssh://user@host[:port]/workspace")],
+    remote_root: Annotated[str, typer.Option("--remote-root")],
+    known_hosts: Annotated[Path, typer.Option("--known-hosts")],
+    identity_file: Annotated[Path, typer.Option("--identity-file")],
+    package_root: Annotated[Path, typer.Option("--package-root") ] = Path("src"),
+) -> None:
+    """Install the current Rolo package into a dedicated targetd root via SSH stdin."""
+    from rolo.targetd.installer import TargetdInstaller
+
+    parsed = parse_target_ref(target)
+    if not hasattr(parsed, "host"):
+        raise typer.BadParameter("targetd install requires an SSH target")
+    executor = create_target_executor(
+        parsed, known_hosts=known_hosts, identity_file=identity_file
+    )
+    if not hasattr(executor, "stream_stdin"):
+        raise typer.BadParameter("targetd install requires an SSH executor")
+    try:
+        installed = TargetdInstaller(executor, package_root=package_root).install(remote_root)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit({"status": "INSTALLED", "remote_root": installed})
 
 
 def _target_executor(

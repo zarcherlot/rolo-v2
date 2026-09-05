@@ -237,6 +237,45 @@ class SshTargetExecutor:
             *quote_remote_argv([*self.remote_command_prefix, *remote_argv]),
         ]
 
+    def stdio_argv(self, remote_argv: list[str]) -> list[str]:
+        """Build a fixed SSH argv for a binary stdin/stdout protocol."""
+        if not remote_argv or any(not value or "\x00" in value for value in remote_argv):
+            raise ValueError("SSH stdio remote argv must be non-empty and NUL-free")
+        argv = self._ssh_argv([])
+        marker = argv.index("--")
+        return [
+            *argv[:marker],
+            argv[marker + 1],
+            *quote_remote_argv([*self.remote_command_prefix, *remote_argv]),
+        ]
+
+    def open_targetd_channel(self, remote_argv: list[str]):
+        """Open targetd over this executor's pinned SSH stdio transport."""
+        from rolo.targetd import SshStdioChannel
+
+        channel = SshStdioChannel(self.stdio_argv(remote_argv))
+        channel.open()
+        return channel
+
+    def stream_stdin(self, remote_argv: list[str], payload: bytes) -> CommandResult:
+        """Run one fixed remote argv while streaming bounded binary stdin."""
+        if not remote_argv or any(not value or "\x00" in value for value in remote_argv):
+            raise ValueError("SSH stream argv must be non-empty and NUL-free")
+        argv = self.stdio_argv(remote_argv)
+        completed = subprocess.run(
+            argv,
+            input=payload,
+            capture_output=True,
+            check=False,
+            timeout=self.timeout_s,
+        )
+        return CommandResult(
+            argv=tuple(argv),
+            returncode=completed.returncode,
+            stdout=completed.stdout.decode("utf-8", errors="replace")[:MAX_DIAGNOSTIC_CHARS],
+            stderr=completed.stderr.decode("utf-8", errors="replace")[:MAX_DIAGNOSTIC_CHARS],
+        )
+
     def _run(self, remote_argv: list[str]) -> CommandResult:
         return self.runner.run(self._ssh_argv(remote_argv), timeout_s=self.timeout_s)
 

@@ -6,6 +6,7 @@ registers providers, executes tools, or exposes raw bundle payloads.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from collections.abc import Callable
@@ -37,6 +38,7 @@ API_FEATURES = (
     "mhs.inventory-read-model/v1",
     "tool.verification-read-model/v1",
     "rkb.episodes-read-model/v1",
+    "targetd.session-read-model/v1",
 )
 _SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
@@ -150,6 +152,76 @@ def _mhs_registry() -> MhsProviderRegistry:
     return MhsProviderRegistry(Path(os.getenv("ROLO_MHS_REGISTRY_ROOT", ".rolo/mhs")))
 
 
+@app.get("/v1/targetd/{target_id}/sessions/{session_id}")
+def targetd_session_read_model(target_id: str, session_id: str) -> dict[str, Any]:
+    """Expose structured targetd session/receipt artifacts for rolo-vis."""
+    if not _safe_segment(target_id) or not _safe_segment(session_id):
+        raise HTTPException(status_code=400, detail="invalid targetd identity")
+    root = Path(os.getenv("ROLO_ARTIFACT_ROOT", ".rolo/artifacts")).expanduser()
+    directory = root / "targetd" / target_id / "sessions" / session_id
+    if directory.is_symlink() or not directory.is_dir():
+        raise HTTPException(status_code=404, detail="targetd session not found")
+    calls: list[dict[str, Any]] = []
+    for path in sorted((directory / "calls").glob("*.json")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(value, dict):
+            calls.append(value)
+    events: list[dict[str, Any]] = []
+    events_path = directory / "events.jsonl"
+    if events_path.is_file() and not events_path.is_symlink():
+        for line in events_path.read_text(encoding="utf-8").splitlines():
+            try:
+                value = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                events.append(value)
+    reports: list[dict[str, Any]] = []
+    report_root = root / "targetd" / target_id / "certify"
+    for path in sorted(report_root.glob("*.json")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(value, dict):
+            reports.append(value)
+    return {
+        "schema_version": "rolo-targetd-session-read-model/v1",
+        "target_id": target_id,
+        "session_id": session_id,
+        "status": "AVAILABLE",
+        "calls": calls,
+        "call_count": len(calls),
+        "events": events,
+        "event_count": len(events),
+        "certify_reports": reports,
+    }
+
+
+@app.get("/v1/targetd/index")
+def targetd_index_read_model() -> dict[str, Any]:
+    """Return the artifact index consumed by rolo-vis."""
+    root = Path(os.getenv("ROLO_ARTIFACT_ROOT", ".rolo/artifacts")).expanduser()
+    path = root / "targetd" / "index.jsonl"
+    items: list[dict[str, Any]] = []
+    if path.is_file() and not path.is_symlink():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                value = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                items.append(value)
+    return {"schema_version": "rolo-targetd-index-read-model/v1", "items": items, "count": len(items)}
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     try:
@@ -166,6 +238,7 @@ def health() -> dict[str, Any]:
             "mhs.inventory-read-model/v1",
             "tool.verification-read-model/v1",
             "rkb.episodes-read-model/v1",
+            "targetd.session-read-model/v1",
         ],
         "timestamp": datetime.now(timezone.utc),
     }

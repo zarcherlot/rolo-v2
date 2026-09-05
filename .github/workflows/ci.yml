@@ -75,6 +75,12 @@ jobs:
           tests/test_agent_native_tools.py
           tests/test_probe_session_factory.py
           tests/test_native_tool_session.py
+          tests/test_targetd_protocol.py
+          tests/test_targetd_ssh_handoff.py
+          tests/test_targetd_stage_session.py
+          tests/test_targetd_api_read_model.py
+          tests/test_targetd_certify_replay.py
+          tests/test_signed_artifacts.py
           tests/test_tool_planning.py
           tests/test_tool_conformance.py
           tests/test_product_cli_v2.py
@@ -98,8 +104,13 @@ jobs:
           tests/test_rkb_mhs_read_models.py
           tests/test_probe_baseline.py
           examples/mhs-sensor/test_mhs_sensor.py
+          scripts/targetd_landerpi_smoke.py
+          scripts/targetd_ssh_handoff_smoke.py
+          scripts/targetd_rotate_ssh_smoke.py
+          scripts/targetd_pending_recovery_smoke.py
+          scripts/targetd_certify_landerpi.py
       - name: Compile the v2 source and test tree
-        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py scripts/mhs_readonly_canary.py scripts/probe_baseline.py
+        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py scripts/mhs_readonly_canary.py scripts/probe_baseline.py scripts/targetd_pending_recovery_smoke.py scripts/targetd_certify_landerpi.py
 
   package:
     runs-on: ubuntu-latest

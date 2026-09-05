@@ -15,7 +15,32 @@ from .contracts import CaseStatus, CertificationCaseResult, CertificationReport,
 def load_suite(path: Path, *, target_id: str | None = None, require_ten_cases: bool = True) -> CertificationSuite:
     if path.is_symlink() or not path.is_file():
         raise FileNotFoundError(path)
-    suite = CertificationSuite.model_validate_json(path.read_text(encoding="utf-8"))
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    # The targetd rotation fixture is the canonical current MVP input.  Keep
+    # the legacy offline runner useful by normalizing its compact argument
+    # shape into the v1 certification contract at this boundary.
+    if raw.get("schema_version") == "rolo-chassis-rotation-certify/v1":
+        raw = {
+            "schema_version": "rolo-mvp-certification-suite/v1",
+            "suite_id": "chassis-rotation-10",
+            "target_id": raw.get("target_id", "mentorpi"),
+            "cases": [
+                {
+                    "case_id": case["case_id"],
+                    "description": f"Execute {raw.get('tool_id', 'app.base.rotate')} rotation case",
+                    "tool_id": raw.get("tool_id", "app.base.rotate"),
+                    "arguments": {
+                        "angle_degrees": case["angle_degrees"],
+                        "max_speed_rad_s": case["max_speed_rad_s"],
+                    },
+                    "expected": {"status": "SUCCEEDED"},
+                    "timeout_s": 180,
+                    "risk": "R2",
+                }
+                for case in raw.get("cases", [])
+            ],
+        }
+    suite = CertificationSuite.model_validate(raw)
     if target_id is not None and suite.target_id != target_id:
         raise ValueError("certification suite target does not match requested target")
     if require_ten_cases and len(suite.cases) != 10:

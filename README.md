@@ -117,7 +117,7 @@ uv run rolo
 - **Robot Knowledge Base**：RKB 设计、[可执行开发计划](docs/architecture/ROLO_V2_RKB_EXECUTION_PLAN_ZH.md)、[Probe 后受控写执行计划](docs/architecture/ROLO_V2_RKB_WRITE_TRANSITION_PLAN_ZH.md)见[架构说明](docs/architecture/ROBOT_KNOWLEDGE_BASE_FOR_AGENT_DEBUGGING_ZH.md)。
 - **LanderPi Agent MVP**：用户旅程、最大并行工作流、集成门和真机验收见 [MVP 开发计划](docs/architecture/ROLO_V2_LANDERPI_AGENT_JOURNEY_MVP_PLAN_ZH.md)。
 - **rolo-vis-v2**：Probe 证据图、Agent 关联建议和 Trace 前用户确认见 [Probe 证据与关联设计](docs/architecture/ROLO_VIS_PROBE_ASSOCIATION_PLAN_ZH.md)。
-- **远程证据**：控制器与目标机分离时，请按[目标证据部署规范](docs/target/TARGET_EVIDENCE_DEPLOYMENT.md)置备签名 bundle、SSH host-key 和 probe runner。
+- **远程证据**：控制器与目标机分离时，请按[目标证据部署规范](docs/target/TARGET_EVIDENCE_DEPLOYMENT.md)置备签名 bundle、SSH host-key 和目标软件栈。
 - **Codex/Claude Code**：模型 transport、授权和执行边界见 [Agent-native Tools](docs/probe/AGENT_NATIVE_TOOLS.md)。
 - **阶段边界**：Probe、Trace、Certify 的职责和现场监督模式见[阶段词汇](docs/architecture/ROLO_V2_PROBE_TRACE_CERTIFY_ZH.md)与[架构说明](docs/architecture/ARCHITECTURE.md)。
 - **配置与专家 CLI**：字段和细粒度命令见[配置说明](docs/setup/CONFIGURATION.md)与 [Probe 短流程](docs/getting-started/PROBE_SHORT_JOURNEY.md)。
