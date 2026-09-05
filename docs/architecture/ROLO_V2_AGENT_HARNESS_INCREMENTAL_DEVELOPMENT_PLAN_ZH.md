@@ -25,7 +25,10 @@ Agent 产品自带 harness
 
 目标不是让 Agent 获得一台机器的 shell，而是让 Agent 通过 skill 知道何时调用哪一个语义化
 命令，并获得一组 target-bound、digest-bound、session-bound 的已注册操作。Probe、Trace、
-Certify 是可独立调用的产品入口，不是强制流水线。
+Certify 是可独立调用的产品入口，不是强制流水线。基础执行统一使用普通 SSH 登录和目标机
+已有软件栈；Probe/Harness 直接执行已绑定的固定操作。Agent 执行态默认由 `rolo skill`
+安装 `rolo-targetd`，Trace/Certify 正式运行前必须通过 targetd health；Probe 可在安装前作为
+bootstrap，但不代表完整产品旅程。
 
 ## 1.1 调用方向原则
 
@@ -41,10 +44,10 @@ Certify 是可独立调用的产品入口，不是强制流水线。
 
 | 链路步骤 | 当前 main | 增量开发 |
 |---|---|---|
-| 安装和使用 Rolo | `skills/rolo/SKILL.md`、`skills/rolo-tool-planning/` 已有基础规则 | 完整 skill bootstrap、安装/升级/preflight、意图路由和版本校验 |
-| 读取 Tool/RKB/MHS | API read model 和 CLI 已有 | 统一 connector contract、分页/新鲜度和 context builder |
+| 安装和使用 Rolo | `skills/rolo/SKILL.md`、`skills/rolo-tool-planning/` 已有基础规则 | 完整 skill bootstrap、targetd 默认安装/升级/preflight、意图路由和版本校验 |
+| 读取 Tool/RKB/MHS | API read model 和 CLI 已有 | 统一 connector contract、分页/新鲜度和 context builder；bootstrap 走普通 SSH，执行态优先 targetd |
 | 生成 ToolPlan | `rolo target tool-plan`、schema、allowlist、digest、budget 已有 | 支持单步 proposal、计划增量和 Trace session |
-| 调用 Rolo | `NativeToolSession` 可执行已校验只读计划 | 暴露统一单步 invocation；现场实验写操作走注册 capability |
+| 调用 Rolo | `NativeToolSession` 可执行已校验只读计划 | 暴露统一单步 invocation；bootstrap 使用普通 SSH，Trace/Certify 默认经 targetd；现场实验写操作走注册 capability |
 | 读取结果 | 有结构化 CLI 结果和 evidence artifact | 统一 result envelope、错误分类、事件流和 run 查询 |
 | 自主诊断 | 当前无 Trace runtime | 诊断上下文、恢复 proposal、有限重试和停止/取消 |
 | Certify | 当前无测试 runner | suite schema、runner、expected/actual matcher、报告 |
@@ -132,7 +135,7 @@ API 是 Agent adapter 的远程边界；Agent 不直接连接 SSH，也不直接
 `rolo skill` 是 Codex 或其他 Agent harness 的第一入口，必须覆盖完整生命周期：
 
 ```text
-detect → install/upgrade → preflight → configure profile → route intent → execute → report
+detect → install/upgrade rolo → configure profile → bootstrap SSH → install/health targetd → route intent → execute → report
 ```
 
 skill 可以指导 harness 执行安装命令，但不能绕过 harness 的执行权限安装未知代码。安装源、
@@ -142,10 +145,11 @@ skill 可以指导 harness 执行安装命令，但不能绕过 harness 的执�
 Skill 至少说明：
 
 - 用户要求发现能力时调用 `probe`；
+- 执行 Probe 前检查 profile、host key、目标软件栈和 capability；执行 Trace/Tool/Certify 前还必须检查 targetd health；
 - 用户要求完成任务时调用 `trace`；
 - 用户要求执行明确操作时调用 `tool-invoke`/`tool-plan`；
 - 用户明确要求测试或回归时才调用 `certify`；
-- 仅在需要时读取 Tool/RKB/MHS，不强制每次用例先 Probe；
+- Probe 可以在 targetd 安装前作为 bootstrap 独立执行；不强制每次 Trace/Certify 重新 Probe；
 - 只能使用 `agent_callable=true` 的 Tool；
 - RKB 是带 freshness 的事实投影，未知必须保留；
 - Tool 失败时先读取证据，再决定诊断或恢复；
@@ -213,8 +217,24 @@ docs/agent/ROLO_INTENT_ROUTING.md
 examples/agent/rolo-skill-bootstrap/
 ```
 
-验收：空环境中，Agent 按 skill 完成安装、版本检查和 health；已有旧版本时能安全升级或
-明确拒绝；安装失败不执行目标操作。
+验收：空环境中，Agent 按 skill 完成 Rolo 安装、版本检查和 health；已有旧版本时能安全
+升级或明确拒绝；profile、host key 或目标软件栈检查失败时不执行目标操作。
+
+### W0.6：普通 SSH 直接执行协议
+
+开发：
+
+- 固定普通 SSH 登录、host-key、identity、目标工作区和已有软件栈检查；
+- Probe/Harness 通过目标机已有命令或运行时直接执行，不使用 SSH collector；
+- 固定 provider 生成的 argv、环境、超时、输出上限和结果 envelope；
+- 通过 stdin 传输临时签名执行 bundle，不把源码写入业务工作区；
+- 记录命令、输入/输出 digest、目标指纹、session、事件和审计；
+- 为长任务定义 lease、停止、断线后的 UNKNOWN/reconcile 行为；
+- 在上述基础上由 `rolo skill` 默认安装 targetd；Trace/Certify 进入正式执行态后优先经 targetd；
+
+验收：普通 SSH 登录和目标软件栈检查通过后，Probe 可直接执行；targetd 安装并 health 通过
+后，Trace/Tool/Certify 可执行；不写入目标业务工作区；bundle digest 或签名不匹配时拒绝；
+断线不会自动重复执行动作。
 
 ### W1：Discovery Context Builder
 
@@ -227,7 +247,8 @@ examples/agent/rolo-skill-bootstrap/
 - 设定最大 Tool 数、字段数和上下文大小；
 - 清理目标输出中的提示词注入内容。
 
-验收：给定同一 artifact，context digest 稳定；未验证能力不会出现在 executable tools 区域。
+验收：给定同一 artifact，context digest 稳定；未验证能力不会出现在 executable tools 区域；
+SSH profile、目标软件栈或 operation binding 不满足时 context 明确为 `BLOCKED`。
 
 ### W2：rolo Skill/Codex Caller Adapter
 
@@ -239,6 +260,7 @@ examples/agent/rolo-skill-bootstrap/
 - exit code 到标准状态/错误类映射；
 - stdout/stderr/evidence/artifact 归档；
 - 明确 Rolo 不反向调用 Codex。
+- 只有 SSH profile、host key、目标软件栈和 operation binding 校验通过后，才允许执行命令。
 
 验收：fake target 上分别执行 Probe、Trace、Tool Invoke、Certify；每次只执行用户选择的入口，
 Codex 读取上一步结果后自行决定是否发起下一次调用。
@@ -284,6 +306,7 @@ ToolPlan。该协议是通用的，旋转只是第一个 adapter；后续 mappin
 - 事件流和 run 查询；
 - target/session/digest/allowlist 校验；
 - Episode metadata 和 evidence index。
+- 通过普通 SSH 的 run/lease 关联执行；Codex 不直接拼接 SSH 命令。
 
 验收：成功、拒绝、超时、取消和过期五类场景均有确定状态和 artifact。
 
@@ -372,6 +395,7 @@ contract 破坏都阻止发布。
 Day 0：W0 Contract + Intent Matrix Freeze
        │
        ├── W0.5 rolo skill bootstrap ─┐
+       ├── W0.6 SSH direct execution ──┤
        ├── W1 Context Builder ────────┤
        ├── W2 Skill/Codex caller ──────┤
        ├── W2.5 Probe analysis ────────┤
@@ -401,14 +425,14 @@ Day 0：W0 Contract + Intent Matrix Freeze
 
 | 集成门 | 依赖 | 通过条件 |
 |---|---|---|
-| I0 Contract + Skill | W0、W0.5 | schema、意图路由、拒绝码、安装和版本规则冻结 |
+| I0 Contract + Skill + SSH | W0、W0.5、W0.6 | schema、意图路由、SSH/目标栈检查、拒绝码和版本规则冻结 |
 | I1 Probe Analysis | W1、W2、W2.5 | collect、analysis、follow-up、proposal validation 和确认闭环通过 |
-| I2 Offline Trace | W1、W2、W3、W4 | fixture 成功/诊断/阻塞 replay 全部通过 |
-| I3 LanderPi Trace | I2、W5、W8 | 真机完成旋转或有证据地 BLOCKED；无伪造能力 |
+| I2 Offline Trace | W0.6、W1、W2、W3、W4 | fixture 成功/诊断/阻塞 replay 全部通过 |
+| I3 LanderPi Trace | I2、W5、W8 | 普通 SSH 和目标软件栈可用；完成旋转或有证据地 BLOCKED；无伪造能力 |
 | I4 Certify/UI | W6、W7、I3 | 用户明确触发后 10 条用例报告和 UI 视图一致 |
 | I5 Release | W9、I4 | runbook、artifact index、回滚和限制说明齐全 |
 
-W1、W2、W2.5、W5、W6、W7、W8、W9 在 I0 后可以同时开发；W0.5 在 I0 后优先完成，W3/W4
+W0.6、W1、W2、W2.5、W5、W6、W7、W8、W9 在 I0 后可以同时开发；W0.5 在 I0 后优先完成，W3/W4
 使用 W1/W2 的 fixture。Probe、Trace、Certify 的集成门相互独立，I5 只在用户选择的旅程和
 发布条件全部满足后执行。
 

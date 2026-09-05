@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-targetd-health-v1.json",
+  "title": "Rolo targetd health",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "target_id", "capability_digest", "active_sessions"],
+  "properties": {
+    "schema_version": {"const": "rolo-targetd-health/v1"},
+    "status": {"enum": ["HEALTHY", "DEGRADED", "UNAVAILABLE"]},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "capability_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "active_sessions": {"type": "integer", "minimum": 0}
+  }
+}

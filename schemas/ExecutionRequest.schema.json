@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-execution-request-v1.json",
+  "title": "Rolo execution request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "session_id", "target_id", "idempotency_key", "bundle_digest", "binding_digest", "surface_digest", "arguments", "mode", "deadline"],
+  "properties": {
+    "schema_version": {"const": "rolo-execution-request/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "session_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "binding_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "surface_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "arguments": {"type": "object"},
+    "mode": {"type": "string", "minLength": 1, "maxLength": 64},
+    "deadline": {"type": "string", "format": "date-time"}
+  }
+}

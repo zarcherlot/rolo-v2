@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Rolo targetd</title>
+<style>body{font:14px system-ui;margin:2rem}table{border-collapse:collapse}td,th{padding:.4rem;border:1px solid #ccc}</style>
+<h1>Rolo targetd sessions</h1>
+<p id="status">Loading…</p><table><thead><tr><th>Target</th><th>Session</th><th>Call</th><th>Status</th><th>Artifact</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table>
+<script>
+fetch('/v1/targetd/index').then(r=>r.json()).then(async data=>{
+  document.querySelector('#status').textContent=`${data.count} calls`;
+  const details = await Promise.all(data.items.map(async x=>{
+    const r=await fetch(`/v1/targetd/${encodeURIComponent(x.target_id)}/sessions/${encodeURIComponent(x.session_id)}`);
+    return r.ok ? r.json() : {event_count:0, certify_reports:[]};
+  }));
+  document.querySelector('#rows').innerHTML=data.items.map((x,i)=>{
+    const d=details[i];
+    return `<tr><td>${x.target_id}</td><td>${x.session_id}</td><td>${x.idempotency_key}</td><td>${x.status||''}</td><td>${x.artifact_ref||''}</td><td>${d.event_count||0} events / ${(d.certify_reports||[]).length} reports</td></tr>`;
+  }).join('');
+}).catch(e=>document.querySelector('#status').textContent='Unavailable: '+e);
+</script>
