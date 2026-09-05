@@ -8,7 +8,7 @@ def value():
 
 
 def context():
-    return {"robot_id": "r", "evidence_digest": "sha256:e", "evidence_refs": ["route:/state"]}
+    return {"robot_id": "r", "evidence_digest": "sha256:e", "target_fingerprint": "fp", "evidence_refs": ["route:/state"]}
 
 
 def test_service_check_and_compile(tmp_path):
