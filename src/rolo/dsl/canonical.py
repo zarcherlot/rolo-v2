@@ -1,4 +1,4 @@
-"""Deterministic serialization and digests for DSL documents and IR."""
+"""Deterministic serialization and digests for DSL documents, context and IR."""
 
 import hashlib
 import json
@@ -21,6 +21,10 @@ def _digest(value: Any) -> str:
 
 def dsl_digest(document: DslDocument) -> str:
     return _digest(document)
+
+
+def context_digest(context: Any) -> str:
+    return _digest(context)
 
 
 def ir_digest(ir: Any) -> str:

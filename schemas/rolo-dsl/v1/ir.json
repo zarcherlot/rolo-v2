@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-dsl/v1/ir.json",
+  "title": "Rolo Canonical IR v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["tool_id", "kind", "target", "evidence_refs", "binding", "input_schema", "output_schema", "mapping", "preconditions", "error_mapping", "composition", "implementation"],
+  "properties": {
+    "tool_id": {"type": "string"},
+    "kind": {"enum": ["OBSERVE", "COMPOSE", "INVOKE", "EXECUTE"]},
+    "target": {"type": "object"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "binding": {"type": "object"}, "input_schema": {"type": "object"}, "output_schema": {"type": "object"}, "mapping": {"type": "object"},
+    "preconditions": {"type": "array"}, "error_mapping": {"type": "object"}, "composition": {"type": "object"}, "implementation": {"type": "object"}
+  }
+}
