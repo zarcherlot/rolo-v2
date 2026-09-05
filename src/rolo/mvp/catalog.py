@@ -107,8 +107,8 @@ def build_target_catalog(
     entries = [item if isinstance(item, MhsInventoryEntry) else MhsInventoryEntry.model_validate(item) for item in mhs]
     refs = [item if isinstance(item, RkbModelRef) else RkbModelRef.model_validate(item) for item in rkb]
     limitations: list[str] = []
-    if not any(item.agent_callable and ("map" in item.tool_id.lower() or "mapping" in item.tool_id.lower()) for item in tools):
-        limitations.append("mapping tool not observed")
+    if not any(item.agent_callable and (item.tool_id.startswith("app.") or item.tool_id.startswith("native.application.")) for item in tools):
+        limitations.append("no callable application tool observed")
     if freshness != "fresh":
         limitations.append(f"catalog freshness is {freshness}")
     return TargetCatalog(

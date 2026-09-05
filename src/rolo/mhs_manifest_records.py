@@ -55,7 +55,7 @@ class MhsReferenceCandidate(BaseModel):
     resource_id: str | None = None
     route: str | None = None
     source_ref: str | None = None
-    collector_id: str | None = None
+    source_id: str | None = None
     observed_at: datetime | None = None
     freshness: MhsFreshness = MhsFreshness.UNKNOWN
     digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
@@ -222,7 +222,7 @@ def resolve_manifest_reference(
     source_kind: MhsSourceKind = MhsSourceKind.VENDOR_MANIFEST,
     authority: MhsAuthority = MhsAuthority.VENDOR,
     source_ref: str | None = None,
-    collector_id: str | None = None,
+    source_id: str | None = None,
     generated_by: str | None = None,
     generated_at: datetime | None = None,
     input_evidence_ids: list[str] | None = None,

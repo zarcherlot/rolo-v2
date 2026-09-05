@@ -49,7 +49,7 @@ def test_real_codex_builds_and_passes_a_route_presence_adapter(tmp_path: Path) -
     registry.load()
     binding = {
         "robot_id": "demo_diff",
-        "collector_id": "collector-real-codex-test",
+        "source_id": "source-real-codex-test",
         "target_host_fingerprint": "f" * 64,
         "bundle_payload_sha256": "a" * 64,
         "access": "READ_ONLY",

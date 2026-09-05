@@ -47,7 +47,7 @@
    `src/rolo/core/models.py:132-138`），identity 不在类型层；目标绑定仍是在
    `verify_evidence_bundle()` 中把 `target_evidence` 字典注入 probe data（
    `src/rolo/stages/probe/target_evidence.py:1330-1342`）。这应保留为第一阶段的强类型化目标。
-2. Bundle 校验覆盖 robot、collector、fingerprint、nonce、签名和约五分钟 replay window，
+2. Bundle 校验覆盖 robot、probe runner、fingerprint、nonce、签名和约五分钟 replay window，
    但没有事实级 `fresh_until`；该差距是有效的 P0/P1 设计输入。
 3. 当前 route 已有 interface/schema/provider/runtime revision 的字段，但 ROS Probe 仍主要
    输出节点、topic、service、action 名称快照，缺少完整 endpoint relationship、QoS、GUID 和
@@ -87,7 +87,7 @@
 - 将 `DiscoveryReport` 保持为兼容投影，暂不改变现有 CLI 输出。
 
 退出条件：单个 probe 或 snapshot 可独立回答“属于哪个目标、由谁采集、何时观测、何时失效、
-来自哪个 artifact”，且 fingerprint、collector、digest 或 freshness 不一致会拒绝读取。
+来自哪个 artifact”，且 fingerprint、probe runner、digest 或 freshness 不一致会拒绝读取。
 
 ### RKB-2：只读分层事实与查询
 

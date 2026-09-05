@@ -22,7 +22,7 @@
   },
   "verification": {
     "artifact": "artifact://mhs-landerpi/aurora-production-stability-post-joystick-fix-20260903.json",
-    "actuator_commands_sent_by_collector": 0
+    "actuator_commands_sent_by_probe_runner": 0
   },
   "safety": {
     "remote_operator_required": true,

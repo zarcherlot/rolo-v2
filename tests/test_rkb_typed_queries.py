@@ -21,7 +21,7 @@ def identity(**changes):
     value = dict(
         robot_id="robot-1",
         target_host_fingerprint=FP,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="remote",
         request_nonce="b" * 32,
         observed_at=NOW,
@@ -41,7 +41,7 @@ def fact(layer, data, *, source_kind=FactSourceKind.OBSERVED_RUNTIME, fresh_unti
     return Fact(
         robot_id="robot-1",
         target_host_fingerprint=FP,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="remote",
         request_nonce="b" * 32,
         source_kind=source_kind,

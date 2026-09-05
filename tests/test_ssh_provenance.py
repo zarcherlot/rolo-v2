@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from rolo.core.artifacts import ArtifactStore
-from rolo.stages.verify.ssh_provenance import SshTargetProvenanceCollector
+from rolo.stages.verify.ssh_provenance import SshTargetProvenanceProbeRunner
 from rolo.target_ref import SshTargetRef
 
 
@@ -33,7 +33,7 @@ def _target() -> SshTargetRef:
     return SshTargetRef(host="robot.example", user="robot", workspace="/opt/rolo")
 
 
-def test_ssh_provenance_collector_publishes_canonical_binding(tmp_path: Path) -> None:
+def test_ssh_provenance_probe_runner_publishes_canonical_binding(tmp_path: Path) -> None:
     target = _target()
     transport = _Transport(
         target,
@@ -46,7 +46,7 @@ def test_ssh_provenance_collector_publishes_canonical_binding(tmp_path: Path) ->
             ("printenv", "RMW_IMPLEMENTATION"): _Result(0, "rmw_fastrtps_cpp\n"),
         },
     )
-    binding, reference, digest = SshTargetProvenanceCollector(target, transport).collect(
+    binding, reference, digest = SshTargetProvenanceProbeRunner(target, transport).collect(
         ArtifactStore(tmp_path),
         robot_id="robot-1",
         profile_sha256="a" * 64,
@@ -64,7 +64,7 @@ def test_ssh_provenance_collector_publishes_canonical_binding(tmp_path: Path) ->
     assert len(transport.calls) == 6
 
 
-def test_ssh_provenance_collector_fails_closed_on_bad_stat(tmp_path: Path) -> None:
+def test_ssh_provenance_probe_runner_fails_closed_on_bad_stat(tmp_path: Path) -> None:
     target = _target()
     transport = _Transport(
         target,
@@ -73,13 +73,13 @@ def test_ssh_provenance_collector_fails_closed_on_bad_stat(tmp_path: Path) -> No
         },
     )
     with pytest.raises(ValueError, match="stat"):
-        SshTargetProvenanceCollector(target, transport).collect(
+        SshTargetProvenanceProbeRunner(target, transport).collect(
             ArtifactStore(tmp_path), robot_id="robot-1", profile_sha256="a" * 64
         )
 
 
-def test_ssh_provenance_collector_rejects_transport_target_mismatch(tmp_path: Path) -> None:
+def test_ssh_provenance_probe_runner_rejects_transport_target_mismatch(tmp_path: Path) -> None:
     target = _target()
     other = SshTargetRef(host="other.example", workspace="/opt/rolo")
     with pytest.raises(ValueError, match="does not match"):
-        SshTargetProvenanceCollector(target, _Transport(other, {}))
+        SshTargetProvenanceProbeRunner(target, _Transport(other, {}))

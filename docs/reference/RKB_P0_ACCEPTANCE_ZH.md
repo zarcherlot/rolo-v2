@@ -19,7 +19,7 @@ project 与 dev 依赖）。没有 `pytest`/`uv` 时状态必须记为 `BLOCKED`
 
 ## 失败关闭与边界
 
-- identity tuple（robot、target fingerprint、collector、deployment、access、nonce）任一不一致拒绝读取。
+- identity tuple（robot、target fingerprint、probe runner、deployment、access、nonce）任一不一致拒绝读取。
 - envelope digest、fact digest、freshness 或 replay window 任一校验失败拒绝读取；过期状态为 `STALE`。
 - 未观测的 Domain/RMW/安全状态只能记录 `UNKNOWN`，不能推导 capability eligibility。
 - MHS v2 仅开放 `inspect`、`status`、`read`；reset、calibrate、setpoint、stop、power-cycle 等写请求统一 `UNAVAILABLE`。

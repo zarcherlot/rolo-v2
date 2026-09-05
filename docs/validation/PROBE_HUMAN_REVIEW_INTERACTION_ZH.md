@@ -10,7 +10,7 @@
 Rolo 先运行 Probe 并打开验收摘要。摘要固定显示：
 
 - robot ID、目标 URI、pinned host-key fingerprint；
-- target host fingerprint、collector、observed/fresh-until；
+- target host fingerprint、probe runner、observed/fresh-until；
 - evidence/RKB snapshot digest；
 - `VENDOR_MANIFEST`、`OBSERVED_RUNTIME`、`PROVISIONAL_TEST_FIXTURE` 三列来源；
 - Tool surface、negative tests、no-write audit；
@@ -23,7 +23,7 @@ Rolo 先运行 Probe 并打开验收摘要。摘要固定显示：
 
 Rolo 在展示按钮前重新计算批次 index digest，并检查：
 
-1. profile、目标指纹、collector 和 evidence digest 一致；
+1. profile、目标指纹、probe runner 和 evidence digest 一致；
 2. evidence freshness 未过期；
 3. MHS 仅为发现/引用，不含写能力；
 4. association 只能是 `PROPOSED`、`UNKNOWN` 或 `UNSUPPORTED`；

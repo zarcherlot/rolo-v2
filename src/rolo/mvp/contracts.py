@@ -120,11 +120,9 @@ class TargetCatalog(MvpModel):
     def verify_digest(self) -> TargetCatalog:
         if self.digest is not None and self.digest != self.computed_digest():
             raise ValueError("target catalog digest does not match content")
-        if not any(item.agent_callable and item.tool_id.startswith("mapping") for item in self.tools):
-            # The exact vendor route is unknown until Probe observes it.  Keep this
-            # limitation explicit so callers can return BLOCKED instead of guessing.
-            if "mapping tool not observed" not in self.limitations:
-                self.limitations.append("mapping tool not observed")
+        if not any(item.agent_callable and (item.tool_id.startswith("app.") or item.tool_id.startswith("native.application.")) for item in self.tools):
+            if "no callable application tool observed" not in self.limitations:
+                self.limitations.append("no callable application tool observed")
         return self
 
 

@@ -38,7 +38,7 @@ def make_snapshot() -> Snapshot:
     identity = SnapshotIdentity(
         robot_id="mentorpi",
         target_host_fingerprint="a" * 64,
-        collector_id="rkb4-test",
+        source_id="rkb4-test",
         deployment_mode="local",
         request_nonce="1" * 32,
         observed_at=NOW,
@@ -47,7 +47,7 @@ def make_snapshot() -> Snapshot:
     fact = Fact(
         robot_id="mentorpi",
         target_host_fingerprint="a" * 64,
-        collector_id="rkb4-test",
+        source_id="rkb4-test",
         deployment_mode="local",
         request_nonce="1" * 32,
         source_kind=FactSourceKind.OBSERVED_RUNTIME,
@@ -232,7 +232,7 @@ def test_dual_read_legacy_artifact_does_not_write_or_escape_store(tmp_path) -> N
 def test_probe_publication_is_one_way_and_keeps_legacy_bundle_untouched(tmp_path) -> None:
     bundle = TargetEvidenceBundle(
         robot_id="mentorpi",
-        collector_id="rkb4-test",
+        source_id="rkb4-test",
         target_host_fingerprint="a" * 64,
         request_nonce="1" * 32,
         requested_layers=["linux"],

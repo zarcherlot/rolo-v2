@@ -131,7 +131,7 @@ def probe_to_snapshot(
     fact = Fact(
         robot_id=snapshot_identity.robot_id,
         target_host_fingerprint=snapshot_identity.target_host_fingerprint,
-        collector_id=snapshot_identity.collector_id,
+        source_id=snapshot_identity.source_id,
         deployment_mode=snapshot_identity.deployment_mode,
         access=snapshot_identity.access,
         request_nonce=snapshot_identity.request_nonce,
@@ -184,7 +184,7 @@ def bundle_to_snapshot(
         snapshot_identity = SnapshotIdentity(
             robot_id=bundle.robot_id,
             target_host_fingerprint=bundle.target_host_fingerprint,
-            collector_id=bundle.collector_id,
+            source_id=bundle.source_id,
             deployment_mode=deployment_mode,
             access=bundle.access,
             request_nonce=bundle.request_nonce,
@@ -213,7 +213,7 @@ def bundle_to_snapshot(
             Fact(
                 robot_id=snapshot_identity.robot_id,
                 target_host_fingerprint=snapshot_identity.target_host_fingerprint,
-                collector_id=snapshot_identity.collector_id,
+                source_id=snapshot_identity.source_id,
                 deployment_mode=snapshot_identity.deployment_mode,
                 access=snapshot_identity.access,
                 request_nonce=snapshot_identity.request_nonce,
@@ -254,7 +254,7 @@ def verified_bundle_to_snapshot(
     """Verify a TargetEvidenceBundle before projecting it into RKB.
 
     The existing Probe verifier remains the authority for deployment pins,
-    replay windows and collector HMAC.  This wrapper makes the safe ordering
+    replay windows and probe_runner HMAC.  This wrapper makes the safe ordering
     explicit for production callers while retaining ``bundle_to_snapshot`` as
     a compatibility projection for already-verified fixtures.
     """

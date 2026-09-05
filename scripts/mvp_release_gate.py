@@ -11,6 +11,7 @@ from typing import Any
 from rolo.agent_tools.conformance import ToolConformanceCheck, ToolConformanceReport
 from rolo.agent_tools.native_tools import AgentNativeToolDescriptor
 from rolo.agent_tools.session import native_catalog_sha256
+from rolo.mvp.artifacts import ArtifactIndex
 from rolo.mvp.catalog import build_target_catalog
 from rolo.mvp.certify import CertificationRunner, load_suite, write_report
 from rolo.mvp.contracts import SessionState, TraceCall, TraceSessionRequest
@@ -34,8 +35,13 @@ def validate_artifact_index(index_path: Path) -> dict[str, Any]:
         payload = json.loads(index_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ReleaseGateError(f"invalid artifact index: {index_path}") from exc
-    if payload.get("schema_version") != "rolo-mvp-artifact-index/v1":
+    if payload.get("schema_version") not in {"rolo-mvp-artifact-index/v1", "rolo-mvp-artifact-index/v2"}:
         raise ReleaseGateError("unsupported artifact index schema")
+    if payload.get("schema_version") == "rolo-mvp-artifact-index/v2":
+        try:
+            ArtifactIndex.model_validate(payload).verify()
+        except ValueError as exc:
+            raise ReleaseGateError(f"invalid artifact index manifest: {exc}") from exc
     if not isinstance(payload.get("run_id"), str) or not isinstance(payload.get("target_id"), str):
         raise ReleaseGateError("artifact index must include run_id and target_id")
     entries = payload.get("artifacts")

@@ -36,7 +36,7 @@ Rolo gate/conformance 授予。path identity 只能保留为只读 candidate，�
 ## Discovery 工作包（只读优先）
 
 - [ ] **软件栈清点**：进程、systemd 服务、udev rules、内核 driver、ROS/DDS graph、
-  串口/CAN/HTTP endpoint；记录 collector、目标 identity、时间、查询、退出码和 source ref；
+  串口/CAN/HTTP endpoint；记录 probe runner、目标 identity、时间、查询、退出码和 source ref；
   secret 必须脱敏。
 - [ ] **USB/串口追踪**：读取 VID/PID、接口、`/dev/serial/by-id`、serial 和 driver 绑定；
   将 CH340 等桥接节点追踪到上层协议，不凭 VID/PID 猜设备类别；首轮禁止发送串口数据。
@@ -74,7 +74,7 @@ identity resolution、channel 语义、command 限制（仅声明）
 
 所有交付物必须 machine-readable、带 schema/version，并可通过 deterministic canonicalization
 重新计算相同 digest。RKB evidence 至少包含 `robot_id`、`target_host_fingerprint`、
-`collector_id`、`deployment_mode`、`access=READ_ONLY`、`request_nonce`、`source_kind`、
+`source_id`、`deployment_mode`、`access=READ_ONLY`、`request_nonce`、`source_kind`、
 `source_ref`、`observed_at`、`fresh_until`、`sha256`、manifest/driver digest、canonical route、
 fact IDs 和 limitations。
 
@@ -83,7 +83,7 @@ fact IDs 和 limitations。
 | 阶段 | 范围 | 完成条件 |
 |---|---|---|
 | D0 | 范围、身份和 probe policy | 首批设备清单、owner、allowlist、权限和脱敏规则冻结 |
-| D1 | inventory 与 trace | 每个节点有 source ref、collector、时间和 identity resolution |
+| D1 | inventory 与 trace | 每个节点有 source ref、probe runner、时间和 identity resolution |
 | D2 | 具体设备识别 | USB/串口/I²C/SPI/GPIO/ROS 有设备级证据；未知项保持 UNKNOWN |
 | D3 | MHS candidate/provider | schema、canonical digest、route、driver digest 验证通过 |
 | D4 | RKB probe | 成功、断线、超时、越界、未知 channel、STALE 和错误均可追溯 |

@@ -213,7 +213,7 @@ def test_profile_executor_auto_assembles_pinned_transport(
         identity.chmod(0o600)
     deployment = SimpleNamespace(
         mode=SimpleNamespace(value="remote"),
-        collector=SimpleNamespace(ros_setup_files=[]),
+        probe_runner=SimpleNamespace(ros_setup_files=[]),
         ssh_target="robot@example.test",
         ssh_port=2222,
         known_hosts_path=str(known_hosts),

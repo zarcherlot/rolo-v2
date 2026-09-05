@@ -92,7 +92,7 @@ def test_trace_redacts_credentials_and_validates_digest() -> None:
     assert "abc" not in output
     assert "pass" not in output
     trace = DiscoveryTrace.from_output(
-        collector_id="collector-1",
+        source_id="source-1",
         target_host_fingerprint=FINGERPRINT,
         deployment_mode="remote",
         source_kind="TARGET_PROBE",
@@ -118,7 +118,7 @@ def test_linux_snapshot_is_traceable_and_converts_to_rkb(tmp_path) -> None:
         root=_linux_root(tmp_path),
         robot_id="robot-1",
         target_host_fingerprint=FINGERPRINT,
-        collector_id="collector-1",
+        source_id="source-1",
         observed_at=NOW,
     )
     assert snapshot.model == "Generic host"
@@ -140,7 +140,7 @@ def test_mhs_results_bind_to_rkb_evidence() -> None:
     identity = SnapshotIdentity(
         robot_id="robot-1",
         target_host_fingerprint=FINGERPRINT,
-        collector_id="mhs-collector",
+        source_id="mhs-probe_runner",
         deployment_mode="remote",
         request_nonce="b" * 32,
         observed_at=results[0].observed_at,

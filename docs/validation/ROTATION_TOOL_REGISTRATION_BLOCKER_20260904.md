@@ -75,16 +75,14 @@ null，保留用户安全确认、参数、目标指纹、proposal digest 和独
 发送零速度并读取停止反馈，未观察到转角或停止均不能报告成功。新的每次运行
 独立审计文件在派发前先写入 PENDING，避免失败丢失记录或覆盖上一轮证据。
 
-当前 SSH 诊断：192.168.10.167 可 ping 通，主机密钥匹配，ED25519 公钥认证成功；
-随后会话显示 authorized_keys 的 command 限制。普通 uname 和 ROS import 请求
-在强制命令会话中超时。这与现场走查文档描述的 Collector 专用 key 行为一致，
-不能把成功的 Tool Surface 静态 conformance 当成远端执行能力。
+历史诊断记录：目标曾配置过强制命令入口，导致普通 shell 检查超时。该配置已从产品路径移除；
+当前实现只使用 profile 的普通 SSH 登录，并把 Probe/Trace/Certify 请求作为 stdin 传输。
 
-当前没有发送运动命令。继续真机执行需要一个允许运行已注册 Rolo Tool 的目标
-执行入口；不移除或绕过 Collector key 的强制命令限制。此前自动审批关于现场
+当前没有发送运动命令。继续真机执行需要目标端已有 Python/驱动依赖，
+以及 profile 普通 SSH 会话可启动已注册 Tool 的 Harness。此前自动审批关于现场
 确认的阻塞已收到用户补充信息，但实际运动执行仍未完成。
 
-随后 Collector 协议复测返回 READY（2026-09-04T09:56:42Z）。最新 signed bundle
+随后 Probe runner 协议复测返回 READY（2026-09-04T09:56:42Z）。最新 signed bundle
 payload SHA-256 为 `50e0307950ca6852cf2df80f7df24b746e55f4264f0e8f9e6612248b69f9cce2`；
 里程计可观测，但本轮 /cmd_vel 和 /controller/cmd_vel 未出现在运行时接口证据中。
 注册前校验返回 BLOCKED：binding command endpoint was not observed by Probe。
@@ -92,7 +90,7 @@ payload SHA-256 为 `50e0307950ca6852cf2df80f7df24b746e55f4264f0e8f9e6612248b69f
 
 ## 统一目标授权调整
 
-MVP 不再引入 Collector/Execution 专用 key。Probe、Trace、Certify 和已注册 Tool 执行均复用
+MVP 不再引入 Probe runner/Execution 专用 key。Probe、Trace、Certify 和已注册 Tool 执行均复用
 profile 原有的普通 SSH 登录配置；目标机无需安装完整 Rolo，控制端通过 SSH stdin 传输带有
 source hash、binding 和参数的临时代码包。
 

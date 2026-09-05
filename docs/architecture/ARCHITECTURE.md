@@ -21,7 +21,7 @@ user goal
 
 The user does not choose a private-key path during normal use. A profile identifies the robot;
 the credential broker selects an SSH agent or an enrolled identity file. Host-key approval,
-identity digest, collector identity and evidence freshness are hard gates. Passwords are never
+identity digest, probe runner identity and evidence freshness are hard gates. Passwords are never
 accepted by a tool invocation.
 
 ## Four small Tool standards

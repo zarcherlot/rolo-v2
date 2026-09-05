@@ -84,7 +84,7 @@ def test_e22a_forbids_internal_locations_payloads_identity_and_content() -> None
         "hostname",
         "device_path",
         "topic_name",
-        "collector_identity",
+        "source_identity",
         "provider_identity",
         "credential",
         "command_payload",

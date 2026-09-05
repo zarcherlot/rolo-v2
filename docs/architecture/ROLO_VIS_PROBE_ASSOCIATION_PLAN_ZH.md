@@ -47,7 +47,7 @@ Probe 不应把原始日志直接交给 GUI 或模型，而应生成有界的 `P
 ```text
 ProbeEvidenceView:
   view_id, schema_version
-  target: robot_id, target_fingerprint, collector_id
+  target: robot_id, target_fingerprint, source_id
   snapshot: snapshot_id, observed_at, fresh_until, digest
   facts[]:
     fact_id, layer, source_kind, value_summary, value_type

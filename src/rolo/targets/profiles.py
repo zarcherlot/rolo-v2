@@ -69,10 +69,6 @@ class TargetProfile(BaseModel):
     robot_id: str = Field(pattern=r"^[a-z][a-z0-9_-]{2,63}$")
     target: TargetRef
     credential: CredentialReference
-    # Optional credential used only for Rolo's execution channel.  Probe keeps
-    # using ``credential``; execution must be explicitly provisioned so a
-    # read-only Collector key can never be reused for motion.
-    execution_credential: CredentialReference | None = None
     remote_command_prefix: list[str] = Field(default_factory=list, max_length=8)
     provider_hints: dict[str, str] = Field(default_factory=dict, max_length=8)
     host_key: HostKeyDecision | None = None
@@ -177,7 +173,6 @@ class TargetProfileStore:
         robot_id: str,
         target: TargetRef,
         credential: CredentialReference,
-        execution_credential: CredentialReference | None = None,
         remote_command_prefix: list[str] | None = None,
         provider_hints: dict[str, str] | None = None,
         now: datetime | None = None,
@@ -191,7 +186,6 @@ class TargetProfileStore:
             robot_id=robot_id,
             target=target,
             credential=credential,
-            execution_credential=execution_credential,
             remote_command_prefix=remote_command_prefix or [],
             provider_hints=provider_hints or {},
             host_key=host_key,

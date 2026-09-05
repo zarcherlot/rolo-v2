@@ -6,11 +6,9 @@ authority: guide
 1. 在设备周围确认急停、网络、地图区域和数据目录，启动 loopback runtime。
 2. 执行 `rolo target inspect-profile --profile mentorpi` 和新鲜 `rolo probe`，保存
    Probe manifest、Tool Surface、RKB snapshot、MHS inventory 及 digest。
-   若 profile 使用受限的 enrollment key（`authorized_keys` 配置了强制
-   `target-evidence collector-run`），通用 `uname` 检查会被目标端忽略并等待超时；
-   这表示传输认证正常但 shell 检查路径不适用。请改用
-   `rolo probe target-evidence preflight --robot-id mentorpi` 或 `collect` 验证 pinned
-   collector，不要为通过通用检查而移除强制命令限制。
+   Probe、Trace、Certify 和已注册 Tool 共用 profile 的普通 SSH 登录。目标端只需提供
+   已存在的 Python/驱动运行时；Rolo 通过 stdin 发送受约束的 Probe Runner 或 Harness，
+   不生成额外 key，也不依赖强制命令入口。
 3. 通过 `register_catalog` 或 HTTP adapter 发布 `TargetCatalog`。先运行旋转只读预检，确认
    `/cmd_vel`/`/odom` 路由和目标证据 digest 一致。如果目录没有目标绑定、已注册且
    `agent_callable=true` 的旋转实验性 Tool，任何旋转 Trace 创建会返回
@@ -28,23 +26,22 @@ authority: guide
    校验回放；所有 UNKNOWN、BLOCKED、重试和人工介入均保留在报告中。
 
 该走查只适用于有人在场的实验调试窗口，不构成功能安全或无人值守授权。旋转动作只能经已注册
-的实验性 Tool 进入 MHS driver；Rolo 不开放任意 Shell、topic publish、argv 或底层旁路。
+的实验性 Tool 进入目标 binding；MHS 只提供可选驱动上下文，Rolo 不开放任意 Shell、topic
+publish、argv 或底层旁路。
 
 ## 统一目标授权
 
-MVP 使用一个 SSH key 和一条统一目标连接，同时授权 Probe、Trace、Certify 及已注册 Tool
-执行。目标端可将该 key 强制到统一 dispatcher；dispatcher 根据 typed operation 路由只读
-证据采集或 Harness 执行。目标机无需安装完整 Rolo；只使用已有 runtime/driver，不接受任意
-shell、topic 或 argv。
+MVP 使用目标已有的普通用户 SSH 登录配置和一条统一目标连接，同时授权 Probe、Trace、
+Certify 及已注册 Tool 执行。Rolo 不生成或安装额外 key，也不要求目标机安装 Rolo；只通过
+目标已有 runtime/driver 执行受 binding 约束的 Harness。执行器不接受任意 shell、topic 或
+argv。
 
 配置示例：
 
 ```text
 rolo target profile init ssh://pi@<host>/home/pi/rolo --robot mentorpi \
-  --credential-ref platform-keychain:mentorpi-collector \
-  --execution-credential-ref platform-keychain:mentorpi-execution
-目标端使用用户已有的普通 SSH 登录配置；Rolo 不生成或安装额外 key。
+  --credential-ref ssh-agent:default
 ```
 
 缺少用户 SSH 登录、目标端 Python 或驱动依赖时，旋转结果必须为
-`BLOCKED: TARGET_EXECUTION_CHANNEL_UNAVAILABLE`，不得回退使用 Collector key。
+`BLOCKED: TARGET_EXECUTION_CHANNEL_UNAVAILABLE`，不得回退到只读采集通道。

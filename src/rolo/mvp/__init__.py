@@ -7,6 +7,8 @@ verified, target-bound artifacts.
 """
 
 from .adapter import AgentAdapter, InMemoryAgentAdapter, RoloHttpAgentAdapter
+from .artifacts import ArtifactIndex, build_artifact_index, rollback_artifact_index, write_artifact_index
+from .binding_dispatch import ApplicationBindingDispatcher, BindingHandler
 from .catalog import build_target_catalog, load_target_catalog, save_target_catalog
 from .certify import CertificationRunner, load_suite, write_report
 from .context import AgentContext, build_agent_context
@@ -28,7 +30,7 @@ from .contracts import (
     TraceSession,
     TraceSessionRequest,
 )
-from .harness_codegen import generate_contract_source
+from .harness_codegen import build_codegen_artifact, generate_contract_source
 from .harness_execution import HarnessCodeBundle, HarnessCodeExecutor, build_python_launcher, make_code_bundle
 from .probe_registration import (
     ExecutionBinding,
@@ -37,6 +39,7 @@ from .probe_registration import (
     ToolRegistrationResult,
     build_probe_analysis_input,
     load_registered_bindings,
+    load_registered_codegen_artifact,
     load_registered_descriptors,
     load_registered_proposals,
     register_tool_proposal,
@@ -47,6 +50,10 @@ from .trace import TraceService
 
 __all__ = [
     "AgentAdapter",
+    "ArtifactIndex",
+    "build_artifact_index",
+    "write_artifact_index",
+    "rollback_artifact_index",
     "InMemoryAgentAdapter",
     "RoloHttpAgentAdapter",
     "build_target_catalog",
@@ -84,6 +91,9 @@ __all__ = [
     "build_python_launcher",
     "make_code_bundle",
     "generate_contract_source",
+    "build_codegen_artifact",
+    "ApplicationBindingDispatcher",
+    "BindingHandler",
     "ProbeAnalysisInput",
     "ExecutionBinding",
     "ToolRegistrationProposal",
@@ -92,5 +102,6 @@ __all__ = [
     "register_tool_proposal",
     "load_registered_descriptors",
     "load_registered_bindings",
+    "load_registered_codegen_artifact",
     "load_registered_proposals",
 ]

@@ -10,9 +10,9 @@ from scripts.mvp_release_gate import ReleaseGateError, run_release_gate, validat
 
 
 def test_offline_release_gate_replays_ten_cases(tmp_path: Path) -> None:
-    result = run_release_gate(Path("examples/mapping-10.json"), tmp_path)
+    result = run_release_gate(Path("examples/chassis-rotation-10.json"), tmp_path)
     assert result["status"] == "PASS"
-    assert result["artifact_index"] == "rolo-mvp-artifact-index/v1"
+    assert result["artifact_index"] == "rolo-mvp-artifact-index/v2"
     assert result["trace"] == {"success": "COMPLETED", "recovery": "COMPLETED"}
     assert len(json.loads((tmp_path / "certify-test-report.json").read_text(encoding="utf-8")).get("results", [])) == 10
 

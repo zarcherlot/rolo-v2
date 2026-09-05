@@ -17,7 +17,7 @@ def build_snapshot(index: int) -> Snapshot:
     identity = SnapshotIdentity(
         robot_id=f"capacity-{index}",
         target_host_fingerprint="a" * 64,
-        collector_id="capacity-baseline",
+        source_id="capacity-baseline",
         deployment_mode="local",
         request_nonce=f"{index:032x}",
         observed_at=observed,
@@ -26,7 +26,7 @@ def build_snapshot(index: int) -> Snapshot:
     fact = Fact(
         robot_id=identity.robot_id,
         target_host_fingerprint=identity.target_host_fingerprint,
-        collector_id=identity.collector_id,
+        source_id=identity.source_id,
         deployment_mode=identity.deployment_mode,
         request_nonce=identity.request_nonce,
         source_kind=FactSourceKind.OBSERVED_RUNTIME,

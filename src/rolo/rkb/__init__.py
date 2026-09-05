@@ -25,7 +25,6 @@ from .canonical import (
     pointer_for_fact,
     resolve_json_pointer,
 )
-from .collector import SnapshotCollector, collect_snapshot
 from .episodes import (
     EpisodeArtifactRef,
     EpisodeEvent,
@@ -71,6 +70,7 @@ from .models import (
     envelope_from_probe,
     snapshot_from_target_bundle,
 )
+from .probe_runner import SnapshotProbeRunner, collect_snapshot
 from .query import QueryRejectedError, QueryResult, ReadOnlyKnowledgeBase, SnapshotReference
 from .read_models import (
     CapabilityRecord,
@@ -162,7 +162,7 @@ __all__ = [
     "freshness_status",
     "RKBMetrics",
     "RKBStore",
-    "SnapshotCollector",
+    "SnapshotProbeRunner",
     "collect_snapshot",
     "AlertSeverity",
     "RKBAlert",

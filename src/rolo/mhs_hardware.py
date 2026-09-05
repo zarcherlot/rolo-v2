@@ -351,9 +351,10 @@ class MhsDeviceProvider:
         return f"mhs://{self.manifest.device_id}/{capability}"
 
     def capabilities(self) -> list[dict[str, Any]]:
-        # Probe publishes only the bounded read surface.  A vendor manifest may
-        # carry command metadata for later Trace/Write review, but commands are
-        # deliberately not converted into executable Tool descriptors here.
+        # Probe publishes the bounded read surface and command metadata.  A
+        # command is a discoverable write capability, never a direct provider
+        # invocation; execution still requires a registered Tool and Rolo's
+        # write gate.
         readable = [
             {
                 "capability_id": capability,
@@ -364,7 +365,20 @@ class MhsDeviceProvider:
             }
             for capability in sorted(self.READ_CAPABILITIES)
         ]
-        return readable
+        writable = [
+            {
+                "capability_id": command.id,
+                "access": "write",
+                "route": f"mhs://{self.manifest.device_id}/{command.id}",
+                "status": "DISCOVERED_UNVERIFIED",
+                "requires_rolo_write_gate": True,
+                "evidence_ids": [f"mhs-manifest:{self.manifest.manifest_sha256}"],
+            }
+            for command in self.manifest.commands
+            if self.manifest.device_class
+            in {MhsDeviceClass.ACTUATOR, MhsDeviceClass.CONTROLLER, MhsDeviceClass.TOOL, MhsDeviceClass.END_EFFECTOR}
+        ]
+        return readable + writable
 
     def inspect(self) -> MhsResult:
         return self._ok("inspect", self.manifest.model_dump(mode="json"))
@@ -553,7 +567,7 @@ def mhs_results_to_snapshot(identity, results: list[MhsResult]):
         kind = FactSourceKind.DECLARED if result.capability_id == "inspect" else FactSourceKind.OBSERVED
         facts.append(Fact(robot_id=identity.robot_id,
             target_host_fingerprint=identity.target_host_fingerprint,
-            collector_id=identity.collector_id, deployment_mode=identity.deployment_mode,
+            source_id=identity.source_id, deployment_mode=identity.deployment_mode,
             access=identity.access, request_nonce=identity.request_nonce,
             source_kind=kind, source_ref=result.route,
             observed_at=result.observed_at or identity.observed_at,

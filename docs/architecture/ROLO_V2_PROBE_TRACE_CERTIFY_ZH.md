@@ -6,9 +6,9 @@ Rolo v2 的产品主链路使用三个阶段名称：
 
 | v2 名称 | 当前职责 | 现状 |
 |---|---|---|
-| **Probe** | enrollment、目标证据、inspect CLI、Native Tool Session 和 ToolPlan | 当前唯一重点实现 |
-| **Trace** | 消费已注册 Tool/RKB 完成用户指定任务，记录过程、诊断和结果 | 当前为契约/设计，默认未开放 |
-| **Certify** | 消费固定 Tool/RKB 执行测试用例，比较 expected/actual 并生成报告 | 当前为契约/设计，默认未开放 |
+| **Probe** | enrollment、目标证据、inspect CLI、Native Tool Session 和 ToolPlan | 已实现；应用 Tool 注册由 Harness 交互完成 |
+| **Trace** | 消费已注册 Tool/RKB 完成用户指定任务，记录过程、诊断和结果 | 离线状态机与旋转执行切片已实现；通用入口、真机 artifact 闭环待完善 |
+| **Certify** | 消费固定 Tool/RKB 执行测试用例，比较 expected/actual 并生成报告 | 离线 runner 已实现；旋转真机 10-case 与正式入口待完善 |
 
 旧名称 `Adapt / Diagnose / Verify` 不再注册为 v2 用户命令，也不作为新 API 名称。
 正在删除的旧模块路径只允许作为迁移期间的内部实现细节：
@@ -30,9 +30,9 @@ SSH target enrollment
   -> independent Conformance
 ```
 
-Trace 和 Certify 不参与 Probe 的事实裁决。当前代码只交付 Probe；任何 Trace/Certify
-入口必须先通过本文件定义的 handoff、session、allowlist 和 digest 校验，未满足条件时
-明确返回 `TRACE_BLOCKED` 或 `CERTIFY_BLOCKED`，不能模拟成功。
+Trace 和 Certify 不参与 Probe 的事实裁决。任何 Trace/Certify 入口必须先通过本文件定义的
+session、allowlist 和 digest 校验，未满足条件时明确返回 `TRACE_BLOCKED` 或
+`CERTIFY_BLOCKED`，不能模拟成功。旋转 MVP 的完整真机证据、统一入口和 UI 发布门仍未完成。
 
 ## Agent 交互方式
 
@@ -81,8 +81,8 @@ target、evidence、descriptor、digest 和 session 边界负责。校验通过�
 典型用户指令分别是：
 
 ```text
-Trace：调用已经注册的 rolo 工具，在当前环境内完成建图，过程中若遇到系统问题，自行诊断。
-Certify：帮我执行建图的 10 条测试用例，测试数据位于 <path>，输出测试报告到 <report-path>。
+Trace：调用已经注册的 rolo 工具，在当前环境内完成地盘旋转，过程中若遇到系统问题，自行诊断。
+Certify：帮我执行地盘旋转的 10 条测试用例，测试数据位于 <path>，输出测试报告到 <report-path>。
 ```
 
 Trace 是开放目标的任务执行与问题闭环；Certify 是测试套件驱动的可重复执行与判定。两者
@@ -102,4 +102,5 @@ Trace 启动时必须重新读取并比对目标身份、digest、freshness 和 
 `SUPERVISED_FIELD_DEBUG` 只能在安全员/调试工程师在场、用户范围明确、Tool schema/resource/
 参数绑定、停止/取消、post-read 和审计全部生效时运行。生产化或无人值守写入还必须通过
 独立 Write Execution 计划中的 SafetyDeclaration、QuiescenceLease、challenge、dry-run 和
-执行前后证据门禁。Agent、GUI 或 Harness 始终不得调用未注册接口、任意 Shell 或绕过 MHS driver。
+执行前后证据门禁。Agent、GUI 或 Harness 始终不得调用未注册接口、任意 Shell 或绕过目标 binding；
+MHS 仅作为可选驱动上下文来源，不定义应用 Tool 语义。

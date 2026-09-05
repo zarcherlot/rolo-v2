@@ -46,7 +46,7 @@ class ExecutionBinding(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schema_version: Literal["rolo-execution-binding/v1"] = "rolo-execution-binding/v1"
-    kind: Literal["ros2_topic"]
+    kind: str = Field(pattern=r"^[a-z][a-z0-9_.-]{1,63}$")
     command_endpoint: str = Field(pattern=r"^/[A-Za-z0-9_./-]{1,127}$")
     interface_type: str = Field(min_length=1, max_length=128)
     feedback_endpoints: list[str] = Field(default_factory=list, max_length=8)
@@ -67,7 +67,16 @@ class ExecutionBinding(BaseModel):
 
     @property
     def command_resource_id(self) -> str:
-        return f"ros_topic:{self.command_endpoint}"
+        prefix = "ros_topic" if self.kind == "ros2_topic" else self.kind
+        return f"{prefix}:{self.command_endpoint}"
+
+    def digest(self) -> str:
+        """Return the stable digest submitted by Harness for this binding."""
+
+        encoded = json.dumps(
+            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        )
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 class ToolRegistrationProposal(BaseModel):
@@ -83,6 +92,11 @@ class ToolRegistrationProposal(BaseModel):
     implementation: Literal["descriptor", "binding"] = "descriptor"
     binding: ExecutionBinding | None = None
     code_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    binding_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    codegen_artifact_ref: str | None = Field(default=None, max_length=512)
+    codegen_artifact: dict[str, Any] | None = None
+    input_contract: dict[str, Any] | None = None
+    observation_contract: dict[str, Any] | None = None
     status: Literal["PROPOSED", "REGISTERED", "BLOCKED"] = "PROPOSED"
     harness_notes: str = Field(default="", max_length=4_000)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -101,6 +115,31 @@ class ToolRegistrationProposal(BaseModel):
             missing_binding_evidence = sorted(set(self.binding.evidence_refs) - set(self.evidence_refs))
             if missing_binding_evidence:
                 raise ValueError(f"binding references evidence outside proposal: {missing_binding_evidence}")
+            if self.binding_digest is not None and self.binding_digest != self.binding.digest():
+                raise ValueError("binding_digest does not match binding")
+        codegen_fields = (self.codegen_artifact_ref, self.input_contract, self.observation_contract)
+        if any(item is not None for item in codegen_fields) and not all(item is not None for item in codegen_fields):
+            raise ValueError("codegen_artifact_ref, input_contract and observation_contract must be supplied together")
+        if self.input_contract is not None:
+            parameters = self.input_contract.get("parameters")
+            if not isinstance(parameters, list):
+                raise ValueError("input_contract.parameters must be a list")
+            expected_names = [item.name for item in self.descriptor.parameters]
+            actual_names = [item.get("name") for item in parameters if isinstance(item, dict)]
+            if actual_names != expected_names:
+                raise ValueError("input_contract.parameters must preserve descriptor parameter order")
+        if self.observation_contract is not None:
+            fields = self.observation_contract.get("fields")
+            if not isinstance(fields, list) or not fields or "status" not in fields or len(fields) != len(set(fields)):
+                raise ValueError("observation_contract.fields must be unique and include status")
+        if self.codegen_artifact is not None:
+            if self.codegen_artifact.get("tool_id") != self.tool_id or self.codegen_artifact.get("target_id") != self.target_id:
+                raise ValueError("codegen_artifact target/tool does not match proposal")
+            bundle = self.codegen_artifact.get("bundle")
+            if not isinstance(bundle, dict) or bundle.get("tool_id") != self.tool_id:
+                raise ValueError("codegen_artifact.bundle is missing or mismatched")
+            if self.codegen_artifact_ref is None:
+                raise ValueError("codegen_artifact requires codegen_artifact_ref")
         if not self.evidence_refs:
             raise ValueError("registration requires at least one evidence reference")
         return self
@@ -200,10 +239,11 @@ def register_tool_proposal(
                 descriptor_digest=_descriptor_digest(proposal.descriptor),
                 limitations=[f"binding command endpoint was not observed by Probe: {proposal.binding.command_resource_id}"],
             )
+        prefix = "ros_topic" if proposal.binding.kind == "ros2_topic" else proposal.binding.kind
         missing_feedback = sorted(
-            f"ros_topic:{endpoint}"
+            f"{prefix}:{endpoint}"
             for endpoint in proposal.binding.feedback_endpoints
-            if f"ros_topic:{endpoint}" not in observed_route_ids
+            if f"{prefix}:{endpoint}" not in observed_route_ids
         )
         if missing_feedback:
             return ToolRegistrationResult(
@@ -219,6 +259,13 @@ def register_tool_proposal(
     path = target_dir / f"{proposal.tool_id}.json"
     payload = proposal.model_copy(update={"status": "REGISTERED"}).model_dump(mode="json")
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if proposal.codegen_artifact is not None:
+        artifact_dir = target_dir / "generated"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_path = artifact_dir / f"{proposal.tool_id}.json"
+        artifact_path.write_text(
+            json.dumps(proposal.codegen_artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
     return ToolRegistrationResult(
         target_id=target_id,
         tool_id=proposal.tool_id,
@@ -283,6 +330,20 @@ def load_registered_proposals(registry_root: Path, target_id: str) -> list[ToolR
     return proposals
 
 
+def load_registered_codegen_artifact(
+    registry_root: Path, target_id: str, tool_id: str
+) -> dict[str, Any] | None:
+    """Load the immutable Harness artifact paired with a registered proposal."""
+
+    path = registry_root / target_id / "generated" / f"{tool_id}.json"
+    if path.is_symlink() or not path.is_file():
+        return None
+    artifact = json.loads(path.read_text(encoding="utf-8"))
+    if artifact.get("target_id") != target_id or artifact.get("tool_id") != tool_id:
+        raise ValueError("registered codegen artifact identity mismatch")
+    return artifact
+
+
 __all__ = [
     "ExecutionBinding",
     "ProbeAnalysisInput",
@@ -293,4 +354,5 @@ __all__ = [
     "load_registered_descriptors",
     "load_registered_bindings",
     "load_registered_proposals",
+    "load_registered_codegen_artifact",
 ]

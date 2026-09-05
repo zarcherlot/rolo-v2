@@ -13,7 +13,7 @@ ICMP/TCP 可达性检查和 SSH 只读查询；没有执行 GPIO、串口、CAN�
 | 阶段 | 状态 | 交付 | 验收证据 |
 |---|---|---|---|
 | D0 | PASS | 范围、身份优先级、probe allowlist、禁止操作、脱敏规则 | `config/mhs-discovery-policy.json` |
-| D1 | PASS | `DiscoveryTrace`、输出 digest、secret 脱敏、Linux snapshot collector | `src/rolo/mhs_discovery.py` |
+| D1 | PASS | `DiscoveryTrace`、输出 digest、secret 脱敏、Linux snapshot probe runner | `src/rolo/mhs_discovery.py` |
 | D2 | PASS（含 UNKNOWN） | USB/串口/sysfs bus/GPIO/thermal/software stack 设备级映射 | `examples/mhs-landerpi/discovery-20260902.json` |
 | D3 | PASS | 保守 MHS candidate 投影、canonical manifest/route、固定 `DISCOVERED_UNVERIFIED` | `build_snapshot_candidates()` + tests |
 | D4 | PASS | MHS result → RKB EvidenceEnvelope；成功、失败和 freshness 约束 | `mhs_evidence_envelope()`、`snapshot_evidence_envelope()` + tests |

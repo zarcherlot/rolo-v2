@@ -171,7 +171,7 @@ def _with_target_evidence(
     binding = {
         "schema_version": "robot-target-evidence-binding/v2",
         "robot_id": report.robot_id,
-        "collector_id": "collector-private",
+        "source_id": "source-private",
         "target_host_fingerprint": "a" * 64,
         "bundle_payload_sha256": "b" * 64,
         "access": "READ_ONLY",
@@ -279,7 +279,7 @@ def test_discovery_history_exposes_only_safe_target_evidence_metadata(
     assert bool(target.refresh_reason) is refresh_required
     payload = history.model_dump_json()
     for private_value in (
-        "collector-private",
+        "source-private",
         "target_host_fingerprint",
         "bundle_payload_sha256",
         "expires_at",
@@ -298,7 +298,7 @@ def test_discovery_history_rejects_inconsistent_target_bindings(
     )
     ros = report.probes["ros"]
     ros_binding = dict(ros.data["target_evidence"])
-    ros_binding["collector_id"] = "different-collector"
+    ros_binding["source_id"] = "different-probe_runner"
     report = report.model_copy(
         update={
             "probes": {
@@ -332,7 +332,7 @@ def test_discovery_history_rejects_inconsistent_target_bindings(
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("collector_id", ""), ("target_host_fingerprint", "unsafe")],
+    [("source_id", ""), ("target_host_fingerprint", "unsafe")],
 )
 def test_target_evidence_requires_complete_verified_identity(
     field: str,

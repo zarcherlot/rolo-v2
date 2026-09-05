@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import secrets
@@ -9,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from .artifacts import build_artifact_index, write_artifact_index
 from .contracts import (
     CatalogTool,
     RunMode,
@@ -41,6 +41,39 @@ class TraceService:
         self.artifact_root = artifact_root
         self.clock = clock or _now
         self.sessions: dict[str, TraceSession] = {}
+
+    @classmethod
+    def from_registered_tools(
+        cls,
+        catalog: TargetCatalog,
+        *,
+        registry_root: Path,
+        target_executor: Any,
+        artifact_root: Path | None = None,
+        clock: Callable[[], datetime] | None = None,
+    ) -> TraceService:
+        """Build a Trace service that reconstructs registered Harness artifacts."""
+
+        from .binding_dispatch import RegisteredCodegenInvoker
+
+        codegen = RegisteredCodegenInvoker(registry_root, catalog.target_id, target_executor)
+        from .binding_dispatch import ApplicationBindingDispatcher
+        from .ros_binding import RosBindingExecutor
+
+        bindings = {item.tool_id: item.binding for item in catalog.tools if getattr(item, "binding", None)}
+        dispatcher = ApplicationBindingDispatcher()
+        dispatcher.register("ros2_topic", RosBindingExecutor(target_executor).rotate)
+
+        def invoke(tool_id: str, arguments: Mapping[str, Any], session_id: str) -> Any:
+            result = codegen.invoke(tool_id, arguments, session_id)
+            if result.get("error") != "CODEGEN_ARTIFACT_UNAVAILABLE":
+                return result
+            binding = bindings.get(tool_id)
+            if binding is not None:
+                return dispatcher.execute(binding, arguments)
+            return {"status": "BLOCKED", "error": "REGISTERED_EXECUTOR_UNAVAILABLE", "tool_id": tool_id}
+
+        return cls(catalog, invoke, artifact_root=artifact_root, clock=clock)
 
     def create_session(self, request: TraceSessionRequest) -> TraceSession:
         if request.target_id != self.catalog.target_id or request.catalog_digest != self.catalog.digest:
@@ -124,7 +157,14 @@ class TraceService:
     def get(self, session_id: str) -> TraceSession:
         return self._get(session_id)
 
-    def persist_session(self, session_id: str, root: Path | None = None) -> dict[str, Any]:
+    def persist_session(
+        self,
+        session_id: str,
+        root: Path | None = None,
+        *,
+        signing_secret: bytes | None = None,
+        previous_index: str | None = None,
+    ) -> dict[str, Any]:
         """Write the replayable session, evidence bundle, and artifact index."""
         session = self._get(session_id)
         destination = root or self.artifact_root
@@ -146,14 +186,16 @@ class TraceService:
         }
         evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         files = [session_path, evidence_path]
-        index = {
-            "schema_version": "rolo-mvp-artifact-index/v1",
-            "run_id": session.session_id,
-            "target_id": session.target_id,
-            "artifacts": [{"path": file.name, "sha256": hashlib.sha256(file.read_bytes()).hexdigest()} for file in files],
-        }
         index_path = directory / "artifact-index.json"
-        index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        index = build_artifact_index(
+            run_id=session.session_id,
+            target_id=session.target_id,
+            files=files,
+            root=directory,
+            secret=signing_secret,
+            previous_index=previous_index,
+        )
+        write_artifact_index(index_path, index)
         return {"session": session_path, "evidence": evidence_path, "index": index_path}
 
     def _invoke(self, session: TraceSession, call: TraceCall) -> Any:

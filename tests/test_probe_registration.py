@@ -5,6 +5,7 @@ from rolo.mvp.probe_registration import (
     ExecutionBinding,
     ToolRegistrationProposal,
     build_probe_analysis_input,
+    load_registered_codegen_artifact,
     load_registered_descriptors,
     register_tool_proposal,
 )
@@ -116,3 +117,59 @@ def test_registration_blocks_unknown_evidence(tmp_path) -> None:
     )
     assert result.status == "BLOCKED"
     assert "unknown evidence" in result.limitations[0]
+
+
+def test_registration_persists_generic_codegen_contract(tmp_path) -> None:
+    descriptor = _descriptor()
+    evidence = "target-evidence:abc"
+    proposal = ToolRegistrationProposal(
+        target_id="mentorpi",
+        tool_id=descriptor.tool_id,
+        evidence_refs=[evidence],
+        descriptor=descriptor,
+        code_digest="a" * 64,
+        codegen_artifact_ref="artifact://harness/mentorpi/app.base.rotate.json",
+        input_contract={"parameters": [item.model_dump(mode="json") for item in descriptor.parameters]},
+        observation_contract={"fields": ["status", "angle_degrees", "elapsed_ms"]},
+    )
+    result = register_tool_proposal(
+        proposal,
+        target_id="mentorpi",
+        evidence_refs={evidence},
+        registry_root=tmp_path,
+    )
+    assert result.status == "REGISTERED"
+    persisted = (tmp_path / "mentorpi" / "app.base.rotate.json").read_text(encoding="utf-8")
+    assert "codegen_artifact_ref" in persisted
+
+
+def test_registration_persists_and_loads_codegen_artifact(tmp_path) -> None:
+    descriptor = _descriptor()
+    evidence = "target-evidence:abc"
+    artifact = {
+        "schema_version": "rolo-harness-codegen-artifact/v1",
+        "target_id": "mentorpi",
+        "tool_id": descriptor.tool_id,
+        "bundle": {
+            "schema_version": "rolo-harness-code-bundle/v1",
+            "tool_id": descriptor.tool_id,
+            "runtime": "python",
+            "entrypoint": "execute",
+            "source": "def execute(request): return {'status': 'SUCCEEDED'}",
+            "source_sha256": "0" * 64,
+            "request": {},
+        },
+    }
+    proposal = ToolRegistrationProposal(
+        target_id="mentorpi",
+        tool_id=descriptor.tool_id,
+        evidence_refs=[evidence],
+        descriptor=descriptor,
+        codegen_artifact_ref="artifact://harness/mentorpi/app.base.rotate.json",
+        input_contract={"parameters": [item.model_dump(mode="json") for item in descriptor.parameters]},
+        observation_contract={"fields": ["status"]},
+        codegen_artifact=artifact,
+    )
+    result = register_tool_proposal(proposal, target_id="mentorpi", evidence_refs={evidence}, registry_root=tmp_path)
+    assert result.status == "REGISTERED"
+    assert load_registered_codegen_artifact(tmp_path, "mentorpi", descriptor.tool_id) == artifact

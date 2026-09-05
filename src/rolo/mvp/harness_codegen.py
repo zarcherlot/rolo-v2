@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from rolo.agent_tools.native_tools import AgentNativeToolDescriptor
+
+from .harness_execution import HarnessCodeBundle, make_code_bundle
 
 _FIELD = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
@@ -84,4 +88,52 @@ def execute(request: Mapping[str, object]) -> Mapping[str, object]:
 '''
 
 
-__all__ = ["generate_contract_source"]
+def build_codegen_artifact(
+    descriptor: AgentNativeToolDescriptor,
+    *,
+    target_id: str,
+    evidence_refs: Sequence[str],
+    observation_fields: Sequence[str],
+    primitive_source: str,
+    arguments: Mapping[str, Any],
+    binding: Mapping[str, Any] | None = None,
+    derived_request: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the generic artifact exchanged by Harness and Probe.
+
+    The descriptor and binding are copied into the artifact as contracts.  The
+    generated bundle receives only the validated request object; transport
+    details remain in the binding and are never interpolated into shell text.
+    """
+
+    source = generate_contract_source(
+        descriptor,
+        observation_fields=observation_fields,
+        primitive_source=primitive_source,
+    )
+    request = {**dict(arguments), **dict(derived_request or {})}
+    bundle: HarnessCodeBundle = make_code_bundle(tool_id=descriptor.tool_id, source=source, request=request)
+    descriptor_json = json.dumps(
+        descriptor.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    )
+    if binding is None:
+        binding_digest = None
+    else:
+        binding_json = json.dumps(dict(binding), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        binding_digest = hashlib.sha256(binding_json.encode("utf-8")).hexdigest()
+    return {
+        "schema_version": "rolo-harness-codegen-artifact/v1",
+        "target_id": target_id,
+        "tool_id": descriptor.tool_id,
+        "evidence_refs": list(evidence_refs),
+        "descriptor_sha256": hashlib.sha256(descriptor_json.encode("utf-8")).hexdigest(),
+        "binding_sha256": binding_digest,
+        "arguments": dict(arguments),
+        "input_contract": {"parameters": [item.model_dump(mode="json") for item in descriptor.parameters]},
+        "observation_contract": {"fields": list(observation_fields)},
+        "derived_request": dict(derived_request or {}),
+        "bundle": bundle.model_dump(mode="json"),
+    }
+
+
+__all__ = ["build_codegen_artifact", "generate_contract_source"]

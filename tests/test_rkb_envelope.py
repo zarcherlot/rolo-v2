@@ -13,7 +13,7 @@ def identity(**changes):
     values = dict(
         robot_id="r1",
         target_host_fingerprint=FP,
-        collector_id="collector-1",
+        source_id="source-1",
         deployment_mode="remote",
         request_nonce="b" * 32,
         observed_at=NOW,

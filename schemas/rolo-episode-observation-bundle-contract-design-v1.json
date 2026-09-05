@@ -76,7 +76,7 @@
     "hostname",
     "device_path",
     "topic_name",
-    "collector_identity",
+    "source_identity",
     "provider_identity",
     "credential",
     "storage_location",

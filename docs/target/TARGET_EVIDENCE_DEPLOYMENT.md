@@ -7,7 +7,7 @@ time. It is not a claim that the robot is physically safe or that a behavior is 
 
 ## Deployment modes
 
-Rolo supports local collection and a controller-plus-target SSH collector. Both produce the same
+Rolo supports local collection and a controller-plus-target SSH Probe Runner. Both produce the same
 target-bound `TargetEvidenceBundle`; only the execution location changes. A normal user does not
 choose commands or runtime paths: the profile selects the target, and Rolo auto-assembles the
 connector.
@@ -27,7 +27,7 @@ and must use an enrollment-time allowlist.
 ## Trust and failure boundaries
 
 - Requests are read-only, target-bound, nonce-bound and short-lived.
-- Bundles bind robot identity, collector identity, host fingerprint, request nonce, collection
+- Bundles bind robot identity, probe runner identity, host fingerprint, request nonce, collection
   time, provider results, payload digest and HMAC signature.
 - Rolo verifies the normalized payload, signature, freshness and exact provider set before any
   Agent planning uses it.
@@ -36,7 +36,7 @@ and must use an enrollment-time allowlist.
   (`UNAVAILABLE`, `PARTIAL`, `FAILED` or `TIMEOUT`).
 - SSH uses `BatchMode=yes`, a dedicated pinned `known_hosts`, `StrictHostKeyChecking=yes`,
   `IdentitiesOnly=yes` for a pinned identity, no forwarding and no password fallback.
-- Re-enrollment or collector rotation is explicit; changing a host key, identity, collector or
+- Re-enrollment or probe runner rotation is explicit; changing a host key, identity, probe runner or
   provider setup invalidates the old pin instead of silently overwriting it.
 
 ## User-facing commands
@@ -48,15 +48,15 @@ rolo probe --profile my-robot --evidence-timeout 60
 rolo target tool-surface --profile my-robot
 ```
 
-The first enrollment may use a one-time password to install a dedicated public key. The password
-is not stored in the profile and cannot be supplied to a Tool invocation. Subsequent runs resolve
-the SSH agent or pinned identity reference automatically.
+Enrollment reuses the profile's ordinary SSH credential reference. Rolo does not install or
+generate a second key for Probe, Trace, Certify or Tool execution; subsequent runs resolve the
+same SSH agent or pinned identity reference automatically.
 
-## Collector implementation boundary
+## Probe runner implementation boundary
 
-The target collector may source only setup files explicitly pinned at enrollment. Each path and
+The target probe runner may source only setup files explicitly pinned at enrollment. Each path and
 digest is verified before collection; interactive shell profiles and Agent-selected paths are
-never sourced. The collector returns bounded stdout/stderr and preserves failures and environment
+never sourced. The probe runner returns bounded stdout/stderr and preserves failures and environment
 limits as evidence. The current provider implementation has concrete setup handling, but the
 bundle contract names only OS/Middleware semantics so other providers can be added without
 changing the Agent ToolPlan or Conformance boundary.

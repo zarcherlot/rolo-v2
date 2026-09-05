@@ -27,7 +27,7 @@ class MhsReferenceCandidate(BaseModel):
     resource_id: str | None = None
     route: str | None = None
     source_ref: str | None = None
-    collector_id: str | None = None
+    source_id: str | None = None
     observed_at: datetime | None = None
     freshness: str = "UNKNOWN"
     digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
