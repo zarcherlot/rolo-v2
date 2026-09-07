@@ -11,6 +11,9 @@ from rolo.dsl.models import StrictModel
 class DslFrameType(StrEnum):
     DSL_PUT = "DSL_PUT"
     DSL_CHECK = "DSL_CHECK"
+    PLAN_RESOLVE = "PLAN_RESOLVE"
+    TARGET_COMPILE = "TARGET_COMPILE"
+    TARGET_CONFORMANCE = "TARGET_CONFORMANCE"
     DSL_COMPILE = "DSL_COMPILE"
     DSL_EVENT = "DSL_EVENT"
     DSL_RESULT = "DSL_RESULT"
@@ -37,6 +40,8 @@ class DslCompilePayload(StrictModel):
     target_fingerprint: str
     backend_hint: str | None = None
     source_bundle_digest: str | None = None
+    source_bundle_manifest: dict[str, Any] | None = None
+    source_bundle_source: str | None = None
 
 
 class DslResultPayload(StrictModel):

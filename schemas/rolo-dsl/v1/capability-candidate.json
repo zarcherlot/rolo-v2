@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-capability-candidate/v1",
+  "title": "Rolo capability candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_id", "operation", "evidence_refs", "confidence", "freshness", "gaps", "probe_template"],
+  "properties": {
+    "schema_version": {"const": "rolo-capability-candidate/v1"},
+    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "operation": {"type": "string", "minLength": 1, "maxLength": 256},
+    "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"type": "string"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "freshness": {"type": "object", "maxProperties": 32},
+    "gaps": {"type": "array", "maxItems": 32, "items": {"type": "string"}},
+    "probe_template": {"type": "array", "maxItems": 16, "items": {"type": "string"}}
+  }
+}

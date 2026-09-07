@@ -25,6 +25,31 @@ authority: guide
 7. 归档 `.rolo/mvp/<run_id>/` 下的 session、events、evidence、报告和索引，用 SHA-256
    校验回放；所有 UNKNOWN、BLOCKED、重试和人工介入均保留在报告中。
 
+## 离线 Trace/Certify 入口
+
+Agent 的两个独立入口现在也可由 `rolo` CLI 驱动离线回放。它们只消费已经生成的
+`TargetCatalog`、`TraceCall`、测试套件和显式结果 fixture，不连接设备；输出会写入
+`trace-request.json`/`certify-request.json`，并重建同一份 `artifact-index.json`。fixture
+必须声明 `rolo-mvp-invocation-fixture/v1`，缺少结果会保留为 `BLOCKED`，不会被当成成功。
+
+```text
+rolo trace --catalog <catalog.json> --calls <calls.json> \
+  --result-fixture <results.json> --task "inspect host" \
+  --output .rolo/mvp/trace
+
+rolo certify --suite examples/chassis-rotation-10.json \
+  --result-fixture <case-results.json> \
+  --catalog <fresh-catalog.json> --output .rolo/mvp/certify/report.json
+```
+
+`trace`/`certify` 及其 `start-trace`/`start-certify` 别名是 Agent contract 的离线入口，
+结果中的 `fixture_only=true` 明确限制其证据等级。真机写入仍必须经已注册的实验性 Tool、
+`SUPERVISED_FIELD_DEBUG` 和现场安全确认；不能用离线 fixture 替代现场验收。
+若已有 release binding，可额外传 `--release-binding <release-binding.json>`；CLI 会校验
+target fingerprint，并把 release/context digest 写入每次 Trace/Certify 产物。
+Certify 默认在首例失败后继续并记录全部用例；需要 fail-fast 时显式传
+`--fail-fast`，未执行用例会标记为 `NOT_RUN`。
+
 该走查只适用于有人在场的实验调试窗口，不构成功能安全或无人值守授权。旋转动作只能经已注册
 的实验性 Tool 进入目标 binding；MHS 只提供可选驱动上下文，Rolo 不开放任意 Shell、topic
 publish、argv 或底层旁路。

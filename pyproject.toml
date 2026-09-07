@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
+rolo-dsl = "rolo.dsl.cli:main"
 rolo = "rolo.product_cli:app"
 robotctl = "rolo.cli:app"
 rolo-http = "rolo.http_server:run"
@@ -36,6 +37,16 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rolo"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  ".codex-finalizer/**",
+  ".git/**",
+  ".pytest_cache/**",
+  ".pptx_build/**",
+  ".venv/**",
+  "dist/**",
+]
 
 [tool.hatch.build.targets.wheel.force-include]
 "skills/rolo-tool-planning" = "rolo/bundled_skills/rolo-tool-planning"
@@ -71,6 +82,28 @@ python_files = [
   "test_signed_artifacts.py",
   "test_targetd_certify_replay.py",
   "test_targetd_api_read_model.py",
+  "test_dsl_cli.py",
+  "test_dsl_service.py",
+  "test_dsl_service_negative.py",
+  "test_dsl_consumers.py",
+  "test_dsl_context_adapter.py",
+  "test_dsl_mapping.py",
+  "test_release_lifecycle.py",
+  "test_release_journey.py",
+  "test_targetd_dsl_service.py",
+  "test_targetd_ros2_runtime.py",
+  "test_landerpi_ros2_snapshot.py",
+  "test_observability.py",
+  "test_dsl_candidates.py",
+  "test_dsl_proposal.py",
+  "test_dsl_context_digests.py",
+  "test_dsl_context.py",
+  "test_dsl_bootstrap.py",
+  "test_dsl_bootstrap_replay.py",
+  "test_dsl_sufficiency.py",
+  "test_trace_diagnostics.py",
+  "test_landerpi_rotation_canary.py",
+  "test_journey_cli.py",
   "test_tool_conformance.py",
   "test_tool_planning.py",
   "test_rkb_*.py",

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-context-change-report/v1",
+  "title": "Rolo context change report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "changed_layers", "dirty_namespaces"],
+  "properties": {
+    "schema_version": {"const": "rolo-context-change-report/v1"},
+    "status": {"enum": ["CLEAN", "DIRTY"]},
+    "changed_layers": {"type": "array", "maxItems": 4, "items": {"type": "string"}},
+    "dirty_namespaces": {"type": "array", "maxItems": 64, "items": {"type": "string"}}
+  }
+}

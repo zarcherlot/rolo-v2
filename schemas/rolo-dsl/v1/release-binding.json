@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-release-binding/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_fingerprint", "evidence_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-release-binding/v1"},
+    "release_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "release_digests": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}},
+    "target_fingerprint": {"type": "string", "minLength": 1},
+    "evidence_digest": {"type": "string", "minLength": 1},
+    "compile_context_digest": {"type": ["string", "null"]},
+    "route_digest": {"type": ["string", "null"]},
+    "mhs_manifest_digests": {"type": "array", "items": {"type": "string"}}
+  },
+  "oneOf": [
+    {"required": ["release_digest"]},
+    {"required": ["release_digests"]}
+  ]
+}

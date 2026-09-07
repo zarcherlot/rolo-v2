@@ -21,6 +21,7 @@ from rolo.commands.lifecycle import run_probe_start
 from rolo.core.artifacts import ArtifactStore
 from rolo.core.config import get_settings
 from rolo.mvp.binding_dispatch import ApplicationBindingDispatcher
+from rolo.mvp.contracts import RunMode
 from rolo.mvp.probe_registration import (
     ToolRegistrationProposal,
     build_probe_analysis_input,
@@ -160,6 +161,57 @@ def targetd_install(
     emit({"status": "INSTALLED", "remote_root": installed})
 
 
+@targetd_app.command("upgrade")
+def targetd_upgrade(
+    target: Annotated[str, typer.Argument(help="ssh://user@host[:port]/workspace")],
+    remote_root: Annotated[str, typer.Option("--remote-root")],
+    known_hosts: Annotated[Path, typer.Option("--known-hosts")],
+    identity_file: Annotated[Path, typer.Option("--identity-file")],
+    package_root: Annotated[Path, typer.Option("--package-root")] = Path("src"),
+) -> None:
+    """Idempotently upgrade a dedicated targetd root from the current package."""
+    from rolo.targetd.installer import TargetdInstaller
+
+    parsed = parse_target_ref(target)
+    if not hasattr(parsed, "host"):
+        raise typer.BadParameter("targetd upgrade requires an SSH target")
+    executor = create_target_executor(parsed, known_hosts=known_hosts, identity_file=identity_file)
+    if not hasattr(executor, "stream_stdin"):
+        raise typer.BadParameter("targetd upgrade requires an SSH executor")
+    try:
+        installer = TargetdInstaller(executor, package_root=package_root)
+        installed = installer.upgrade(remote_root)
+        manifest = installer.manifest().model_dump(mode="json")
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit({"status": "UPGRADED", "remote_root": installed, "manifest": manifest})
+
+
+@targetd_app.command("uninstall")
+def targetd_uninstall(
+    target: Annotated[str, typer.Argument(help="ssh://user@host[:port]/workspace")],
+    remote_root: Annotated[str, typer.Option("--remote-root")],
+    known_hosts: Annotated[Path, typer.Option("--known-hosts")],
+    identity_file: Annotated[Path, typer.Option("--identity-file")],
+    package_root: Annotated[Path, typer.Option("--package-root")] = Path("src"),
+    confirm: Annotated[bool, typer.Option("--confirm", help="Explicitly confirm removal of the dedicated root.")] = False,
+) -> None:
+    """Remove a dedicated targetd root after explicit confirmation."""
+    from rolo.targetd.installer import TargetdInstaller
+
+    parsed = parse_target_ref(target)
+    if not hasattr(parsed, "host"):
+        raise typer.BadParameter("targetd uninstall requires an SSH target")
+    executor = create_target_executor(parsed, known_hosts=known_hosts, identity_file=identity_file)
+    if not hasattr(executor, "stream_stdin"):
+        raise typer.BadParameter("targetd uninstall requires an SSH executor")
+    try:
+        removed = TargetdInstaller(executor, package_root=package_root).uninstall(remote_root, confirm=confirm)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit({"status": "UNINSTALLED", "remote_root": removed})
+
+
 def _target_executor(
     target: str,
     known_hosts: Path | None,
@@ -172,6 +224,19 @@ def _target_executor(
         identity_file=identity_file,
         timeout_s=timeout,
     )
+
+
+def _ros_binding_executor(target_executor: object, *, autonomous_source_confirmed: bool) -> RosBindingExecutor:
+    """Build the ROS provider while preserving the legacy constructor call.
+
+    The explicit source assertion is an opt-in extension. Omitting the
+    keyword for the default-false path keeps injected test/third-party
+    providers that implement the original constructor compatible.
+    """
+
+    if autonomous_source_confirmed:
+        return RosBindingExecutor(target_executor, autonomous_source_confirmed=True)
+    return RosBindingExecutor(target_executor)
 
 
 def _write_conformance(session) -> tuple[object, str]:
@@ -667,6 +732,175 @@ def probe_analysis_input(
     emit(envelope)
 
 
+def _run_trace_command(
+    *,
+    catalog: Path,
+    calls: Path,
+    result_fixture: Path,
+    task: str,
+    output: Path | None,
+    mode: RunMode,
+    safety_confirmed: bool,
+    ttl: float,
+    max_calls: int,
+    operator_id: str | None,
+    target_id: str | None,
+    release_binding: Path | None,
+) -> None:
+    """Shared implementation for the ``trace`` and ``start-trace`` aliases."""
+
+    from rolo.mvp.journey_cli import run_trace
+
+    destination = output or (get_settings().rolo_artifact_dir / "mvp" / "trace")
+    try:
+        result = run_trace(
+            catalog_path=catalog,
+            calls_path=calls,
+            result_fixture=result_fixture,
+            task=task,
+            output=destination,
+            mode=mode,
+            safety_confirmed=safety_confirmed,
+            ttl_s=ttl,
+            max_calls=max_calls,
+            operator_id=operator_id,
+            target_id=target_id,
+            release_binding_path=release_binding,
+        )
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit(result)
+    if result.get("status") != "COMPLETED":
+        raise typer.Exit(code=2)
+
+
+def _trace_command(
+    catalog: Annotated[Path, typer.Option("--catalog", help="Verified TargetCatalog JSON")],
+    calls: Annotated[Path, typer.Option("--calls", help="JSON array of TraceCall objects")],
+    result_fixture: Annotated[
+        Path,
+        typer.Option("--result-fixture", "--results", help="Explicit offline invocation result fixture"),
+    ],
+    task: Annotated[str, typer.Option("--task", help="User task recorded in the Trace session")],
+    output: Annotated[Path | None, typer.Option("--output", help="Trace artifact directory")] = None,
+    mode: Annotated[RunMode, typer.Option("--mode")] = RunMode.OBSERVATION_ONLY,
+    safety_confirmed: Annotated[
+        bool,
+        typer.Option("--safety-confirmed/--safety-not-confirmed", help="Required only for supervised mode"),
+    ] = False,
+    ttl: Annotated[float, typer.Option("--ttl", min=1.0, max=86_400.0)] = 900.0,
+    max_calls: Annotated[int, typer.Option("--max-calls", min=1, max=10_000)] = 32,
+    operator_id: Annotated[str | None, typer.Option("--operator-id")] = None,
+    target_id: Annotated[str | None, typer.Option("--target-id", help="Optional target identity assertion")] = None,
+    release_binding: Annotated[Path | None, typer.Option("--release-binding", help="Optional release/context identity JSON")] = None,
+) -> None:
+    """Run a bounded, replayable Trace session from verified artifacts.
+
+    The result fixture is intentionally explicit and marked ``fixture_only``
+    in the output.  Real target execution remains behind the registered Tool
+    provider and the supervised ``invoke-tool`` path.
+    """
+
+    _run_trace_command(
+        catalog=catalog,
+        calls=calls,
+        result_fixture=result_fixture,
+        task=task,
+        output=output,
+        mode=mode,
+        safety_confirmed=safety_confirmed,
+        ttl=ttl,
+        max_calls=max_calls,
+        operator_id=operator_id,
+        target_id=target_id,
+        release_binding=release_binding,
+    )
+
+
+app.command("trace")(_trace_command)
+app.command("start-trace", hidden=True)(_trace_command)
+
+
+def _run_certify_command(
+    *,
+    suite: Path,
+    result_fixture: Path,
+    output: Path,
+    catalog: Path | None,
+    snapshot_digest: str,
+    target_id: str | None,
+    require_ten_cases: bool,
+    run_id: str | None,
+    release_binding: Path | None,
+    fail_fast: bool,
+) -> None:
+    """Shared implementation for the ``certify`` and ``start-certify`` aliases."""
+
+    from rolo.mvp.journey_cli import run_certify
+
+    try:
+        result = run_certify(
+            suite_path=suite,
+            result_fixture=result_fixture,
+            output=output,
+            catalog_path=catalog,
+            snapshot_digest=snapshot_digest,
+            target_id=target_id,
+            require_ten_cases=require_ten_cases,
+            run_id=run_id,
+            release_binding_path=release_binding,
+            fail_fast=fail_fast,
+        )
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    emit(result)
+    if result.get("status") != "PASS":
+        raise typer.Exit(code=2)
+
+
+def _certify_command(
+    suite: Annotated[Path, typer.Option("--suite", "--suite-path", help="Certification suite JSON")],
+    result_fixture: Annotated[
+        Path,
+        typer.Option("--result-fixture", "--results", help="Explicit offline per-case result fixture"),
+    ],
+    output: Annotated[Path, typer.Option("--output", help="JSON report path")] = Path("certify-test-report.json"),
+    catalog: Annotated[Path | None, typer.Option("--catalog", help="Optional fresh callable TargetCatalog JSON")] = None,
+    snapshot_digest: Annotated[str, typer.Option("--snapshot-digest")] = "UNKNOWN",
+    target_id: Annotated[str | None, typer.Option("--target-id")] = None,
+    require_ten_cases: Annotated[
+        bool,
+        typer.Option("--require-ten-cases/--allow-variable-suite", help="Enforce the MVP ten-case contract"),
+    ] = True,
+    run_id: Annotated[str | None, typer.Option("--run-id")] = None,
+    release_binding: Annotated[Path | None, typer.Option("--release-binding", help="Optional release/context identity JSON")] = None,
+    fail_fast: Annotated[bool, typer.Option("--fail-fast/--continue-on-failure", help="Stop after the first failed case")] = False,
+) -> None:
+    """Run an explicitly requested certification suite and write JSON/Markdown.
+
+    This command consumes only the supplied suite and result fixture.  The
+    emitted report is labelled ``fixture_only`` so it cannot be mistaken for a
+    field certification result.
+    """
+
+    _run_certify_command(
+        suite=suite,
+        result_fixture=result_fixture,
+        output=output,
+        catalog=catalog,
+        snapshot_digest=snapshot_digest,
+        target_id=target_id,
+        require_ten_cases=require_ten_cases,
+        run_id=run_id,
+        release_binding=release_binding,
+        fail_fast=fail_fast,
+    )
+
+
+app.command("certify")(_certify_command)
+app.command("start-certify", hidden=True)(_certify_command)
+
+
 @app.command("execute-rotation")
 def execute_rotation(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
@@ -675,6 +909,13 @@ def execute_rotation(
     angle_degrees: Annotated[float, typer.Option("--angle-degrees", min=-360.0, max=360.0)],
     max_speed_rad_s: Annotated[float, typer.Option("--max-speed-rad-s", min=0.0001, max=1.0)],
     safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
+    autonomous_source_confirmed: Annotated[
+        bool,
+        typer.Option(
+            "--autonomous-source-confirmed/--autonomous-source-not-confirmed",
+            help="Confirm that the designated autonomous publisher is the source under test",
+        ),
+    ] = False,
     operator_id: Annotated[str | None, typer.Option("--operator-id", help="Optional audit label; not required for execution")] = None,
     timeout: Annotated[float, typer.Option("--timeout", min=10.0, max=300.0)] = 120.0,
 ) -> None:
@@ -717,6 +958,7 @@ def execute_rotation(
             "probe_evidence_ref": expected_ref,
             "operator_id": operator_id,
             "safety_confirmed": safety_confirmed,
+            "autonomous_source_confirmed": autonomous_source_confirmed,
             "arguments": {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s},
             "result": {"status": "PENDING"},
             "executed_at": datetime.now(timezone.utc).isoformat(),
@@ -737,7 +979,13 @@ def execute_rotation(
                 # Dispatch through the generic application binding registry;
                 # ROS 2 is only the provider currently used by the rotation MVP.
                 dispatcher = ApplicationBindingDispatcher()
-                dispatcher.register("ros2_topic", RosBindingExecutor(target_executor).rotate)
+                dispatcher.register(
+                    "ros2_topic",
+                    _ros_binding_executor(
+                        target_executor,
+                        autonomous_source_confirmed=autonomous_source_confirmed,
+                    ).rotate,
+                )
                 result = dispatcher.execute(
                     registered.binding, {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s}
                 )
@@ -769,6 +1017,13 @@ def invoke_tool(
     evidence: Annotated[Path, typer.Option("--evidence")],
     arguments: Annotated[Path, typer.Option("--arguments", help="JSON object with descriptor-defined arguments")],
     safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
+    autonomous_source_confirmed: Annotated[
+        bool,
+        typer.Option(
+            "--autonomous-source-confirmed/--autonomous-source-not-confirmed",
+            help="Confirm that the designated autonomous publisher is the source under test",
+        ),
+    ] = False,
     timeout: Annotated[float, typer.Option("--timeout", min=10.0, max=300.0)] = 120.0,
 ) -> None:
     """Invoke any registered binding through the provider dispatcher.
@@ -816,7 +1071,13 @@ def invoke_tool(
             result = {"status": "BLOCKED", "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE", "motion_started": False}
         else:
             dispatcher = ApplicationBindingDispatcher()
-            dispatcher.register("ros2_topic", RosBindingExecutor(target_executor).rotate)
+            dispatcher.register(
+                "ros2_topic",
+                _ros_binding_executor(
+                    target_executor,
+                    autonomous_source_confirmed=autonomous_source_confirmed,
+                ).rotate,
+            )
             result = dispatcher.execute(registered.binding, call_arguments)
         run_id = uuid4().hex
         relative = f"application/{profile}/invocations/{run_id}.json"
@@ -830,6 +1091,7 @@ def invoke_tool(
                 "proposal_digest": registered.digest(),
                 "probe_evidence_ref": expected_ref,
                 "safety_confirmed": safety_confirmed,
+                "autonomous_source_confirmed": autonomous_source_confirmed,
                 "arguments": call_arguments,
                 "result": result,
                 "executed_at": datetime.now(timezone.utc).isoformat(),

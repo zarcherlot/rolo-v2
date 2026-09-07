@@ -30,8 +30,12 @@ def execute_bounded_twist(io, request):
         state = io.latest()
         if io.cancelled:
             return {'status': 'CANCELLED', 'motion_started': False}
-        if io.ready() and state and io.now() - state['at'] <= 0.5:
+        exclusive = getattr(io, 'command_exclusive', lambda: True)()
+        source_confirmed = bool(request.get('autonomous_source_confirmed', False))
+        if io.ready() and (exclusive or source_confirmed) and state and io.now() - state['at'] <= 0.5:
             break
+        if io.ready() and not exclusive and not source_confirmed:
+            return {'status': 'BLOCKED', 'error': 'COMMAND_MULTIPLE_PUBLISHERS', 'motion_started': False}
     else:
         return {'status': 'BLOCKED', 'error': 'NO_LIVE_SUBSCRIBER_OR_ODOMETRY', 'motion_started': False}
 
@@ -126,6 +130,11 @@ def main():
 
         def ready(self):
             return publisher.get_subscription_count() > 0
+
+        def command_exclusive(self):
+            # The supervised publisher must be the only command source.  This
+            # prevents joystick/app traffic from invalidating feedback bounds.
+            return len(node.get_publishers_info_by_topic(request['command_endpoint'])) <= 1
 
         def spin(self, seconds):
             rclpy.spin_once(node, timeout_sec=seconds)

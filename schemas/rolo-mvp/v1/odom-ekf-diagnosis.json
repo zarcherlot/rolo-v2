@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-mvp/v1/odom-ekf-diagnosis.json",
+  "title": "Rolo Odom EKF Diagnosis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "findings", "missing_development", "recommended_action"],
+  "properties": {
+    "schema_version": {"const": "rolo-odom-ekf-diagnosis/v1"},
+    "status": {"enum": ["READY", "BLOCKED", "INCONSISTENT", "UNKNOWN"]},
+    "findings": {"type": "array", "items": {"type": "string"}},
+    "missing_development": {"type": "array", "items": {"type": "string"}},
+    "recommended_action": {"type": "string", "minLength": 1}
+  }
+}

@@ -1,4 +1,4 @@
-<!-- status: draft; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-05; prerequisite: ROLO_V2_DSL_COMPILER_DEVELOPMENT_PLAN_ZH.md G7 -->
+<!-- status: draft; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-06; prerequisite: ROLO_V2_DSL_COMPILER_DEVELOPMENT_PLAN_ZH.md G7 -->
 
 # Rolo DSL Compiler 完成后的互补开发计划
 
@@ -89,6 +89,11 @@ Probe 未发现的 route、MHS operation 或 schema 不得写入 Context 的 obs
 
 ## 5. Coding Agent 和 rolo skill
 
+当前实现入口为 `rolo.dsl.AdapterMappingRequest` 与 `rolo.dsl.DslRepairLoop`：映射请求绑定
+`journey_session_id`、Context/Catalog digest 和 `rolo-dsl/v1`，生成器只能返回 DSL 候选；
+编译诊断驱动有限修复循环。目标、证据或资源缺失会返回结构化
+`rolo-probe-follow-up-request/v1`，达到尝试、artifact 或墙钟上限统一返回 `BLOCKED`。
+
 Coding Agent 通过 `rolo skill` 获取 `AdapterMappingRequest`：
 
 ```json
@@ -106,6 +111,13 @@ Coding Agent 通过 `rolo skill` 获取 `AdapterMappingRequest`：
 Agent 输出 `mapping.dsl`；四种 Operation 都必须由 Agent 生成 DSL。`EXECUTE` 额外输出
 source bundle 和 implementation contract。Agent 不能直接提交发布请求，也不能修改
 Compile Context。
+
+当前已落地 `rolo.releases.PostCompilerJourney`：它按 `DSL_PUT → TARGET_COMPILE →
+TARGET_CONFORMANCE → publish_verified` 顺序执行，并将 DSL、Context、目标编译结果、目标
+Conformance、Release 绑定和 Trace/Certify 结果写入同一 replayable artifact index。发布版本
+消费由 `ReleaseBoundTrace`、`ReleaseBoundCertify` 和 `PublishedReleaseInvoker` 强制校验
+current、PUBLISHED、target fingerprint、Probe evidence、Context、route 和 MHS digest；现场
+LanderPi 的真实 Probe/运行行为证据仍需通过 SSH journey 录入后才能把 P7/I8 标为完成。
 
 修复循环：
 
@@ -145,6 +157,10 @@ targetd 必须：
 6. 返回 generated bundle manifest、compile log、artifact digest 和 C3/C4 报告。
 
 targetd 不写机器人业务工作区，不接受自由 shell，不接受未声明的依赖或网络地址。
+
+targetd 的 ROS2 stdio daemon 可加载 `rolo-ros2-runtime-snapshot/v1`，并在显式指定
+`--execute-readonly` 时为 `OBSERVE` 绑定调用固定的 `ros2 topic echo --no-daemon --once` argv；该执行器
+只返回有界的只读观察结果，服务、action 和任何写入能力必须由另外注册的 provider 提供。
 
 ## 7. Conformance 和自动发布
 
@@ -245,6 +261,29 @@ R1、R2、R3、R10 可在 Compiler G7 后并行；R4 依赖 R3；R5 依赖 R4；
 Certify 的全部 digest。
 
 ## 12. 互补计划完成定义
+
+当前实现已覆盖 R0～R8 的离线/fake-target 交接：targetd backend registry、EXECUTE source
+bundle 校验、发布绑定 Trace/Certify 和十例回放均有代码、schema、测试与 artifact index。
+R10 的离线观测契约已补齐：`JourneyMetric` 采用固定 schema，`ObservabilityRecorder`
+以脱敏 JSONL 记录 journey 生命周期并限制单文件大小，`ArtifactRetentionPolicy` 提供
+安全的过期/超量 artifact 预览和显式清理；实现和测试见 `src/rolo/observability.py`、
+`schemas/rolo-dsl/v1/journey-metric.json` 与 `tests/test_observability.py`。
+P1-T7/P2-T2 的离线候选索引也已落地：`CapabilityCandidateIndex` 只复制 observed
+Context 中的 route/Tool，保留 evidence、freshness、gaps 和 Probe template，并以稳定
+token 查询支撑意图命中；见 `src/rolo/dsl/candidates.py` 及对应 schema/测试。
+P2-T7 的 `MappingProposal` 现以独立 schema 固化候选、证据、风险、未知项和用户确认状态，
+持久化前不触发发布或执行；见 `src/rolo/dsl/proposal.py`。
+P1-T8 的 `ContextLayerDigests`/`ContextChangeReport` 已提供 target identity、runtime、
+surface、evidence 四层稳定 digest 与 `CLEAN`/`DIRTY` 结果；该判定只输出受影响层，不会
+自动重探或切换 Release。
+`rolo-dsl candidates CONTEXT.json --intent "..."` 提供同一候选索引的离线 CLI 入口。
+R9/I8 的真实 LanderPi Probe、目标侧 T3 runtime behavior、Trace 建图和现场 Certify 仍是
+开放门禁，不能用离线回放替代。2026-09-06 已在 MentorPi 复核 `/odom_raw`、`/odom`、
+`/imu` 的真实样本，并定位到两个现场缺口：诊断用户必须与 ROS 发布者一致，以及 EKF
+当前融合的 IMU 绝对 yaw 与轮式里程计不一致；`/controller/cmd_vel` 还存在多个发布者。
+临时 EKF 配置验证了修复方向，但未持久化，1° canary 因命令源不独占和角度未验证保持
+`BLOCKED`；见 `docs/validation/LANDERPI_ODOM_EKF_DIAGNOSTIC_20260906.md` 和
+`docs/validation/LANDERPI_ROTATION_RESULT_20260906.json`。
 
 - Probe Context 可以稳定转换并通过 Compiler schema；
 - Coding Agent 可以只通过 rolo skill 生成和修复 DSL；

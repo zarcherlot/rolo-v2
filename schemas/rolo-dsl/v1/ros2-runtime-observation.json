@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-dsl/v1/ros2-runtime-observation.json",
+  "title": "Rolo ROS2 Runtime Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "observed_at", "access", "snapshot", "runtime_digest", "routes", "limitations"],
+  "properties": {
+    "schema_version": {"const": "rolo-ros2-runtime-observation/v1"},
+    "target_id": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "minLength": 1},
+    "access": {"const": "READ_ONLY"},
+    "runtime_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "distro", "ros2_path", "topics", "nodes", "packages", "runtime_digest"],
+      "properties": {
+        "schema_version": {"const": "rolo-ros2-runtime-snapshot/v1"},
+        "distro": {"type": "string", "minLength": 1},
+        "ros2_path": {"type": "string", "minLength": 1},
+        "topics": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "interface_type"], "properties": {"name": {"type": "string"}, "interface_type": {"type": "string"}}}},
+        "nodes": {"type": "array", "items": {"type": "string"}},
+        "packages": {"type": "array", "items": {"type": "string"}},
+        "runtime_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "executor_user": {"type": "string", "minLength": 1},
+        "publisher_user": {"type": "string", "minLength": 1},
+        "rmw_implementation": {"type": "string", "minLength": 1}
+      }
+    },
+    "routes": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

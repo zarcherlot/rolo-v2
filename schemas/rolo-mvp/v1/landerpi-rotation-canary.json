@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.local/schemas/rolo-mvp/v1/landerpi-rotation-canary.json",
+  "title": "LanderPi rotation canary",
+  "description": "Bounded supervised Twist result with synchronized yaw and optional read-only motor-path evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "observed_at",
+    "status",
+    "motion_started",
+    "autonomous_source_confirmed",
+    "requested_angle_degrees",
+    "requested_speed_rad_s",
+    "duration_limit_s",
+    "stop_published",
+    "stopped_observed",
+    "command_topic",
+    "feedback_topic",
+    "sample_records"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-landerpi-rotation-canary/v1"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["SUCCEEDED", "BLOCKED", "UNKNOWN"]},
+    "error": {"type": ["string", "null"]},
+    "motion_started": {"type": "boolean"},
+    "autonomous_source_confirmed": {"type": "boolean"},
+    "requested_angle_degrees": {
+      "type": "number",
+      "anyOf": [
+        {"exclusiveMinimum": 0, "maximum": 30},
+        {"exclusiveMinimum": -30, "exclusiveMaximum": 0}
+      ]
+    },
+    "requested_speed_rad_s": {
+      "type": "number",
+      "anyOf": [
+        {"exclusiveMinimum": 0, "maximum": 0.15},
+        {"exclusiveMinimum": -0.15, "exclusiveMaximum": 0}
+      ]
+    },
+    "duration_limit_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+    "measured_angle_degrees": {"type": ["number", "null"]},
+    "angle_error_degrees": {"type": ["number", "null"]},
+    "stop_published": {"type": "boolean"},
+    "stop_attempts": {"type": "integer", "minimum": 0},
+    "stop_successes": {"type": "integer", "minimum": 0},
+    "stop_errors": {"type": "array", "items": {"type": "string"}},
+    "command_attempted": {"type": "boolean"},
+    "stopped_observed": {"type": "boolean"},
+    "final_angular_speed_rad_s": {"type": ["number", "null"]},
+    "feedback_topic": {"type": "string"},
+    "command_topic": {"type": "string"},
+    "motor_topic": {"type": ["string", "null"]},
+    "motor_evidence_status": {"enum": ["NOT_REQUESTED", "NOT_STARTED", "TYPE_UNAVAILABLE", "READY", "SUBSCRIBED", "SUBSCRIBE_FAILED"]},
+    "motor_subscription_error": {"type": ["string", "null"]},
+    "motor_sample_count": {"type": "integer", "minimum": 0},
+    "motor_evidence_kind": {"enum": ["NONE", "GRAPH_ONLY_OR_UNAVAILABLE", "COMMAND_PATH_SAMPLE"]},
+    "motor_is_encoder_feedback": {"const": false},
+    "imu_orientation_covariance_status": {"enum": ["VALID", "UNKNOWN_ALL_ZERO", "UNAVAILABLE_SENTINEL", "MALFORMED", "MIXED", null]},
+    "imu_yaw_comparison_source": {"enum": ["QUATERNION_RELATIVE", "NONE"]},
+    "graph": {"type": "object", "additionalProperties": {"$ref": "#/$defs/topicGraph"}},
+    "nodes": {"type": "array", "items": {"type": "string"}},
+    "sample_records": {"$ref": "#/$defs/sampleRecords"},
+    "yaw_relationship": {"$ref": "#/$defs/relationship"},
+    "imu_raw_yaw_relationship": {"$ref": "#/$defs/relationship"},
+    "motion_start_t": {"type": ["number", "null"]},
+    "motion_end_t": {"type": ["number", "null"]},
+    "motion_window_duration_s": {"type": ["number", "null"], "minimum": 0},
+    "raw_yaw_delta_rad": {"type": ["number", "null"]},
+    "ekf_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_relative_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_gyro_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_gyro_raw_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_gyro_bias_rad_s": {"type": ["number", "null"]},
+    "imu_raw_gyro_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_raw_gyro_raw_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_raw_gyro_bias_rad_s": {"type": ["number", "null"]},
+    "imu_corrected_gyro_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_corrected_gyro_raw_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "imu_corrected_gyro_bias_rad_s": {"type": ["number", "null"]},
+    "imu_quaternion_yaw_initial_rad": {"type": ["number", "null"]},
+    "independent_motion_evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "status": {"enum": ["VERIFIED", "NOT_VERIFIED"]},
+        "kind": {"type": "string"},
+        "threshold_rad": {"type": "number"},
+        "gyro_delta_rad": {"type": ["number", "null"]},
+        "gyro_deltas_rad": {"type": "object", "additionalProperties": {"type": ["number", "null"]}},
+        "selected_gyro_stream": {"type": ["string", "null"]},
+        "gyro_stream_spread_rad": {"type": ["number", "null"]},
+        "opposing_gyro_streams": {"type": "object", "additionalProperties": {"type": "number"}},
+        "quaternion_delta_rad": {"type": ["number", "null"]},
+        "agreement_error_rad": {"type": ["number", "null"]},
+        "independent_of_odom": {"const": true}
+      }
+    },
+    "command_integrated_yaw_delta_rad": {"type": ["number", "null"]},
+    "command_to_raw_yaw_error_rad": {"type": ["number", "null"]},
+    "command_nonzero_samples": {"type": "integer", "minimum": 0},
+    "published_command_nonzero_samples": {"type": "integer", "minimum": 0}
+  },
+  "$defs": {
+    "topicGraph": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "publisher_count": {"type": "integer", "minimum": 0},
+        "subscription_count": {"type": "integer", "minimum": 0},
+        "publisher_nodes": {"type": "array", "items": {"type": "string"}},
+        "subscription_nodes": {"type": "array", "items": {"type": "string"}},
+        "publishers": {"type": "array", "items": {"type": "object"}},
+        "subscriptions": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "sampleRecords": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "object"}}
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "classification": {"enum": ["ALIGNED", "CONSTANT_OFFSET", "DIVERGING", "INSUFFICIENT_DATA"]},
+        "comparison_time_basis": {"type": "string"},
+        "synchronized": {"type": "boolean"},
+        "overlap_start_t": {"type": ["number", "null"]},
+        "overlap_end_t": {"type": ["number", "null"]},
+        "overlap_duration_s": {"type": ["number", "null"], "minimum": 0}
+      }
+    }
+  }
+}

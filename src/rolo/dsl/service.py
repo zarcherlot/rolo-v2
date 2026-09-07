@@ -8,6 +8,7 @@ from .compiler import compile_document
 from .conformance_report import report_for
 from .frontend import compile_frontend
 from .parser import parse_document
+from .resolver import resolve_evidence
 
 
 class RoloDslCompiler:
@@ -16,6 +17,16 @@ class RoloDslCompiler:
         if document is None:
             return DslCompileResult(status="DSL_CHECK_FAILED", dsl_digest="", diagnostics=tuple(item.code for item in report.diagnostics))
         _, report, digest = compile_frontend(document)
+        # A check with a supplied context is the Agent-facing mapping gate,
+        # not merely a syntax check.  Resolve target/evidence references here
+        # so callers cannot treat an unobserved route as a valid candidate
+        # when they do not request a full compile output directory.
+        if report.ok and request.context:
+            try:
+                evidence_report = resolve_evidence(document, request.context)
+            except ValueError:
+                return DslCompileResult(status="DSL_CHECK_FAILED", dsl_digest=digest, diagnostics=("CONTEXT_INVALID",))
+            report = type(report)(diagnostics=(*report.diagnostics, *evidence_report.diagnostics))
         return DslCompileResult(status="PASS" if report.ok else "DSL_CHECK_FAILED", dsl_digest=digest, diagnostics=tuple(item.code for item in report.diagnostics))
 
     def compile(self, request: DslCompileRequest, output_dir: str | Path) -> DslCompileResult:
@@ -30,6 +41,9 @@ class RoloDslCompiler:
             return DslCompileResult(status="DSL_COMPILE_FAILED", dsl_digest=actual_dsl_digest, diagnostics=("CONTEXT_DIGEST_MISMATCH",))
         if not request.target_fingerprint:
             return DslCompileResult(status="DSL_COMPILE_FAILED", dsl_digest=actual_dsl_digest, diagnostics=("TARGET_FINGERPRINT_REQUIRED",))
+        context_target_fingerprint = request.context.get("target_fingerprint")
+        if context_target_fingerprint != request.target_fingerprint:
+            return DslCompileResult(status="DSL_COMPILE_FAILED", dsl_digest=actual_dsl_digest, diagnostics=("TARGET_FINGERPRINT_MISMATCH",))
         result = compile_document(document, output_dir, context=request.context)
         conformance = report_for(result, request.context)
         return DslCompileResult(
