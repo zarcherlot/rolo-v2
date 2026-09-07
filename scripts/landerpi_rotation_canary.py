@@ -32,9 +32,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 SCHEMA_VERSION = "rolo-landerpi-rotation-canary/v1"
-DEFAULT_COMMAND_TOPIC = "/controller/cmd_vel"
+# The isolated vendor subscriber is the safe default.  The shared
+# ``/controller/cmd_vel`` route remains available only through an explicit
+# command-line override plus the supervised-source assertion.
+DEFAULT_COMMAND_TOPIC = "/cmd_vel"
 DEFAULT_FEEDBACK_TOPIC = "/odom"
 DEFAULT_MOTOR_TOPIC = "/ros_robot_controller/set_motor"
 DEFAULT_IMU_TOPIC = "/imu"
@@ -43,10 +45,60 @@ DEFAULT_IMU_RAW_TOPIC = "/ros_robot_controller/imu_raw"
 MAX_ANGLE_DEGREES = 30.0
 MAX_SPEED_RAD_S = 0.15
 MAX_DURATION_S = 60.0
-GOAL_TOLERANCE_RAD = math.radians(0.8)
+# The old fixed 0.8° tolerance made a 1° canary stop at 0.2° (the lower
+# edge of the tolerance band) before the chassis had completed the requested
+# turn.  Keep the historical 0.8° cap for larger turns, but scale the band
+# for small, supervised calibration turns.
+MIN_GOAL_TOLERANCE_RAD = math.radians(0.1)
+MAX_GOAL_TOLERANCE_RAD = math.radians(0.8)
+GOAL_TOLERANCE_FRACTION = 0.20
+# 0.025 rad was larger than a 1° request (0.01745 rad), which made the
+# independent-motion gate mathematically impossible to satisfy for the
+# smallest documented canary.  0.005 rad remains above normal stationary
+# integration noise while allowing a 1° physical turn to be verified.
+MIN_INDEPENDENT_ROTATION_RAD = 0.005
 YAW_COMPARISON_TOLERANCE_RAD = 0.15
-MIN_INDEPENDENT_ROTATION_RAD = 0.025
-MIN_MOTION_OBSERVATION_S = 0.50
+# A 1° open-loop odometry goal is reached in roughly 0.1 s at the
+# supervised speed cap, before the chassis/IMU has had time to respond.  Keep
+# a bounded 0.2 s command-observation floor so the independent gyro stream can
+# witness the acceleration; this still limits the open-loop odometry exposure
+# to about 1.7° at the 0.15 rad/s cap.
+MIN_MOTION_OBSERVATION_FLOOR_S = 0.20
+MAX_MOTION_OBSERVATION_S = 0.50
+
+
+def goal_tolerance_rad(goal_rad: float) -> float:
+    """Return a bounded feedback tolerance appropriate for ``goal_rad``.
+
+    A fixed angular tolerance is useful for larger turns but is unsafe for a
+    1° canary: it permits the feedback loop to stop after only 0.2°.  Scaling
+    by the requested magnitude preserves that bounded behavior while keeping
+    a small floor for sensor quantization.
+    """
+
+    goal = abs(float(goal_rad))
+    if not math.isfinite(goal) or goal <= 0:
+        raise ValueError("goal_rad must be finite and positive")
+    return min(
+        MAX_GOAL_TOLERANCE_RAD,
+        max(MIN_GOAL_TOLERANCE_RAD, goal * GOAL_TOLERANCE_FRACTION),
+    )
+
+
+def motion_observation_duration_s(goal_rad: float, speed_rad_s: float) -> float:
+    """Bound the minimum observation window before accepting feedback.
+
+    The previous fixed 0.5 s window was longer than the ideal 1° turn at the
+    maximum canary speed and could force an unnecessary overshoot.  Retain a
+    short safety floor and observe at least half of the ideal travel time,
+    while capping the delay for larger turns.
+    """
+
+    goal = abs(float(goal_rad))
+    speed = abs(float(speed_rad_s))
+    if not math.isfinite(goal) or goal <= 0 or not math.isfinite(speed) or speed <= 0:
+        raise ValueError("goal_rad and speed_rad_s must be finite and positive")
+    return min(MAX_MOTION_OBSERVATION_S, max(MIN_MOTION_OBSERVATION_FLOOR_S, goal / speed * 0.5))
 
 
 def _finite(value: Any) -> float | None:
@@ -230,7 +282,7 @@ def unwrapped_delta(
     values = [value for value in values if value is not None]
     if len(values) < 2:
         return None
-    return sum(wrap_angle(current - previous) for previous, current in zip(values, values[1:]))
+    return sum(wrap_angle(current - previous) for previous, current in zip(values, values[1:], strict=False))
 
 
 def integrate_angular_velocity(
@@ -295,7 +347,7 @@ def integrate_angular_velocity(
         return None
     return sum(
         0.5 * (right_value + left_value) * (right_t - left_t)
-        for (left_t, left_value), (right_t, right_value) in zip(clipped, clipped[1:])
+        for (left_t, left_value), (right_t, right_value) in zip(clipped, clipped[1:], strict=False)
     )
 
 
@@ -658,6 +710,7 @@ def run_canary(
             "requested_angle_degrees": angle,
             "requested_speed_rad_s": math.copysign(speed, angle),
             "duration_limit_s": duration,
+            "feedback_tolerance_degrees": math.degrees(goal_tolerance_rad(math.radians(angle))),
             "command_topic": command_topic,
             "feedback_topic": feedback_topic,
             "motor_topic": motor_topic,
@@ -670,6 +723,9 @@ def run_canary(
             "imu_relative_yaw_delta_rad": None,
             "imu_gyro_integrated_yaw_delta_rad": None,
             "stop_published": False,
+            "physical_stop_verified": False,
+            "settled": False,
+            "angle_accuracy_verified": False,
             "stopped_observed": False,
             "sample_records": {
                 "cmd_vel": [], "published_cmd_vel": [], "odom_raw": [], "odom": [],
@@ -680,8 +736,19 @@ def run_canary(
     import rclpy
     from geometry_msgs.msg import Twist
     from nav_msgs.msg import Odometry
+    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from sensor_msgs.msg import Imu
-    from rclpy.qos import qos_profile_sensor_data
+
+    # The LanderPi driver publishes the raw IMU and motor command topics with
+    # RELIABLE/volatile QoS.  A best-effort sensor profile can be discovered
+    # in the graph yet receive no samples under Fast DDS, which would turn a
+    # real independent signal into a false ``IMU_BELOW_THRESHOLD`` result.
+    # Use a bounded reliable profile for every evidence subscription.
+    evidence_qos = QoSProfile(
+        depth=10,
+        reliability=ReliabilityPolicy.RELIABLE,
+        durability=DurabilityPolicy.VOLATILE,
+    )
 
     motor_message_type: Any | None = None
     motor_evidence_status = "NOT_REQUESTED" if motor_topic is None else "TYPE_UNAVAILABLE"
@@ -715,9 +782,12 @@ def run_canary(
     feedback_topic_seen: str | None = None
     motion_start_t: float | None = None
     motion_end_t: float | None = None
+    settle_end_t: float | None = None
     motion_baseline_yaw: float | None = None
     motion_end_yaw: float | None = None
     goal = math.radians(angle)
+    feedback_tolerance = goal_tolerance_rad(goal)
+    minimum_motion_observation_s = motion_observation_duration_s(goal, speed)
     signed_speed = math.copysign(speed, goal)
 
     def local_time() -> float:
@@ -755,11 +825,17 @@ def run_canary(
         raw_covariance = getattr(message, "orientation_covariance", ())
         covariance = [] if raw_covariance is None else list(raw_covariance)
         evidence = imu_yaw_evidence(message.orientation, covariance)
-        append("imu", {
+        # Keep each subscribed stream in its own bucket.  Collapsing all
+        # callbacks into ``imu`` made the artifact claim that corrected/raw
+        # streams had no samples while silently mixing them into the filtered
+        # stream, defeating the independent-evidence and disagreement gates.
+        append(name, {
             "t": local_time(),
             "header_stamp_s": stamp_seconds(message),
             **evidence,
             "orientation_covariance_size": len(covariance),
+            "angular_x": _finite(message.angular_velocity.x),
+            "angular_y": _finite(message.angular_velocity.y),
             "angular_z": _finite(message.angular_velocity.z),
             "frame_id": str(getattr(message.header, "frame_id", "") or ""),
             "source_topic": name,
@@ -797,17 +873,56 @@ def run_canary(
         item["published"] = True
         append("published_cmd_vel", item)
 
+    def live_independent_progress(end_t: float) -> float:
+        """Return median fresh same-sign gyro progress for the stop gate."""
+
+        if motion_start_t is None:
+            return 0.0
+        values: list[float] = []
+        for stream_name in ("imu", "imu_corrected", "imu_raw"):
+            stream = records[stream_name]
+            timed = [
+                (_finite(item.get("t")), _finite(item.get("angular_z")))
+                for item in stream
+            ]
+            timed = [
+                (timestamp, value)
+                for timestamp, value in timed
+                if timestamp is not None and value is not None
+            ]
+            if not timed or end_t - timed[-1][0] > 0.15:
+                continue
+            baseline_rates = [
+                value for timestamp, value in timed
+                if motion_start_t - 0.5 <= timestamp < motion_start_t
+            ]
+            bias = sum(baseline_rates) / len(baseline_rates) if baseline_rates else 0.0
+            delta = integrate_angular_velocity(
+                stream,
+                key="angular_z",
+                start_t=motion_start_t,
+                end_t=end_t,
+                bias_rad_s=bias,
+            )
+            if delta is not None and math.isfinite(delta) and math.copysign(1.0, goal) * delta > 0:
+                values.append(float(delta))
+        if not values:
+            return 0.0
+        values.sort()
+        middle = len(values) // 2
+        return values[middle] if len(values) % 2 else 0.5 * (values[middle - 1] + values[middle])
+
     try:
         rclpy.init(args=[])
         initialized = True
         node = rclpy.create_node("rolo_rotation_canary")
         publisher = node.create_publisher(Twist, command_topic, 10)
-        subscriptions.append(node.create_subscription(Twist, command_topic, on_cmd, qos_profile_sensor_data))
+        subscriptions.append(node.create_subscription(Twist, command_topic, on_cmd, evidence_qos))
         subscriptions.append(node.create_subscription(
-            Odometry, "/odom_raw", lambda message: on_odom("odom_raw", message), qos_profile_sensor_data
+            Odometry, "/odom_raw", lambda message: on_odom("odom_raw", message), evidence_qos
         ))
         subscriptions.append(node.create_subscription(
-            Odometry, feedback_topic, lambda message: on_odom("odom", message), qos_profile_sensor_data
+            Odometry, feedback_topic, lambda message: on_odom("odom", message), evidence_qos
         ))
         for topic, record_name in (
             (DEFAULT_IMU_TOPIC, "imu"),
@@ -819,13 +934,13 @@ def run_canary(
                     Imu,
                     topic,
                     lambda message, name=record_name: on_imu(name, message),
-                    qos_profile_sensor_data,
+                    evidence_qos,
                 )
             )
         if motor_topic is not None and motor_message_type is not None:
             try:
                 subscriptions.append(node.create_subscription(
-                    motor_message_type, motor_topic, on_motor, qos_profile_sensor_data
+                    motor_message_type, motor_topic, on_motor, evidence_qos
                 ))
                 motor_evidence_status = "SUBSCRIBED"
             except Exception as exc:
@@ -836,10 +951,23 @@ def run_canary(
         while time.monotonic() < ready_deadline:
             spin(0.02)
             feedback = state.get("odom")
-            if publisher.get_subscription_count() > 0 and feedback is not None:
+            independent_stream_ready = any(
+                records[name] for name in ("imu", "imu_corrected", "imu_raw")
+            )
+            if (
+                publisher.get_subscription_count() > 0
+                and feedback is not None
+                and independent_stream_ready
+            ):
                 break
         else:
-            failure = "NO_LIVE_SUBSCRIBER_OR_ODOMETRY"
+            failure = (
+                "NO_LIVE_INDEPENDENT_IMU"
+                if state.get("odom") is not None and not any(
+                    records[name] for name in ("imu", "imu_corrected", "imu_raw")
+                )
+                else "NO_LIVE_SUBSCRIBER_OR_ODOMETRY"
+            )
 
         baseline = state.get("odom")
         baseline_yaw = None if baseline is None else _finite(baseline.get("yaw"))
@@ -873,9 +1001,13 @@ def run_canary(
                     if motion_start_t is not None
                     and (_finite(item.get("t")) or 0.0) >= motion_start_t
                 )
+                independent_progress = (
+                    live_independent_progress(local_time()) if motion_started else 0.0
+                )
+                progress = independent_progress if motion_started else travelled
                 if (
-                    travelled * math.copysign(1.0, goal) >= abs(goal) - GOAL_TOLERANCE_RAD
-                    and motion_elapsed >= MIN_MOTION_OBSERVATION_S
+                    progress * math.copysign(1.0, goal) >= abs(goal) - feedback_tolerance
+                    and motion_elapsed >= minimum_motion_observation_s
                     and independent_samples >= 5
                 ):
                     break
@@ -929,6 +1061,7 @@ def run_canary(
                 except (KeyboardInterrupt, Exception) as exc:
                     stop_errors.append(type(exc).__name__)
                     break
+            settle_end_t = local_time()
 
     # Capture graph evidence before destroying the probe node.  It includes
     # all command publishers, while published_cmd_vel below identifies only
@@ -1072,6 +1205,49 @@ def run_canary(
         "agreement_error_rad": None,
         "independent_of_odom": True,
     }
+    # A transient braking spike is not a stop failure.  Require the final
+    # 200 ms IMU tail to be quiet, while retaining the full settle peak for
+    # diagnosis.  This is the same fail-closed stop proof used by the target
+    # bounded runtime.
+    settle_rates: list[float] = []
+    settle_tail_rates: list[float] = []
+    if motion_end_t is not None and settle_end_t is not None:
+        settle_tail_start = settle_end_t - 0.20
+        for stream_name in ("imu", "imu_corrected", "imu_raw"):
+            bias = imu_biases.get(stream_name, 0.0)
+            for item in records[stream_name]:
+                timestamp = _finite(item.get("t"))
+                value = _finite(item.get("angular_z"))
+                if (
+                    timestamp is not None
+                    and value is not None
+                    and motion_end_t <= timestamp <= settle_end_t
+                ):
+                    residual = abs(value - bias)
+                    settle_rates.append(residual)
+                    if timestamp >= settle_tail_start:
+                        settle_tail_rates.append(residual)
+    settled = bool(settle_tail_rates) and max(settle_tail_rates) <= 0.03
+    independent_motion["settled"] = settled
+    independent_motion["settle_sample_count"] = len(settle_rates)
+    independent_motion["settle_tail_sample_count"] = len(settle_tail_rates)
+    independent_motion["settle_peak_rate_rad_s"] = max(settle_rates) if settle_rates else None
+    independent_motion["settle_tail_max_rate_rad_s"] = max(settle_tail_rates) if settle_tail_rates else None
+    gyro_delta = _finite(independent_motion.get("gyro_delta_rad"))
+    angle_accuracy_tolerance = max(abs(goal) * 0.25, MIN_INDEPENDENT_ROTATION_RAD)
+    independent_angle_error = (
+        abs(abs(gyro_delta) - abs(goal)) if gyro_delta is not None else None
+    )
+    angle_accuracy_verified = (
+        independent_angle_error is not None
+        and independent_angle_error <= angle_accuracy_tolerance
+        and math.copysign(1.0, gyro_delta) == math.copysign(1.0, goal)
+    )
+    independent_motion["target_angle_error_rad"] = independent_angle_error
+    independent_motion["target_angle_tolerance_rad"] = angle_accuracy_tolerance
+    independent_motion["angle_accuracy_status"] = (
+        "VERIFIED" if angle_accuracy_verified else "NOT_VERIFIED"
+    )
     command_delta = integrate_angular_velocity(
         records["published_cmd_vel"], start_t=motion_start_t, end_t=motion_end_t
     ) if have_motion_window else None
@@ -1098,15 +1274,25 @@ def run_canary(
         and motion_started
         and stop_sent
         and stopped
+        and settled
         and feedback_within_tolerance
         and independent_motion["status"] == "VERIFIED"
+        # Independent motion is a witness only; an exact-angle canary must
+        # also match the requested angle on the selected gyro stream.
+        and angle_accuracy_verified
         else "UNKNOWN"
     )
     result_error = failure
     if result_error is None and status != "SUCCEEDED":
         result_error = (
-            "PHYSICAL_MOTION_NOT_VERIFIED"
-            if feedback_within_tolerance and independent_motion["status"] != "VERIFIED"
+            "ANGLE_ACCURACY_NOT_VERIFIED"
+            if feedback_within_tolerance
+            and independent_motion["status"] == "VERIFIED"
+            and settled
+            and not angle_accuracy_verified
+            else "PHYSICAL_MOTION_NOT_VERIFIED"
+            if feedback_within_tolerance
+            and (independent_motion["status"] != "VERIFIED" or not settled)
             else "MOTION_NOT_VERIFIED"
         )
     return {
@@ -1115,13 +1301,21 @@ def run_canary(
         "status": status,
         "error": result_error,
         "motion_started": motion_started,
-        "autonomous_source_confirmed": True,
+        # Preserve the operator assertion in the evidence.  This path is
+        # reached only after the confirmation gate, but hard-coding ``True``
+        # would make an artifact lie if the API is ever called through a
+        # different admission path.
+        "autonomous_source_confirmed": bool(autonomous_source_confirmed),
         "requested_angle_degrees": angle,
         "requested_speed_rad_s": signed_speed,
         "duration_limit_s": duration,
+        "feedback_tolerance_degrees": math.degrees(feedback_tolerance),
         "measured_angle_degrees": None if measured is None else math.degrees(measured),
         "angle_error_degrees": error_degrees,
         "stop_published": stop_sent,
+        "physical_stop_verified": bool(stop_sent and stopped and settled),
+        "settled": settled,
+        "angle_accuracy_verified": angle_accuracy_verified,
         "stop_attempts": stop_attempts,
         "stop_successes": stop_successes,
         "stop_errors": stop_errors,

@@ -160,7 +160,115 @@ def test_targetd_records_registered_runtime_backend(tmp_path) -> None:
     assert conformance.payload["target_conformance"] == "PASS"
     assert conformance.payload["target_conformance_report"]["t3_runtime_behavior"] == "PASS"
     assert service.backend_registry.resolve("COMPOSE", {"steps": []}).backend_id == "workflow"
-    assert service.backend_registry.resolve("EXECUTE", {}).backend_id == "generated_runtime"
+    with pytest.raises(ValueError, match="BACKEND_UNAVAILABLE"):
+        service.backend_registry.resolve("INVOKE", {"resource_id": "/scan"})
+    with pytest.raises(ValueError, match="BACKEND_UNAVAILABLE"):
+        service.backend_registry.resolve("EXECUTE", {})
+
+
+def test_targetd_conformance_rejects_runtime_result_without_status(tmp_path) -> None:
+    dsl = {
+        "tool_id": "app.state",
+        "kind": "OBSERVE",
+        "target": {"robot_id": "r", "evidence_digest": "sha256:e"},
+        "binding": {"resource_id": "route:/scan", "interface_type": "sensor_msgs/msg/LaserScan"},
+    }
+    context = {
+        "robot_id": "r",
+        "target_fingerprint": "a" * 64,
+        "evidence_digest": "sha256:e",
+        "evidence_refs": ["route:/scan"],
+    }
+    document, _ = parse_document(dsl)
+    resolver = Ros2RuntimeResolver(
+        Ros2RuntimeSnapshot("humble", "/opt/ros/humble/bin/ros2", parse_ros2_topic_types(["/scan sensor_msgs/msg/LaserScan"]))
+    )
+    service = TargetdDslService(
+        tmp_path,
+        runtime_resolver=resolver,
+        backend_registry=ros2_registry(resolver, lambda _binding, _arguments: {}),
+    )
+    dd, cd = dsl_digest(document), context_digest(context)
+    put_payload = {
+        "dsl": dsl,
+        "context": context,
+        "compiler_version": "rolo-compiler/0.1",
+        "dsl_digest": dd,
+        "context_digest": cd,
+        "target_fingerprint": "a" * 64,
+    }
+    service.handle(DslFrame(frame_type="DSL_PUT", request_id="put", payload=put_payload))
+    service.handle(DslFrame(
+        frame_type="TARGET_COMPILE",
+        request_id="compile",
+        payload={"dsl_digest": dd, "context_digest": cd, "target_fingerprint": "a" * 64},
+    ))
+    result = service.handle(DslFrame(
+        frame_type="TARGET_CONFORMANCE",
+        request_id="conformance",
+        payload={"dsl_digest": dd, "context_digest": cd, "target_fingerprint": "a" * 64},
+    ))
+    assert result.payload["target_conformance"] == "FAIL"
+    assert result.payload["target_conformance_report"]["t3_runtime_behavior"] == "FAIL"
+    assert "RUNTIME_BEHAVIOR_FAILED" in result.payload["target_conformance_report"]["diagnostics"]
+
+
+def test_targetd_conformance_normalizes_backend_exception_to_failed_t3(tmp_path) -> None:
+    dsl = {
+        "tool_id": "app.state",
+        "kind": "OBSERVE",
+        "target": {"robot_id": "r", "evidence_digest": "sha256:e"},
+        "binding": {"resource_id": "route:/scan", "interface_type": "sensor_msgs/msg/LaserScan"},
+    }
+    context = {
+        "robot_id": "r",
+        "target_fingerprint": "a" * 64,
+        "evidence_digest": "sha256:e",
+        "evidence_refs": ["route:/scan"],
+    }
+    document, _ = parse_document(dsl)
+    resolver = Ros2RuntimeResolver(
+        Ros2RuntimeSnapshot("humble", "/opt/ros/humble/bin/ros2", parse_ros2_topic_types(["/scan sensor_msgs/msg/LaserScan"]))
+    )
+
+    def failing_executor(_binding, _arguments):
+        raise RuntimeError("target provider unavailable")
+
+    service = TargetdDslService(
+        tmp_path,
+        runtime_resolver=resolver,
+        backend_registry=ros2_registry(resolver, failing_executor),
+    )
+    dd, cd = dsl_digest(document), context_digest(context)
+    put_payload = {
+        "dsl": dsl,
+        "context": context,
+        "compiler_version": "rolo-compiler/0.1",
+        "dsl_digest": dd,
+        "context_digest": cd,
+        "target_fingerprint": "a" * 64,
+    }
+    service.handle(DslFrame(frame_type="DSL_PUT", request_id="put", payload=put_payload))
+    service.handle(
+        DslFrame(
+            frame_type="TARGET_COMPILE",
+            request_id="compile",
+            payload={"dsl_digest": dd, "context_digest": cd, "target_fingerprint": "a" * 64},
+        )
+    )
+    result = service.handle(
+        DslFrame(
+            frame_type="TARGET_CONFORMANCE",
+            request_id="conformance",
+            payload={"dsl_digest": dd, "context_digest": cd, "target_fingerprint": "a" * 64},
+        )
+    )
+    assert result.payload["target_conformance"] == "FAIL"
+    assert result.payload["target_conformance_report"]["t3_runtime_behavior"] == "FAIL"
+    assert any(
+        item.startswith("RUNTIME_BEHAVIOR_FAILED:RuntimeError:")
+        for item in result.payload["target_conformance_report"]["diagnostics"]
+    )
 
 
 def test_ros2_readonly_executor_uses_fixed_observed_topic_argv() -> None:

@@ -3,13 +3,14 @@
 import hashlib
 import json
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 from rolo.dsl.api import DslCheckRequest, DslCompileRequest
 from rolo.dsl.canonical import context_digest, dsl_digest
 from rolo.dsl.context import ProbeContext
 from rolo.dsl.contracts import COMPILE_CONTEXT_SCHEMA_VERSION, DSL_SCHEMA_VERSION, TARGET_CONFORMANCE_SCHEMA_VERSION, require_version
-from rolo.dsl.parser import parse_document
+from rolo.dsl.parser import loads_unique_json, parse_document
 from rolo.dsl.service import RoloDslCompiler
 from rolo.dsl.source_bundle import SourceBundleManifest
 
@@ -25,13 +26,24 @@ class TargetdDslService:
         *,
         runtime_resolver: Ros2RuntimeResolver | None = None,
         backend_registry: RuntimeBackendRegistry | None = None,
+        allow_unbound_runtime: bool = False,
     ):
+        """Create a targetd DSL service.
+
+        Target conformance is fail-closed unless both a target runtime
+        resolver and an execution backend registry are supplied.  The
+        ``allow_unbound_runtime`` escape hatch is intentionally explicit for
+        offline/fake-target replay only; it must not be enabled by a real
+        targetd entrypoint.
+        """
+
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._puts: dict[str, DslPutPayload] = {}
         self.compiler = RoloDslCompiler()
         self.runtime_resolver = runtime_resolver
         self.backend_registry = backend_registry
+        self.allow_unbound_runtime = bool(allow_unbound_runtime)
 
     def handle(self, frame: DslFrame) -> DslFrame:
         if frame.frame_type == DslFrameType.DSL_PUT:
@@ -170,8 +182,8 @@ class TargetdDslService:
         result_file = artifact_dir / "result.json"
         if result_file.exists():
             try:
-                data = json.loads(result_file.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+                data = loads_unique_json(result_file.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
                 return self._error(frame, "CACHE_ARTIFACT_INVALID")
             if data.get("cache_key") != key or data.get("dsl_digest") != payload.dsl_digest:
                 return self._error(frame, "CACHE_DIGEST_MISMATCH")
@@ -266,8 +278,8 @@ class TargetdDslService:
         if not result_file.exists():
             return self._error(frame, "TARGET_COMPILE_REQUIRED")
         try:
-            data = json.loads(result_file.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            data = loads_unique_json(result_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
             return self._error(frame, "CACHE_ARTIFACT_INVALID")
         expected_key = hashlib.sha256(
             f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}:{put.compiler_version}:{payload.backend_hint or ''}:{','.join(required_capabilities)}".encode()
@@ -280,7 +292,11 @@ class TargetdDslService:
         gate = "PASS" if status == "PASS" else "FAIL"
         runtime_gate = gate
         runtime_diagnostics: list[str] = []
-        if gate == "PASS" and self.backend_registry is not None:
+        runtime_unbound = self.runtime_resolver is None or self.backend_registry is None
+        if runtime_unbound and not self.allow_unbound_runtime:
+            runtime_gate = "FAIL"
+            runtime_diagnostics.append("TARGET_RUNTIME_UNBOUND")
+        elif gate == "PASS" and self.backend_registry is not None:
             document, document_report = parse_document(put.dsl)
             if document is None or not document_report.ok:
                 runtime_gate = "FAIL"
@@ -288,12 +304,22 @@ class TargetdDslService:
             else:
                 try:
                     runtime_result = self.backend_registry.execute(document.kind.value, document.binding, {})
-                    runtime_gate = "PASS" if str(runtime_result.get("status", "PASS")).upper() in {"PASS", "PASSED", "SUCCESS", "SUCCEEDED"} else "FAIL"
-                    if runtime_gate == "FAIL":
-                        runtime_diagnostics.append(str(runtime_result.get("error", "RUNTIME_BEHAVIOR_FAILED")))
-                except ValueError as exc:
+                    if not isinstance(runtime_result, Mapping):
+                        runtime_gate = "FAIL"
+                        runtime_diagnostics.append("RUNTIME_BEHAVIOR_INVALID_RESULT")
+                    else:
+                        runtime_status = str(runtime_result.get("status", "")).upper()
+                        runtime_gate = "PASS" if runtime_status in {"PASS", "PASSED", "SUCCESS", "SUCCEEDED"} else "FAIL"
+                        if runtime_gate == "FAIL":
+                            runtime_diagnostics.append(str(runtime_result.get("error", "RUNTIME_BEHAVIOR_FAILED")))
+                except Exception as exc:
+                    # A target backend is an external runtime boundary.  Any
+                    # ordinary provider failure must become a failed T3 gate,
+                    # never an implicit PASS or an unstructured success.
                     runtime_gate = "FAIL"
-                    runtime_diagnostics.append(str(exc))
+                    runtime_diagnostics.append(
+                        f"RUNTIME_BEHAVIOR_FAILED:{type(exc).__name__}:{exc}"
+                    )
         diagnostics = tuple(dict.fromkeys([*data.get("diagnostics", ()), *runtime_diagnostics]))
         report = {
             "schema_version": TARGET_CONFORMANCE_SCHEMA_VERSION,

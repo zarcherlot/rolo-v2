@@ -1,3 +1,6 @@
+import ast
+import json
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -18,7 +21,54 @@ from rolo.targetd import (
     encode_frame,
 )
 from rolo.targetd.daemon import TargetdDaemon
+from rolo.targetd.protocol import ProtocolError
 from rolo.targetd.worker import PythonBundleWorker, RosContainerProvider
+
+
+def _embedded_provider_request(program: str) -> dict:
+    """Decode the JSON argv payload emitted by ``RosContainerProvider``."""
+
+    match = re.search(r"sys\.argv = \['rolo_bounded_twist', (.+)\]\n", program)
+    assert match is not None
+    return json.loads(ast.literal_eval(match.group(1)))
+
+
+def _verified_rotation_result(**overrides):
+    result = {
+        "status": "SUCCEEDED",
+        "stop_published": True,
+        "physical_stop_verified": True,
+        "stopped_observed": True,
+        "angle_accuracy_verified": True,
+        "independent_motion_evidence": {
+            "status": "VERIFIED",
+            "independent_of_odom": True,
+            "settled": True,
+            "angle_accuracy_status": "VERIFIED",
+            "target_angle_error_rad": 0.001,
+            "target_angle_tolerance_rad": 0.005,
+        },
+    }
+    result.update(overrides)
+    return result
+
+
+def test_targetd_rotation_scripts_use_isolated_cmd_vel_and_real_feedback_defaults():
+    from scripts.targetd_certify_landerpi import (
+        DEFAULT_COMMAND_ENDPOINT as certify_command_endpoint,
+    )
+    from scripts.targetd_certify_landerpi import (
+        DEFAULT_FEEDBACK_ENDPOINTS as certify_feedback_endpoints,
+    )
+    from scripts.targetd_rotate_ssh_smoke import (
+        DEFAULT_COMMAND_ENDPOINT as smoke_command_endpoint,
+    )
+    from scripts.targetd_rotate_ssh_smoke import (
+        DEFAULT_FEEDBACK_ENDPOINTS as smoke_feedback_endpoints,
+    )
+
+    assert certify_command_endpoint == smoke_command_endpoint == "/cmd_vel"
+    assert certify_feedback_endpoints == smoke_feedback_endpoints == ["/odom_raw", "/odom"]
 
 
 def test_bundle_builds_verifies_and_round_trips(tmp_path):
@@ -65,6 +115,16 @@ def test_frame_digest_is_deterministic_and_tamper_evident():
     ))).run_id is None
 
 
+def test_decode_frame_rejects_duplicate_json_members():
+    payload = (
+        b'{"frame_digest":"' + b"0" * 64
+        + b'","frame_digest":"' + b"1" * 64 + b'"}'
+    )
+    encoded = len(payload).to_bytes(4, "big") + payload
+    with pytest.raises(ProtocolError, match="payload is invalid"):
+        decode_frame(encoded)
+
+
 def test_session_and_receipt_state_support_resume_and_idempotency(tmp_path):
     store = TargetdStateStore(tmp_path / "run")
     session = JourneySession.create(session_id="session-1", target_id="mentorpi", profile_id="landerpi")
@@ -80,6 +140,30 @@ def test_session_and_receipt_state_support_resume_and_idempotency(tmp_path):
     )
     store.save_receipt(receipt)
     assert store.load_receipt("call-1") == receipt
+
+
+def test_state_store_rejects_duplicate_json_members_as_protocol_error(tmp_path):
+    store = TargetdStateStore(tmp_path / "run")
+    store.path.parent.mkdir(parents=True)
+    store.path.write_text('{"sessions": {}, "sessions": {}}\n', encoding="utf-8")
+    with pytest.raises(ProtocolError, match="state is unreadable"):
+        store.load_receipt("missing")
+
+
+@pytest.mark.parametrize("field", ["sessions", "calls"])
+def test_state_store_rejects_non_mapping_collections(field, tmp_path):
+    store = TargetdStateStore(tmp_path / "run")
+    store.path.parent.mkdir(parents=True)
+    store.path.write_text(json.dumps({field: []}), encoding="utf-8")
+    with pytest.raises(ProtocolError, match="state is unreadable"):
+        store.load_receipt("missing")
+
+
+def test_targetd_health_is_unavailable_when_persisted_state_is_corrupt(tmp_path):
+    service = TargetdService(target_id="mentorpi", state_root=tmp_path / "state")
+    service.state.path.parent.mkdir(parents=True)
+    service.state.path.write_text('{"sessions": "not-a-map"}\n', encoding="utf-8")
+    assert service.health().status == "UNAVAILABLE"
 
 
 def test_targetd_service_accepts_call_once_and_cancels_it(tmp_path):
@@ -110,8 +194,46 @@ def test_targetd_service_accepts_call_once_and_cancels_it(tmp_path):
     first = service.accept_call(request, manifest)
     assert first.status == "ACCEPTED"
     assert service.accept_call(request, manifest) == first
+    with pytest.raises(ProtocolError, match="binding does not match"):
+        service.accept_call(
+            request.model_copy(
+                update={"idempotency_key": "call-binding-mismatch", "binding_digest": "c" * 64}
+            ),
+            manifest,
+        )
     assert service.cancel_call("call-2").status == "CANCELLED"
     assert service.query_call("call-2").status == "CANCELLED"
+
+
+def test_targetd_service_treats_not_accepted_as_terminal(tmp_path):
+    service = TargetdService(target_id="mentorpi", state_root=tmp_path / "state")
+    session = service.open_session(
+        JourneySession.create(session_id="session-not-accepted", target_id="mentorpi", profile_id="landerpi")
+    )
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.generic",
+        source=b"def execute(arguments): return arguments",
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+    )
+    service.put_bundle(manifest, b"def execute(arguments): return arguments")
+    request = ExecutionRequest(
+        run_id="run-not-accepted",
+        session_id=session.session_id,
+        target_id="mentorpi",
+        idempotency_key="call-not-accepted",
+        bundle_digest=manifest.bundle_digest,
+        binding_digest=manifest.binding_digest,
+        surface_digest="b" * 64,
+        arguments={},
+        mode="SUPERVISED_FIELD_DEBUG",
+        deadline=datetime.now(timezone.utc) + timedelta(seconds=30),
+    )
+    assert service.accept_call(request, manifest).status == "ACCEPTED"
+    rejected = service.complete_call(request.idempotency_key, status="NOT_ACCEPTED")
+    assert rejected.status == "NOT_ACCEPTED"
+    assert service.complete_call(request.idempotency_key, status="SUCCEEDED") == rejected
 
 
 def test_targetd_service_uses_signer_key_id_for_verification(tmp_path):
@@ -186,6 +308,174 @@ def test_targetd_daemon_resumes_session_and_queries_receipt(tmp_path):
     assert queried.payload["receipt"] is None
 
 
+def test_targetd_daemon_terminalizes_unexpected_worker_exception(tmp_path):
+    source = b"def execute(arguments): return arguments\n"
+    service = TargetdService(target_id="mentorpi", state_root=tmp_path / "state")
+    session = service.open_session(
+        JourneySession.create(session_id="worker-failure", target_id="mentorpi", profile_id="landerpi")
+    )
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.generic", source=source, binding_digest="a" * 64,
+        signer_key_id="rolo-dev", signing_key=b"secret",
+    )
+    service.put_bundle(manifest, source)
+    request = ExecutionRequest(
+        run_id="worker-failure-run",
+        session_id=session.session_id,
+        target_id="mentorpi",
+        idempotency_key="worker-failure-call",
+        bundle_digest=manifest.bundle_digest,
+        binding_digest="a" * 64,
+        surface_digest="b" * 64,
+        mode="SUPERVISED_FIELD_DEBUG",
+        deadline=datetime.now(timezone.utc) + timedelta(seconds=30),
+    )
+    daemon = TargetdDaemon(service, execute_calls=True)
+    daemon._session = session
+
+    class FailingWorker:
+        def execute(self, *_args, **_kwargs):
+            raise ValueError("unexpected worker failure")
+
+    daemon.worker = FailingWorker()
+    response = daemon._handle(
+        ProtocolFrame.create(
+            kind=FrameKind.CALL,
+            sequence=0,
+            session_id=session.session_id,
+            payload=request.model_dump(mode="json"),
+        )
+    )
+    assert response.payload["ok"] is True
+    assert response.payload["receipt"]["status"] == "FAILED"
+    assert service.query_call(request.idempotency_key).status == "FAILED"
+
+
+def test_targetd_daemon_blocks_rotation_without_physical_provider(tmp_path):
+    source = b"def execute(arguments): return {'status': 'SUCCEEDED'}\n"
+    service = TargetdService(target_id="mentorpi", state_root=tmp_path / "state")
+    session = service.open_session(
+        JourneySession.create(session_id="rotation-provider", target_id="mentorpi", profile_id="landerpi")
+    )
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.base.rotate", source=source, binding_digest="a" * 64,
+        signer_key_id="rolo-dev", signing_key=b"secret",
+    )
+    service.put_bundle(manifest, source)
+    request = ExecutionRequest(
+        run_id="rotation-provider-run",
+        session_id=session.session_id,
+        target_id="mentorpi",
+        idempotency_key="rotation-provider-call",
+        bundle_digest=manifest.bundle_digest,
+        binding_digest=manifest.binding_digest,
+        surface_digest="b" * 64,
+        mode="SUPERVISED_FIELD_DEBUG",
+        deadline=datetime.now(timezone.utc) + timedelta(seconds=30),
+    )
+    daemon = TargetdDaemon(service, execute_calls=True)
+    daemon._session = session
+    response = daemon._handle(
+        ProtocolFrame.create(
+            kind=FrameKind.CALL,
+            sequence=0,
+            session_id=session.session_id,
+            payload=request.model_dump(mode="json"),
+        )
+    )
+    assert response.payload["ok"] is True
+    assert response.payload["receipt"]["status"] == "FAILED"
+    assert response.payload["receipt"]["result"]["error"] == "rotation provider is required"
+
+
+def test_targetd_rotation_receipt_fails_closed_without_physical_evidence(tmp_path):
+    source = b"def execute(arguments): return arguments\n"
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.base.rotate", source=source, binding_digest="a" * 64,
+        signer_key_id="rolo-dev", signing_key=b"secret",
+    )
+    verified = _verified_rotation_result()
+    weak = {"status": "SUCCEEDED", "stop_published": True, "stopped_observed": True}
+    assert TargetdDaemon._terminal_status(manifest, verified) == "SUCCEEDED"
+    assert TargetdDaemon._terminal_status(manifest, weak) == "UNKNOWN"
+    assert TargetdDaemon._terminal_status(
+        manifest, {"status": "BLOCKED", "error": "NO_LIVE_INDEPENDENT_IMU"}
+    ) == "FAILED"
+
+
+def test_targetd_rotation_receipt_rejects_motion_witness_without_exact_angle(tmp_path):
+    source = b"def execute(arguments): return arguments\n"
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.base.rotate", source=source, binding_digest="a" * 64,
+        signer_key_id="rolo-dev", signing_key=b"secret",
+    )
+    result = _verified_rotation_result(
+        angle_accuracy_verified=False,
+        independent_motion_evidence={
+            "status": "VERIFIED",
+            "independent_of_odom": True,
+            "settled": True,
+            "angle_accuracy_status": "NOT_VERIFIED",
+            "target_angle_error_rad": 0.02,
+            "target_angle_tolerance_rad": 0.005,
+        },
+    )
+    assert TargetdDaemon._terminal_status(manifest, result) == "UNKNOWN"
+
+
+@pytest.mark.parametrize(
+    "evidence_update",
+    [
+        {"independent_of_odom": False},
+        {"angle_accuracy_status": "NOT_VERIFIED"},
+        {"target_angle_error_rad": 0.02},
+        {"target_angle_tolerance_rad": 0.0},
+    ],
+)
+def test_targetd_rotation_receipt_rejects_unproven_independent_or_exact_angle(evidence_update):
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.base.rotate",
+        source=b"def execute(arguments): return arguments\n",
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+    )
+    result = _verified_rotation_result()
+    result["independent_motion_evidence"].update(evidence_update)
+    assert TargetdDaemon._terminal_status(manifest, result) == "UNKNOWN"
+
+
+@pytest.mark.parametrize("reported", ["FAILED", "STOPPED", "CANCELLED", "UNKNOWN", "NOT_ACCEPTED"])
+def test_targetd_rotation_receipt_preserves_explicit_terminal_status(reported):
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.base.rotate",
+        source=b"def execute(arguments): return arguments\n",
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+    )
+    assert TargetdDaemon._terminal_status(manifest, {"status": reported}) == reported
+
+
+@pytest.mark.parametrize(
+    ("reported", "expected"),
+    [
+        ({"value": "ok"}, "SUCCEEDED"),
+        ({"status": "SUCCEEDED"}, "SUCCEEDED"),
+        ({"status": "FAILED", "error": "provider"}, "FAILED"),
+        ({"status": "BLOCKED", "error": "policy"}, "FAILED"),
+        ({"status": "UNKNOWN"}, "UNKNOWN"),
+        ({"status": "NOT_ACCEPTED", "error": "lease"}, "NOT_ACCEPTED"),
+    ],
+)
+def test_targetd_generic_receipt_preserves_explicit_result_status(reported, expected):
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.generic", source=b"def execute(arguments): return arguments\n",
+        binding_digest="a" * 64, signer_key_id="rolo-dev", signing_key=b"secret",
+    )
+    assert TargetdDaemon._terminal_status(manifest, reported) == expected
+
+
 def test_python_bundle_worker_uses_generic_entrypoint_and_limits_output():
     source = b"def execute(arguments):\n    return {'received': arguments}\n"
     manifest = ExecutionBundleManifest.build(
@@ -207,9 +497,51 @@ def test_python_bundle_worker_passes_registered_provider_context():
         signer_key_id="rolo-dev", signing_key=b"secret",
     )
     result = PythonBundleWorker(Provider()).execute(
-        manifest, source, {"angle_degrees": 15, "max_speed_rad_s": 0.2}
+        manifest, source, {"angle_degrees": 15, "max_speed_rad_s": 0.15}
     )
     assert result["operation"] == "base.rotate"
+
+
+def test_python_bundle_worker_does_not_pollute_generic_provider_arguments():
+    seen = {}
+
+    class Provider:
+        def invoke(self, operation, arguments):
+            seen["operation"] = operation
+            seen["arguments"] = dict(arguments)
+            return {"status": "BLOCKED", "motion_started": False}
+
+    source = b"def execute(arguments, provider):\n    return provider.invoke('base.rotate', arguments)\n"
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.base.rotate", source=source, binding_digest="a" * 64,
+        signer_key_id="rolo-dev", signing_key=b"secret",
+    )
+    PythonBundleWorker(Provider()).execute(
+        manifest, source, {"angle_degrees": 1, "max_speed_rad_s": 0.1}
+    )
+    assert seen["operation"] == "base.rotate"
+    assert "__rolo_observation_contract" not in seen["arguments"]
+    assert seen["arguments"]["angle_degrees"] == 1
+
+
+def test_python_bundle_worker_does_not_alias_ros_rotation_through_generic_tool():
+    source = b"def execute(arguments, provider):\n    return provider.invoke('base.rotate', arguments)\n"
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.generic",
+        source=source,
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+        observation_contract={
+            "provider": "ros-container",
+            "operation": "base.rotate",
+            "command_endpoint": "/cmd_vel",
+        },
+    )
+    with pytest.raises(ProtocolError, match="requires app.base.rotate"):
+        PythonBundleWorker(RosContainerProvider("MentorPi")).execute(
+            manifest, source, {"angle_degrees": 1, "max_speed_rad_s": 0.1}
+        )
 
 
 def test_ros_container_provider_uses_fixed_docker_argv(monkeypatch):
@@ -222,12 +554,124 @@ def test_ros_container_provider_uses_fixed_docker_argv(monkeypatch):
 
     monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
     result = RosContainerProvider("MentorPi").invoke(
-        "base.rotate", {"angle_degrees": 15, "max_speed_rad_s": 0.2}
+        "base.rotate", {"angle_degrees": 15, "max_speed_rad_s": 0.15}
     )
     assert result["stop_published"] is True
     assert seen["command"][:7] == ["docker", "exec", "-i", "-u", "ubuntu", "MentorPi", "bash"]
     assert "ros2 topic pub" not in seen["input"]
     assert "angle_degrees" in seen["input"]
+    assert "independent_motion_evidence" in seen["input"]
+    assert "independent_feedback_endpoints" in seen["input"]
+    # A direct provider call has no signed manifest contract, so it uses the
+    # isolated low-level fallback.  Production bundle execution injects the
+    # signed contract (covered below) and selects the same route explicitly.
+    assert _embedded_provider_request(seen["input"])["command_endpoint"] == "/cmd_vel"
+
+
+def test_ros_container_provider_rejects_duplicate_json_output(monkeypatch):
+    def fake_run(command, **kwargs):
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": '{"status":"SUCCEEDED","status":"UNKNOWN"}\n',
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    with pytest.raises(ProtocolError, match="invalid JSON"):
+        RosContainerProvider("MentorPi").invoke(
+            "base.rotate", {"angle_degrees": 15, "max_speed_rad_s": 0.15}
+        )
+
+
+def test_ros_container_provider_honors_signed_command_endpoint_contract(monkeypatch):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen["input"] = kwargs["input"]
+        return type("Completed", (), {"returncode": 0, "stdout": '{"status":"UNKNOWN"}\n', "stderr": ""})()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    contract = {
+        "provider": "ros-container",
+        "operation": "base.rotate",
+        "command_endpoint": "/cmd_vel",
+        "feedback_endpoints": ["/odom_raw", "/odom"],
+        "independent_feedback_endpoints": ["/imu", "/imu_corrected"],
+        "interface_type": "geometry_msgs/msg/Twist",
+        "stop_strategy": "zero_velocity",
+    }
+    RosContainerProvider("MentorPi").invoke(
+        "base.rotate",
+        {
+            "angle_degrees": 1,
+            "max_speed_rad_s": 0.1,
+            "__rolo_observation_contract": contract,
+        },
+    )
+    assert _embedded_provider_request(seen["input"])["command_endpoint"] == "/cmd_vel"
+
+
+def test_ros_container_provider_preserves_v1_topic_contract_alias(monkeypatch):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen["input"] = kwargs["input"]
+        return type("Completed", (), {"returncode": 0, "stdout": '{"status":"UNKNOWN"}\n', "stderr": ""})()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    RosContainerProvider("MentorPi").invoke(
+        "base.rotate",
+        {
+            "angle_degrees": 1,
+            "max_speed_rad_s": 0.1,
+            "__rolo_observation_contract": {
+                "provider": "ros-container",
+                "operation": "base.rotate",
+                "topic": "/controller/cmd_vel",
+            },
+        },
+    )
+    assert _embedded_provider_request(seen["input"])["command_endpoint"] == "/controller/cmd_vel"
+
+
+@pytest.mark.parametrize(
+    "contract",
+    [
+        {"operation": "base.rotate"},
+        {"provider": "ros-container"},
+        {"provider": "other", "operation": "base.rotate"},
+        {"provider": "ros-container", "operation": "base.rotate"},
+    ],
+)
+def test_ros_container_provider_requires_bound_contract_identity(contract):
+    with pytest.raises(ProtocolError, match="provider|operation|endpoint"):
+        RosContainerProvider("MentorPi").invoke(
+            "base.rotate",
+            {
+                "angle_degrees": 1,
+                "max_speed_rad_s": 0.1,
+                "__rolo_observation_contract": contract,
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"angle_degrees": 0, "max_speed_rad_s": 0.1},
+        {"angle_degrees": 30.1, "max_speed_rad_s": 0.1},
+        {"angle_degrees": 1, "max_speed_rad_s": 0.1501},
+        {"angle_degrees": -31, "max_speed_rad_s": 0.15},
+        {"angle_degrees": True, "max_speed_rad_s": 0.1},
+    ],
+)
+def test_ros_container_provider_rejects_rotation_values_outside_canary_bounds(arguments):
+    with pytest.raises(ProtocolError, match="outside provider limits|arguments are invalid"):
+        RosContainerProvider("MentorPi").invoke("base.rotate", arguments)
 
 
 class _RecordingChannel:

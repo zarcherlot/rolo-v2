@@ -1,8 +1,13 @@
+import io
+import json
 from pathlib import Path
+
+import pytest
 
 from rolo.dsl.canonical import context_digest, dsl_digest
 from rolo.dsl.parser import parse_document
 from rolo.targetd import DslFrame, FrameCodec, InMemoryTargetdTransport, TargetdDslService, TargetdSession
+from rolo.targetd.dsl_daemon import run as run_dsl_daemon
 
 
 def values():
@@ -15,6 +20,35 @@ def values():
 def test_jsonl_codec_roundtrip():
     frame = DslFrame(frame_type="DSL_CHECK", request_id="1", payload={"dsl_digest": "sha256:x"})
     assert FrameCodec.decode(FrameCodec.encode(frame)) == frame
+
+
+def test_jsonl_codec_rejects_duplicate_keys():
+    with pytest.raises(ValueError, match="duplicate mapping key"):
+        FrameCodec.decode(
+            '{"frame_type":"DSL_CHECK","frame_type":"DSL_PUT",'
+            '"request_id":"1","payload":{}}'
+        )
+
+
+def test_dsl_daemon_rejects_duplicate_frame_keys(tmp_path: Path):
+    line = '{"frame_type":"DSL_CHECK","frame_type":"DSL_PUT","request_id":"1","payload":{}}\n'
+
+    class TextOutput:
+        def __init__(self):
+            self.parts: list[str] = []
+
+        def write(self, value: str) -> int:
+            self.parts.append(value)
+            return len(value)
+
+        def flush(self) -> None:
+            return None
+
+    output = TextOutput()
+    assert run_dsl_daemon(io.StringIO(line), output, str(tmp_path)) == 0
+    response = json.loads("".join(output.parts))
+    assert response["payload"]["code"] == "FRAME_INVALID"
+    assert "duplicate mapping key" in response["payload"]["message"]
 
 
 def test_session_runs_targetd_pipeline(tmp_path: Path):

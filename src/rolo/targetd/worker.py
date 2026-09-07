@@ -10,9 +10,16 @@ from __future__ import annotations
 import json
 import math
 import subprocess
+from collections.abc import Mapping
+from pathlib import Path
 from typing import Any, Protocol
 
+from rolo.dsl.parser import loads_unique_json
+
 from .protocol import ExecutionBundleManifest, ProtocolError
+
+MAX_ROTATION_ANGLE_DEGREES = 30.0
+MAX_ROTATION_SPEED_RAD_S = 0.15
 
 
 class Provider(Protocol):
@@ -24,7 +31,7 @@ class RosContainerProvider:
 
     def __init__(
         self, container: str = "MentorPi", *, timeout_s: float = 120.0,
-        container_user: str = "ubuntu",
+        container_user: str = "ubuntu", autonomous_source_confirmed: bool = False,
     ) -> None:
         if not container or any(c in container for c in "\x00\r\n '"):
             raise ValueError("ROS container name is invalid")
@@ -35,17 +42,134 @@ class RosContainerProvider:
         self.container = container
         self.container_user = container_user
         self.timeout_s = float(timeout_s)
+        self.autonomous_source_confirmed = bool(autonomous_source_confirmed)
 
     def invoke(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if operation != "base.rotate":
             raise ProtocolError(f"ROS provider operation is not registered: {operation}")
+        arguments = dict(arguments)
+        # The signed bundle manifest is the source of truth for target routes.
+        # ``PythonBundleWorker`` passes it under a reserved, internal key so a
+        # generated bundle cannot silently redirect a write to a hard-coded
+        # topic.  Direct provider calls retain the target-specific defaults for
+        # deterministic low-level tests; production worker calls always carry
+        # the marker and therefore fail closed when the contract is absent.
+        raw_contract = arguments.pop("__rolo_observation_contract", None)
+        if raw_contract is None:
+            contract: Mapping[str, Any] = {}
+        elif isinstance(raw_contract, Mapping):
+            contract = raw_contract
+        else:
+            raise ProtocolError("rotation observation contract is invalid")
+        if raw_contract is not None:
+            if not contract:
+                raise ProtocolError("rotation observation contract is required")
+            if contract.get("provider") != "ros-container":
+                raise ProtocolError("rotation observation provider is required")
+            if contract.get("operation") != operation:
+                raise ProtocolError("rotation observation operation mismatches provider")
+        # Keep the direct low-level fallback on the isolated vendor route;
+        # production bundle calls consume a signed contract.  ``topic`` is a
+        # v1 compatibility alias used by the first targetd manifests; when it
+        # is present without the newer route fields, preserve that route while
+        # retaining the same bounded feedback defaults.
+        legacy_topic = contract.get("topic")
+        command_endpoint = contract.get("command_endpoint")
+        if (
+            raw_contract is not None
+            and command_endpoint is None
+            and legacy_topic is None
+        ):
+            raise ProtocolError("rotation command endpoint is required")
+        if command_endpoint is None and legacy_topic is not None:
+            command_endpoint = legacy_topic
+        if command_endpoint is None:
+            command_endpoint = "/cmd_vel"
+        if (
+            legacy_topic is not None
+            and contract.get("command_endpoint") is not None
+            and legacy_topic != command_endpoint
+        ):
+            raise ProtocolError("rotation command endpoint conflicts with legacy topic")
+        feedback_endpoints = contract.get("feedback_endpoints", ["/odom_raw", "/odom"])
+        independent_endpoints = contract.get(
+            "independent_feedback_endpoints",
+            ["/imu", "/imu_corrected", "/ros_robot_controller/imu_raw"],
+        )
+
+        def endpoint_list(value: Any, field: str, *, minimum: int = 1) -> list[str]:
+            if not isinstance(value, (list, tuple)) or len(value) < minimum or len(value) > 8:
+                raise ProtocolError(f"rotation {field} is invalid")
+            result = []
+            for item in value:
+                if not isinstance(item, str) or not item.startswith("/") or any(
+                    character in item for character in "\x00\r\n '"
+                ):
+                    raise ProtocolError(f"rotation {field} is invalid")
+                result.append(item)
+            return list(dict.fromkeys(result))
+
+        if (
+            not isinstance(command_endpoint, str)
+            or not command_endpoint.startswith("/")
+            or any(character in command_endpoint for character in "\x00\r\n '")
+        ):
+            raise ProtocolError("rotation command endpoint is invalid")
+        feedback_endpoints = endpoint_list(feedback_endpoints, "feedback_endpoints")
+        independent_endpoints = endpoint_list(
+            independent_endpoints, "independent_feedback_endpoints"
+        )
+        if contract.get("interface_type") not in {None, "geometry_msgs/msg/Twist"}:
+            raise ProtocolError("rotation command interface is unsupported")
+        if contract.get("stop_strategy") not in {None, "zero_velocity"}:
+            raise ProtocolError("rotation stop strategy is unsupported")
+
         try:
-            angle = float(arguments["angle_degrees"])
-            speed = float(arguments["max_speed_rad_s"])
+            raw_angle = arguments["angle_degrees"]
+            raw_speed = arguments["max_speed_rad_s"]
+            if isinstance(raw_angle, bool) or isinstance(raw_speed, bool):
+                raise TypeError("rotation arguments must be numeric")
+            angle = float(raw_angle)
+            speed = float(raw_speed)
         except (KeyError, TypeError, ValueError) as exc:
             raise ProtocolError("rotate arguments are invalid") from exc
-        if not math.isfinite(angle) or not math.isfinite(speed) or speed <= 0 or abs(angle) > 360:
+        if (
+            not math.isfinite(angle)
+            or not math.isfinite(speed)
+            or speed <= 0
+            or speed > MAX_ROTATION_SPEED_RAD_S
+            or not 0 < abs(angle) <= MAX_ROTATION_ANGLE_DEGREES
+        ):
             raise ProtocolError("rotate arguments are outside provider limits")
+        goal_rad = math.radians(angle)
+        minimum_observation = min(0.5, max(0.2, abs(goal_rad) / speed * 0.5))
+        # Reserve bounded margin for the independent gyro stop gate.  On the
+        # field chassis the physical rate can be well below the command cap,
+        # so ideal kinematic duration is not enough for a small-angle canary.
+        duration = max(abs(goal_rad) / speed * 3.0, 0.4, minimum_observation)
+        request = {
+            "command_endpoint": command_endpoint,
+            "feedback_endpoints": feedback_endpoints,
+            "independent_feedback_endpoints": independent_endpoints,
+            "autonomous_source_confirmed": self.autonomous_source_confirmed,
+            "angular_speed_rad_s": math.copysign(speed, angle),
+            "duration_s": duration,
+            "goal_yaw_rad": goal_rad,
+        }
+        runtime_path = Path(__file__).resolve().parents[1] / "mvp" / "bounded_twist.py"
+        try:
+            runtime = runtime_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ProtocolError("bounded_twist runtime source is unavailable") from exc
+        # Compile the runtime separately so its ``from __future__`` statement
+        # remains valid, then invoke its normal JSON entrypoint in ``__main__``
+        # mode inside the target container.  This keeps the provider and
+        # transient Harness paths on one fail-closed IMU/stop implementation.
+        program = (
+            "import json, sys\n"
+            f"sys.argv = ['rolo_bounded_twist', {json.dumps(json.dumps(request, separators=(',', ':')))}]\n"
+            f"exec(compile({json.dumps(runtime)}, '<rolo-bounded-twist>', 'exec'), {{'__name__': '__main__'}})\n"
+        )
         command = [
             "docker", "exec", "-i", "-u", self.container_user, self.container,
             "bash", "--noprofile", "--norc", "-c",
@@ -53,9 +177,6 @@ class RosContainerProvider:
             "if [ -f /home/ubuntu/ros2_ws/install/setup.bash ]; then . /home/ubuntu/ros2_ws/install/setup.bash; fi; "
             "exec python3 -",
         ]
-        program = _ROS_ROTATE_PROGRAM.replace(
-            "__ROLO_ARGS__", json.dumps({"angle_degrees": angle, "max_speed_rad_s": speed})
-        )
         try:
             completed = subprocess.run(
                 command, input=f"{program}\n", text=True,
@@ -66,102 +187,15 @@ class RosContainerProvider:
         if completed.returncode != 0:
             raise ProtocolError(f"ROS provider exited {completed.returncode}: {completed.stderr[-512:]}")
         try:
-            result = json.loads(completed.stdout.strip().splitlines()[-1])
-        except (IndexError, json.JSONDecodeError) as exc:
+            result = loads_unique_json(completed.stdout.strip().splitlines()[-1])
+        # Duplicate JSON members are rejected by ``loads_unique_json`` with a
+        # plain ``ValueError``.  Treat that the same as malformed provider
+        # output so callers never observe a parser implementation exception.
+        except (IndexError, ValueError) as exc:
             raise ProtocolError("ROS provider returned invalid JSON") from exc
         if not isinstance(result, dict):
             raise ProtocolError("ROS provider result is not an object")
         return result
-
-
-_ROS_ROTATE_PROGRAM = r'''
-import json, math, time
-import rclpy
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
-
-args = __ROLO_ARGS__
-angle = float(args["angle_degrees"])
-speed = float(args["max_speed_rad_s"])
-endpoint = "/controller/cmd_vel"
-odom_endpoint = "/odom"
-tolerance = math.radians(3.0)
-target = abs(math.radians(angle))
-direction = 1.0 if angle >= 0 else -1.0
-max_duration = max(5.0, min(60.0, target / speed * 2.5 + 3.0))
-
-def yaw_from_quaternion(q):
-    return math.atan2(2.0 * (q.w * q.z + q.x * q.y),
-                      1.0 - 2.0 * (q.y * q.y + q.z * q.z))
-
-def angle_delta(current, initial):
-    return math.atan2(math.sin(current - initial), math.cos(current - initial))
-
-rclpy.init(args=None)
-node = rclpy.create_node("rolo_signed_bundle_rotate")
-publisher = None
-latest_yaw = None
-initial_yaw = None
-last_sample = None
-
-def odom_callback(message):
-    global latest_yaw, last_sample
-    latest_yaw = yaw_from_quaternion(message.pose.pose.orientation)
-    last_sample = time.monotonic()
-
-subscription = node.create_subscription(Odometry, odom_endpoint, odom_callback, 10)
-status = "BLOCKED"
-error = None
-measured = 0.0
-discovered_command_publishers = 0
-started = time.monotonic()
-try:
-    # The field profile designates this provider as the autonomous command
-    # source.  Other discovered publishers (for example joystick/app nodes)
-    # are recorded by the ROS graph but are outside this canary's command
-    # contract and must not be treated as an automatic failure.
-    while time.monotonic() - started < 3.0 and rclpy.ok():
-        rclpy.spin_once(node, timeout_sec=0.05)
-        discovered_command_publishers = node.count_publishers(endpoint)
-        if node.count_subscribers(endpoint) > 0 and latest_yaw is not None:
-            initial_yaw = latest_yaw
-            publisher = node.create_publisher(Twist, endpoint, 10)
-            break
-    if error is None and publisher is None:
-        error = "ROS_COMMAND_OR_ODOM_UNREADY"
-    if error is None:
-        command = Twist()
-        command.angular.z = direction * speed
-        deadline = time.monotonic() + max_duration
-        while time.monotonic() < deadline and rclpy.ok():
-            publisher.publish(command)
-            rclpy.spin_once(node, timeout_sec=0.05)
-            if latest_yaw is not None and initial_yaw is not None:
-                measured = abs(angle_delta(latest_yaw, initial_yaw))
-                if measured + tolerance >= target:
-                    status = "SUCCEEDED"
-                    break
-            time.sleep(0.02)
-        if status != "SUCCEEDED" and error is None:
-            error = "ODOM_TARGET_NOT_REACHED"
-finally:
-    if publisher is not None:
-        stop = Twist()
-        for _ in range(8):
-            publisher.publish(stop)
-            rclpy.spin_once(node, timeout_sec=0.02)
-            time.sleep(0.02)
-    node.destroy_node()
-    rclpy.shutdown()
-result = {"operation": "base.rotate", "status": status,
-          "angle_degrees": angle, "max_speed_rad_s": speed,
-          "measured_angle_degrees": math.degrees(measured),
-          "discovered_command_publishers": discovered_command_publishers,
-          "duration_s": time.monotonic() - started, "stop_published": publisher is not None}
-if error is not None:
-    result["error"] = error
-print(json.dumps(result, separators=(",", ":")))
-'''.strip()
 
 
 class PythonBundleWorker:
@@ -183,7 +217,25 @@ class PythonBundleWorker:
             raise ProtocolError(f"bundle entrypoint is not callable: {manifest.entrypoint}")
         try:
             if self.provider is not None:
-                result = entrypoint(arguments, self.provider)
+                provider_arguments = dict(arguments)
+                # Bind only the ROS provider to the signed observation
+                # contract.  Generic providers receive exactly the user
+                # argument object; injecting an internal key into every
+                # provider would silently change otherwise strict DSL input
+                # contracts.  The ROS provider itself fail-closes when this
+                # marker is present but the contract is empty/invalid.
+                if isinstance(self.provider, RosContainerProvider):
+                    # This provider currently exposes one physical write
+                    # operation.  Do not let a differently named generic
+                    # bundle invoke ``base.rotate`` and then inherit the
+                    # generic receipt path (which would bypass the exact
+                    # angle/evidence gate in targetd.
+                    if manifest.tool_id != "app.base.rotate":
+                        raise ProtocolError(
+                            "ROS rotation provider requires app.base.rotate"
+                        )
+                    provider_arguments["__rolo_observation_contract"] = manifest.observation_contract
+                result = entrypoint(provider_arguments, self.provider)
             else:
                 result = entrypoint(arguments)
         except Exception as exc:  # pragma: no cover - exact provider exception is target-specific

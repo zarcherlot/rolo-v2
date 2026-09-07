@@ -31,7 +31,9 @@ def test_targetd_put_check_compile_and_cache(tmp_path):
 
 def test_targetd_plan_resolve_compile_and_conformance_phases(tmp_path):
     dsl, context, dd, cd = values()
-    service = TargetdDslService(tmp_path)
+    # This is an explicit offline/fake-target replay; live target conformance
+    # is fail-closed unless runtime bindings are injected.
+    service = TargetdDslService(tmp_path, allow_unbound_runtime=True)
     put = DslFrame(
         frame_type="DSL_PUT",
         request_id="put",
@@ -67,6 +69,41 @@ def test_targetd_plan_resolve_compile_and_conformance_phases(tmp_path):
     assert conformance.payload["target_conformance_report"]["t4_release_integrity"] == "PASS"
     assert conformance.payload["target_conformance_digest"].startswith("sha256:")
     assert service._verify_cache_digest(conformance.payload)
+
+
+def test_targetd_conformance_requires_runtime_binding(tmp_path):
+    dsl, context, dd, cd = values()
+    service = TargetdDslService(tmp_path)
+    put = DslFrame(
+        frame_type="DSL_PUT",
+        request_id="put",
+        payload={
+            "dsl": dsl,
+            "context": context,
+            "compiler_version": "rolo-compiler/0.1",
+            "dsl_digest": dd,
+            "context_digest": cd,
+            "target_fingerprint": "fp",
+        },
+    )
+    assert service.handle(put).payload["phase"] == "PUT"
+    compile_frame = DslFrame(
+        frame_type="TARGET_COMPILE",
+        request_id="compile",
+        payload={"dsl_digest": dd, "context_digest": cd, "target_fingerprint": "fp"},
+    )
+    assert service.handle(compile_frame).payload["status"] == "PASS"
+    result = service.handle(
+        DslFrame(
+            frame_type="TARGET_CONFORMANCE",
+            request_id="conformance",
+            payload={"dsl_digest": dd, "context_digest": cd, "target_fingerprint": "fp"},
+        )
+    )
+    assert result.payload["target_conformance"] == "FAIL"
+    report = result.payload["target_conformance_report"]
+    assert report["t3_runtime_behavior"] == "FAIL"
+    assert "TARGET_RUNTIME_UNBOUND" in report["diagnostics"]
 
 
 def test_targetd_rejects_unbound_put_digest(tmp_path):

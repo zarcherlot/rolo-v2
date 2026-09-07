@@ -3,6 +3,8 @@
 import json
 from typing import Protocol
 
+from rolo.dsl.parser import loads_unique_json
+
 from .dsl_protocol import DslFrame
 
 
@@ -13,7 +15,7 @@ class FrameCodec:
 
     @staticmethod
     def decode(data: bytes | str) -> DslFrame:
-        return DslFrame.model_validate(json.loads(data))
+        return DslFrame.model_validate(loads_unique_json(data))
 
 
 class FrameTransport(Protocol):

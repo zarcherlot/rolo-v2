@@ -53,8 +53,20 @@ class TargetdService:
         capability_digest = canonical_json_sha256(
             {"protocol": "rolo-targetd/v1", "frames": sorted(item.value for item in FrameKind)}
         )
+        try:
+            session_ids = self._session_ids()
+        except ProtocolError:
+            # Corrupt or unreadable persisted state must never be reported as
+            # healthy: admission callers use this status before handing a
+            # physical call to the provider.
+            return TargetdHealth(
+                status="UNAVAILABLE",
+                target_id=self.target_id,
+                capability_digest=capability_digest,
+                active_sessions=0,
+            )
         active = 0
-        for session_id in self._session_ids():
+        for session_id in session_ids:
             try:
                 session = self.state.load_session(session_id)
             except (KeyError, ProtocolError):
@@ -104,6 +116,10 @@ class TargetdService:
             raise ProtocolError("execution request target does not match targetd")
         if request.bundle_digest != manifest.bundle_digest:
             raise ProtocolError("execution request bundle does not match manifest")
+        if request.binding_digest != manifest.binding_digest:
+            raise ProtocolError("execution request binding does not match manifest")
+        if session.surface_digest is not None and request.surface_digest != session.surface_digest:
+            raise ProtocolError("execution request surface does not match journey session")
         if not self.cache.has(request.bundle_digest):
             raise ProtocolError("execution bundle is not present in targetd cache")
         existing = self.state.load_receipt(request.idempotency_key)
@@ -125,7 +141,7 @@ class TargetdService:
         self,
         idempotency_key: str,
         *,
-        status: Literal["SUCCEEDED", "FAILED", "STOPPED", "CANCELLED", "UNKNOWN"],
+        status: Literal["SUCCEEDED", "FAILED", "STOPPED", "CANCELLED", "UNKNOWN", "NOT_ACCEPTED"],
         result: dict | None = None,
         evidence_refs: list[str] | None = None,
         artifact_refs: list[str] | None = None,
@@ -133,7 +149,11 @@ class TargetdService:
         receipt = self.state.load_receipt(idempotency_key)
         if receipt is None:
             raise ProtocolError("cannot complete an unknown call")
-        if receipt.status in {"SUCCEEDED", "FAILED", "STOPPED", "CANCELLED", "UNKNOWN"}:
+        # Every non-in-flight receipt is terminal, including ``NOT_ACCEPTED``
+        # (used by upstream admission gates).  Treating it as mutable would
+        # let a retry overwrite a rejected call with a later success/failure
+        # and would violate idempotency.
+        if receipt.status in {"SUCCEEDED", "FAILED", "STOPPED", "CANCELLED", "UNKNOWN", "NOT_ACCEPTED"}:
             return receipt
         updated = receipt.model_copy(
             update={
@@ -154,11 +174,11 @@ class TargetdService:
         return self.state.load_receipt(idempotency_key)
 
     def _session_ids(self) -> list[str]:
-        try:
-            payload = self.state._read()
-        except ProtocolError:
-            return []
-        return list(payload.get("sessions", {}))
+        payload = self.state._read()
+        sessions = payload.get("sessions", {})
+        if not isinstance(sessions, dict):
+            raise ProtocolError("targetd session state is invalid")
+        return list(sessions)
 
     @staticmethod
     def _constant_time_equal(left: str, right: str) -> bool:

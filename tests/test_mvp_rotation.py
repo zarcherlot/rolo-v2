@@ -91,5 +91,5 @@ def test_rotation_tool_proposal_is_generic_registered_adapter() -> None:
     assert proposal.implementation == "binding"
     assert proposal.binding is not None
     assert proposal.binding.command_endpoint == "/cmd_vel"
-    assert proposal.binding.feedback_endpoints == ["/odom_raw", "/odom_rf2o"]
+    assert proposal.binding.feedback_endpoints == ["/odom_raw", "/odom"]
     assert proposal.descriptor.variants == {}

@@ -14,6 +14,11 @@ from rolo.targetd.controller import TargetdJourneyController
 from rolo.targets.executor import SshTargetExecutor
 
 ROTATE_SOURCE = b"def execute(arguments, provider):\n    return provider.invoke('base.rotate', arguments)\n"
+DEFAULT_COMMAND_ENDPOINT = "/cmd_vel"
+DEFAULT_FEEDBACK_ENDPOINTS = ["/odom_raw", "/odom"]
+DEFAULT_INDEPENDENT_FEEDBACK_ENDPOINTS = [
+    "/imu", "/imu_corrected", "/ros_robot_controller/imu_raw"
+]
 
 
 def main() -> None:
@@ -25,8 +30,19 @@ def main() -> None:
     parser.add_argument("--state-root", required=True)
     parser.add_argument("--signing-key", required=True)
     parser.add_argument("--angle-degrees", type=float, default=15.0)
-    parser.add_argument("--max-speed-rad-s", type=float, default=0.2)
+    parser.add_argument("--max-speed-rad-s", type=float, default=0.1)
     parser.add_argument("--container", default="MentorPi")
+    parser.add_argument(
+        "--command-endpoint",
+        choices=("/cmd_vel", "/controller/cmd_vel"),
+        default=DEFAULT_COMMAND_ENDPOINT,
+        help="observed Twist command route; /cmd_vel is the isolated default",
+    )
+    parser.add_argument(
+        "--autonomous-source-confirmed",
+        action="store_true",
+        help="explicitly admit the supervised publisher when the target has idle background publishers",
+    )
     args = parser.parse_args()
     target = parse_target_ref(args.target)
     if not isinstance(target, SshTargetRef):
@@ -35,7 +51,15 @@ def main() -> None:
     manifest = ExecutionBundleManifest.build(
         tool_id="app.base.rotate", source=ROTATE_SOURCE, binding_digest="a" * 64,
         signer_key_id="rolo-rotate-smoke", signing_key=args.signing_key.encode("utf-8"),
-        observation_contract={"provider": "ros-container", "operation": "base.rotate", "topic": "/cmd_vel"},
+        observation_contract={
+            "provider": "ros-container",
+            "operation": "base.rotate",
+            "command_endpoint": args.command_endpoint,
+            "feedback_endpoints": list(DEFAULT_FEEDBACK_ENDPOINTS),
+            "independent_feedback_endpoints": list(DEFAULT_INDEPENDENT_FEEDBACK_ENDPOINTS),
+            "interface_type": "geometry_msgs/msg/Twist",
+            "stop_strategy": "zero_velocity",
+        },
         limits={"max_duration_s": 120, "max_output_bytes": 65536},
     )
     request = ExecutionRequest(
@@ -50,6 +74,7 @@ def main() -> None:
         session, remote_root=args.remote_root, state_root=args.state_root,
         signing_key=args.signing_key, execute_calls=True, provider="ros-container", container=args.container,
         artifact_root=Path("artifacts"),
+        autonomous_source_confirmed=args.autonomous_source_confirmed,
     )
     try:
         controller.open()

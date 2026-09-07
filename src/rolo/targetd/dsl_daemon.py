@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+from rolo.dsl.parser import loads_unique_json
+
 from .dsl_service import TargetdDslService
 from .ros2_runtime import Ros2RuntimeResolver, Ros2RuntimeSnapshot
 from .runtime_backend import Ros2ReadOnlyExecutor, ros2_registry
@@ -22,7 +24,7 @@ def run(
     resolver = None
     registry = None
     if ros2_snapshot is not None:
-        raw = json.loads(ros2_snapshot.read_text(encoding="utf-8"))
+        raw = loads_unique_json(ros2_snapshot.read_text(encoding="utf-8"))
         if isinstance(raw, dict) and isinstance(raw.get("snapshot"), dict):
             raw = raw["snapshot"]
         if not isinstance(raw, dict):
@@ -39,8 +41,12 @@ def run(
             stdout.buffer.write(FrameCodec.encode(response))
             stdout.flush()
         except Exception as exc:  # protocol boundary must remain alive
-            message = str(exc).replace('"', '\\"')
-            stdout.write(f'{{"frame_type":"DSL_EVENT","request_id":"unknown","payload":{{"code":"FRAME_INVALID","message":"{message}"}}}}\n')
+            error_payload = {
+                "frame_type": "DSL_EVENT",
+                "request_id": "unknown",
+                "payload": {"code": "FRAME_INVALID", "message": str(exc)},
+            }
+            stdout.write(json.dumps(error_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
             stdout.flush()
     return 0
 

@@ -65,7 +65,7 @@ def test_journey_result_rejects_unknown_schema_and_status() -> None:
 def test_post_compiler_journey_publishes_and_indexes_all_gates(tmp_path: Path):
     dsl, context = values()
     publisher = ReleasePublisher(tmp_path / "catalog")
-    result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher).run(
+    result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher, offline_replay=True).run(
         journey_session_id="journey-1",
         target_id="r",
         dsl=dsl,
@@ -91,7 +91,7 @@ def test_post_compiler_journey_publishes_and_indexes_all_gates(tmp_path: Path):
 def test_post_compiler_journey_never_publishes_on_parse_failure(tmp_path: Path):
     _, context = values()
     publisher = ReleasePublisher(tmp_path / "catalog")
-    result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher).run(
+    result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher, offline_replay=True).run(
         journey_session_id="journey-blocked",
         target_id="r",
         dsl={"tool_id": "app.test", "kind": "UNKNOWN"},
@@ -106,7 +106,7 @@ def test_post_compiler_journey_never_publishes_on_parse_failure(tmp_path: Path):
 def test_release_bound_trace_and_certify_reject_non_current_release(tmp_path: Path):
     dsl, context = values()
     publisher = ReleasePublisher(tmp_path / "catalog")
-    journey_result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher).run(
+    journey_result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher, offline_replay=True).run(
         journey_session_id="journey-2",
         target_id="r",
         dsl=dsl,
@@ -182,7 +182,7 @@ def test_release_bound_trace_and_certify_reject_non_current_release(tmp_path: Pa
 def test_http_catalog_can_use_release_bound_invoker(tmp_path: Path):
     dsl, context = values()
     publisher = ReleasePublisher(tmp_path / "catalog")
-    journey_result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher).run(
+    journey_result, release = PostCompilerJourney(tmp_path / "journey", publisher=publisher, offline_replay=True).run(
         journey_session_id="journey-http",
         target_id="r",
         dsl=dsl,

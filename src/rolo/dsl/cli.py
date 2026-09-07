@@ -14,14 +14,14 @@ from .candidates import CapabilityCandidateIndex, build_candidate_index, persist
 from .canonical import dsl_digest
 from .context import ProbeContext
 from .mapping import AdapterMappingRequest
-from .parser import parse_document
+from .parser import loads_unique_json, parse_document
 from .proposal import build_mapping_proposal, persist_mapping_proposal
 from .service import RoloDslCompiler
 from .sufficiency import assess_mapping_sufficiency
 
 
 def _read(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value = loads_unique_json(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"{path} must contain a JSON object")
     return value
@@ -39,7 +39,7 @@ def _write_json(path: Path, payload: Any) -> None:
 def _load_dsl_request(path: Path, context_path: Path | None = None) -> DslCheckRequest:
     text = path.read_text(encoding="utf-8")
     try:
-        payload = json.loads(text)
+        payload = loads_unique_json(text)
     except json.JSONDecodeError:
         # ``validate`` is intentionally useful with the YAML mapping files
         # that Agents commonly produce.  Parse through the same duplicate-key

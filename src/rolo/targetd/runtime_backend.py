@@ -185,15 +185,20 @@ class RuntimeBackendRegistry:
 
 
 def ros2_registry(resolver: Ros2RuntimeResolver, executor: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]] | None = None) -> RuntimeBackendRegistry:
-    """Create the default registry for an observed ROS2 target."""
+    """Create the default registry for an observed ROS2 target.
+
+    The ROS2 provider is deliberately read-only.  Do not advertise it for
+    ``INVOKE`` (which would turn a topic observer into a write-capable
+    provider), and do not synthesize an ``EXECUTE`` provider without an
+    explicit source-bundle runtime.  Composition remains a declarative plan
+    backend and is not a ROS2 topic execution path.
+    """
 
     ros_backend = Ros2RuntimeBackend(resolver, executor)
     return RuntimeBackendRegistry(
         {
             OperationKind.OBSERVE.value: ros_backend,
-            OperationKind.INVOKE.value: ros_backend,
             OperationKind.COMPOSE.value: DeclarativeRuntimeBackend("workflow"),
-            OperationKind.EXECUTE.value: DeclarativeRuntimeBackend("generated_runtime"),
         }
     )
 

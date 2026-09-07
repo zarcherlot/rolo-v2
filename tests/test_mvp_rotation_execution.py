@@ -23,7 +23,7 @@ def test_execute_without_operator_id_preserves_authorization_and_distinct_audits
     monkeypatch.setattr(cli, 'observed_probe_routes', lambda _: [
         SimpleNamespace(resource_id='ros_topic:/cmd_vel', interface_type='geometry_msgs/msg/Twist'),
         SimpleNamespace(resource_id='ros_topic:/odom_raw', interface_type='nav_msgs/msg/Odometry'),
-        SimpleNamespace(resource_id='ros_topic:/odom_rf2o', interface_type='nav_msgs/msg/Odometry'),
+        SimpleNamespace(resource_id='ros_topic:/odom', interface_type='nav_msgs/msg/Odometry'),
     ])
     monkeypatch.setattr(cli, 'create_profile_target_executor', lambda *_args, **_kwargs: SimpleNamespace(
         inspect=lambda: SimpleNamespace(state=TargetConnectionState.READY)))
