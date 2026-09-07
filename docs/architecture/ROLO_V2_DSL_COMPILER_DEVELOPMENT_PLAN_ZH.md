@@ -276,14 +276,15 @@ path/code 稳定排序：
 ## 7. CLI、SDK 和模块结构
 
 ```bash
-rolo-dsl check check-request.json
+rolo-dsl validate mapping.dsl --context compile-context.json
+rolo-dsl canonicalize mapping.dsl --output canonical.dsl.json
 rolo-dsl compile compile-request.json --output-dir .rolo-dsl-output
-rolo-dsl candidates compile-context.json --intent "完成建图"
+rolo-dsl replay compile-request.json
 rolo-dsl bootstrap-verify bootstrap-session/
 ```
 
 CLI 只输出 JSON envelope，人类日志写入 stderr；不包含 SSH、targetd、Agent、Release、
-Trace 或 Certify 执行权限。
+Trace 或 Certify 子命令。
 
 ```text
 src/rolo/dsl/

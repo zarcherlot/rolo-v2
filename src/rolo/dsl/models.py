@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from rolo._compat import StrEnum
 
+from .contracts import DSL_SCHEMA_VERSION
+
 
 class OperationKind(StrEnum):
     OBSERVE = "OBSERVE"
@@ -35,7 +37,7 @@ class TargetBinding(StrictModel):
 class DslDocument(StrictModel):
     """Minimal top-level DSL document; semantic checks belong to the frontend."""
 
-    schema_version: str = "rolo-dsl/v1"
+    schema_version: str = DSL_SCHEMA_VERSION
     tool_id: str = Field(min_length=1)
     kind: OperationKind
     status: OperationStatus = OperationStatus.PROPOSED
@@ -53,6 +55,6 @@ class DslDocument(StrictModel):
     @field_validator("schema_version")
     @classmethod
     def supported_schema(cls, value: str) -> str:
-        if value != "rolo-dsl/v1":
+        if value != DSL_SCHEMA_VERSION:
             raise ValueError("unsupported DSL schema version")
         return value

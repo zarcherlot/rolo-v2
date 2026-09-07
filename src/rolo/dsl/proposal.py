@@ -49,8 +49,10 @@ def build_mapping_proposal(request: AdapterMappingRequest, index: CapabilityCand
         raise ValueError("mapping proposal context digest mismatch")
     if candidate not in index.candidates:
         raise ValueError("mapping proposal candidate is not in the index")
-    risks = ("candidate_has_limitations",) if candidate.gaps else ()
-    unknowns = tuple(candidate.gaps)
+    unknowns = tuple(dict.fromkeys((*candidate.gaps, *candidate.missing_evidence)))
+    if any(str(value).lower() in {"unknown", "stale", "expired", "invalid"} for value in candidate.freshness.values()):
+        unknowns = tuple(dict.fromkeys((*unknowns, "candidate_freshness_requires_probe")))
+    risks = ("candidate_has_limitations",) if unknowns else ()
     return MappingProposal(
         journey_session_id=request.journey_session_id,
         user_goal=request.user_goal,

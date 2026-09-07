@@ -6,9 +6,11 @@ import re
 import secrets
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
+
+from rolo.dsl.contracts import RELEASE_READ_MODEL_SCHEMA_VERSION
 
 from .artifacts import build_artifact_index, write_artifact_index
 from .certify import CertificationRunner, load_suite, write_report
@@ -23,6 +25,7 @@ _publishers: dict[str, Any] = {}
 _certify_runners: dict[str, CertificationRunner] = {}
 _certify_runs: dict[str, dict[str, Any]] = {}
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_REQUIRED_BODY = Body(...)
 
 
 def _is_digest(value: str, *, allow_unknown: bool = True) -> bool:
@@ -164,7 +167,7 @@ def current_release(target_id: str, tool_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="current release not found")
     digest, release = current
     return {
-        "schema_version": "rolo-release-read-model/v1",
+        "schema_version": RELEASE_READ_MODEL_SCHEMA_VERSION,
         "target_id": target_id,
         "tool_id": tool_id,
         "release_digest": digest,
@@ -493,7 +496,7 @@ def _coerce_start_trace(payload: Any) -> tuple[TraceSessionRequest, list[TraceCa
 
 
 @router.post("/runs")
-def start_trace(request: Annotated[TraceSessionRequest | TraceStartRequest, Body(...)]) -> dict[str, Any]:
+def start_trace(request: TraceSessionRequest | TraceStartRequest = _REQUIRED_BODY) -> dict[str, Any]:
     try:
         request_model, initial_calls = _coerce_start_trace(request)
     except ValueError as exc:
@@ -520,7 +523,7 @@ def start_trace(request: Annotated[TraceSessionRequest | TraceStartRequest, Body
 
 
 @router.post("/runs/{run_id}/tool-calls")
-def add_trace_calls(run_id: str, payload: Annotated[Any, Body(...)], target_id: str | None = None) -> dict[str, Any]:
+def add_trace_calls(run_id: str, payload: Any = _REQUIRED_BODY, target_id: str | None = None) -> dict[str, Any]:
     service = _service_for_session(run_id, target_id)
     session_record = service.get(run_id)
     calls = _coerce_calls(

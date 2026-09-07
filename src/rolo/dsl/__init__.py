@@ -11,8 +11,38 @@ from .candidates import (
 )
 from .context_adapter import build_probe_context, persist_compile_context
 from .context_digests import ContextChangeReport, ContextLayerDigests, context_layer_digests, evaluate_context_change
+from .contracts import (
+    BACKEND_SPI_VERSION,
+    BUNDLE_PLAN_SCHEMA_VERSION,
+    CANONICAL_IR_SCHEMA_VERSION,
+    COMPILE_CONTEXT_SCHEMA_VERSION,
+    COMPILE_REQUEST_SCHEMA_VERSION,
+    COMPILE_RESULT_SCHEMA_VERSION,
+    CONTRACT_VERSIONS,
+    DIAGNOSTICS_SCHEMA_VERSION,
+    DSL_SCHEMA_VERSION,
+    JOURNEY_RESULT_SCHEMA_VERSION,
+    MAPPING_REQUEST_SCHEMA_VERSION,
+    PROBE_FOLLOW_UP_SCHEMA_VERSION,
+    RELEASE_BINDING_SCHEMA_VERSION,
+    RELEASE_READ_MODEL_SCHEMA_VERSION,
+    TARGET_CONFORMANCE_SCHEMA_VERSION,
+    TARGETD_COMPILE_SCHEMA_VERSION,
+    TARGETD_FRAME_SCHEMA_VERSION,
+    TARGETD_PROTOCOL_SCHEMA_VERSION,
+    TARGETD_PUT_SCHEMA_VERSION,
+    ContractVersionError,
+    contract_manifest,
+)
 from .frontend import compile_frontend
-from .mapping import AdapterMappingRequest, DslRepairLoop, MappingLoopResult, ProbeFollowUpRequest
+from .mapping import (
+    AdapterMappingRequest,
+    DslRepairLoop,
+    MappingLoopResult,
+    ProbeFollowUpRequest,
+    build_adapter_mapping_request,
+    build_mapping_request,
+)
 from .models import DslDocument, OperationKind, OperationStatus
 from .prompts import OPERATION_PROMPTS, render_mapping_prompt
 from .proposal import MappingProposal, build_mapping_proposal, persist_mapping_proposal
@@ -27,6 +57,26 @@ __all__ = [
     "BootstrapReplayReport",
     "ContextChangeReport",
     "ContextLayerDigests",
+    "CONTRACT_VERSIONS",
+    "BACKEND_SPI_VERSION",
+    "BUNDLE_PLAN_SCHEMA_VERSION",
+    "CANONICAL_IR_SCHEMA_VERSION",
+    "COMPILE_CONTEXT_SCHEMA_VERSION",
+    "COMPILE_REQUEST_SCHEMA_VERSION",
+    "COMPILE_RESULT_SCHEMA_VERSION",
+    "DIAGNOSTICS_SCHEMA_VERSION",
+    "DSL_SCHEMA_VERSION",
+    "JOURNEY_RESULT_SCHEMA_VERSION",
+    "MAPPING_REQUEST_SCHEMA_VERSION",
+    "PROBE_FOLLOW_UP_SCHEMA_VERSION",
+    "RELEASE_BINDING_SCHEMA_VERSION",
+    "RELEASE_READ_MODEL_SCHEMA_VERSION",
+    "TARGETD_PROTOCOL_SCHEMA_VERSION",
+    "TARGETD_COMPILE_SCHEMA_VERSION",
+    "TARGETD_FRAME_SCHEMA_VERSION",
+    "TARGETD_PUT_SCHEMA_VERSION",
+    "TARGET_CONFORMANCE_SCHEMA_VERSION",
+    "ContractVersionError",
     "DslDocument",
     "DslRepairLoop",
     "MappingLoopResult",
@@ -35,6 +85,8 @@ __all__ = [
     "OperationKind",
     "OperationStatus",
     "ProbeFollowUpRequest",
+    "build_adapter_mapping_request",
+    "build_mapping_request",
     "OPERATION_PROMPTS",
     "build_probe_context",
     "build_candidate_index",
@@ -51,4 +103,5 @@ __all__ = [
     "build_mapping_proposal",
     "render_mapping_prompt",
     "assess_mapping_sufficiency",
+    "contract_manifest",
 ]

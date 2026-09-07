@@ -11,6 +11,7 @@ from pydantic import Field
 
 from rolo.dsl.canonical import ir_digest
 from rolo.dsl.compiler import CompileResult
+from rolo.dsl.contracts import TARGET_CONFORMANCE_SCHEMA_VERSION
 from rolo.dsl.models import StrictModel
 from rolo.dsl.report import ConformanceReport
 
@@ -36,7 +37,7 @@ class ToolRelease(StrictModel):
 class TargetConformanceReport(StrictModel):
     """Target-side T1-T4 gate consumed by the release publisher."""
 
-    schema_version: Literal["rolo-target-conformance/v1"] = "rolo-target-conformance/v1"
+    schema_version: Literal["rolo-target-conformance/v1"] = TARGET_CONFORMANCE_SCHEMA_VERSION
     t1_target_resolve: Literal["PASS", "FAIL"]
     t2_bundle_build: Literal["PASS", "FAIL"]
     t3_runtime_behavior: Literal["PASS", "FAIL"]

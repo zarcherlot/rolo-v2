@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from rolo.dsl.contracts import RELEASE_BINDING_SCHEMA_VERSION
+
 from .artifacts import build_artifact_index, write_artifact_index
 from .catalog import load_target_catalog
 from .certify import CertificationRunner, load_suite, write_report
@@ -66,7 +68,7 @@ def _load_release_binding(path: Path | None) -> dict[str, Any]:
     if not isinstance(raw, Mapping):
         raise ValueError("release binding must be a JSON object")
     version = raw.get("schema_version")
-    if version is not None and version != "rolo-release-binding/v1":
+    if version is not None and version != RELEASE_BINDING_SCHEMA_VERSION:
         raise ValueError(f"unsupported release binding schema: {version}")
     allowed = {
         "schema_version",

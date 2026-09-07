@@ -9,6 +9,9 @@
     "journey_session_id": {"type": "string", "minLength": 1, "maxLength": 256},
     "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_.-]{1,63}$"},
     "requested_items": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "string"}},
-    "context_digest": {"type": "string", "minLength": 1}
+    "context_digest": {"type": "string", "minLength": 1},
+    "max_attempts": {"type": "integer", "minimum": 1, "maximum": 32},
+    "max_artifacts": {"type": "integer", "minimum": 1, "maximum": 128},
+    "deadline_at": {"type": ["string", "null"], "format": "date-time"}
   }
 }

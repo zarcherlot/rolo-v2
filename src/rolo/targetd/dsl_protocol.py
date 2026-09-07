@@ -1,10 +1,11 @@
 """Typed DSL protocol frames exchanged with targetd."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
 from rolo._compat import StrEnum
+from rolo.dsl.contracts import TARGETD_COMPILE_SCHEMA_VERSION, TARGETD_FRAME_SCHEMA_VERSION, TARGETD_PUT_SCHEMA_VERSION
 from rolo.dsl.models import StrictModel
 
 
@@ -20,28 +21,34 @@ class DslFrameType(StrEnum):
 
 
 class DslFrame(StrictModel):
+    schema_version: Literal["rolo-targetd-dsl-frame/v1"] = TARGETD_FRAME_SCHEMA_VERSION
     frame_type: DslFrameType
     request_id: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class DslPutPayload(StrictModel):
+    schema_version: Literal["rolo-targetd-dsl-put/v1"] = TARGETD_PUT_SCHEMA_VERSION
     dsl: dict[str, Any]
     context: dict[str, Any]
-    compiler_version: str
+    compiler_version: str = Field(min_length=1, max_length=128)
     dsl_digest: str
     context_digest: str
     target_fingerprint: str
+    dsl_schema_version: str | None = None
+    context_schema_version: str | None = None
 
 
 class DslCompilePayload(StrictModel):
+    schema_version: Literal["rolo-targetd-dsl-compile/v1"] = TARGETD_COMPILE_SCHEMA_VERSION
     dsl_digest: str
     context_digest: str
     target_fingerprint: str
     backend_hint: str | None = None
+    required_capabilities: tuple[str, ...] = Field(default=(), max_length=32)
     source_bundle_digest: str | None = None
-    source_bundle_manifest: dict[str, Any] | None = None
-    source_bundle_source: str | None = None
+    source_bundle_manifest: dict[str, Any] | None = Field(default=None, max_length=32)
+    source_bundle_source: str | None = Field(default=None, max_length=1_000_000)
 
 
 class DslResultPayload(StrictModel):

@@ -43,7 +43,15 @@ def context_layer_digests(context: ProbeContext | Mapping[str, Any]) -> ContextL
     value = context if isinstance(context, ProbeContext) else ProbeContext.model_validate(context)
     return ContextLayerDigests(
         target_identity_digest=_digest({"robot_id": value.robot_id, "target_fingerprint": value.target_fingerprint}),
-        runtime_snapshot_digest=_digest({"runtime_revision": value.runtime_revision, "freshness": value.freshness}),
+        # Collection timestamps and freshness windows are evidence metadata,
+        # not runtime identity.  Including them here would mark every fresh
+        # Probe as a software change and force needless bounded re-probes.
+        runtime_snapshot_digest=_digest(
+            {
+                "runtime_revision": value.runtime_revision,
+                "runtime": _stable_runtime_fields(value.freshness),
+            }
+        ),
         surface_digest=_digest(
             {
                 "routes": value.routes,
@@ -55,6 +63,13 @@ def context_layer_digests(context: ProbeContext | Mapping[str, Any]) -> ContextL
         ),
         evidence_digest=value.evidence_digest,
     )
+
+
+def _stable_runtime_fields(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop volatile observation timestamps from the runtime layer digest."""
+
+    volatile = {"collected_at", "observed_at", "fresh_until", "expires_at", "timestamp", "generated_at"}
+    return {str(key): item for key, item in value.items() if str(key) not in volatile}
 
 
 def evaluate_context_change(previous: ContextLayerDigests, current: ContextLayerDigests) -> ContextChangeReport:

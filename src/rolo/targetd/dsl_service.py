@@ -2,10 +2,13 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from rolo.dsl.api import DslCheckRequest, DslCompileRequest
 from rolo.dsl.canonical import context_digest, dsl_digest
+from rolo.dsl.context import ProbeContext
+from rolo.dsl.contracts import COMPILE_CONTEXT_SCHEMA_VERSION, DSL_SCHEMA_VERSION, TARGET_CONFORMANCE_SCHEMA_VERSION, require_version
 from rolo.dsl.parser import parse_document
 from rolo.dsl.service import RoloDslCompiler
 from rolo.dsl.source_bundle import SourceBundleManifest
@@ -46,17 +49,39 @@ class TargetdDslService:
         return DslFrame(frame_type=DslFrameType.DSL_EVENT, request_id=frame.request_id, payload={"code": "FRAME_UNSUPPORTED", "message": frame.frame_type})
 
     def _put(self, frame: DslFrame) -> DslFrame:
-        payload = DslPutPayload.model_validate(frame.payload)
+        try:
+            payload = DslPutPayload.model_validate(frame.payload)
+        except ValueError:
+            return self._error(frame, "DSL_PUT_SCHEMA_INVALID", blocked=True)
+        try:
+            require_version({"schema_version": payload.dsl_schema_version}, "schema_version", DSL_SCHEMA_VERSION)
+            require_version(payload.dsl, "schema_version", DSL_SCHEMA_VERSION)
+        except ValueError:
+            return self._error(frame, "DSL_SCHEMA_VERSION_UNSUPPORTED", blocked=True)
+        try:
+            require_version({"schema_version": payload.context_schema_version}, "schema_version", COMPILE_CONTEXT_SCHEMA_VERSION)
+            require_version(payload.context, "schema_version", COMPILE_CONTEXT_SCHEMA_VERSION)
+        except ValueError:
+            return self._error(frame, "CONTEXT_SCHEMA_VERSION_UNSUPPORTED", blocked=True)
+        try:
+            ProbeContext.model_validate(payload.context)
+        except ValueError:
+            return self._error(frame, "CONTEXT_REQUIRED", blocked=True)
         document, report = parse_document(payload.dsl)
         if document is None or not report.ok or dsl_digest(document) != payload.dsl_digest:
             return self._error(frame, "DSL_DIGEST_MISMATCH")
-        if any(not isinstance(payload.context.get(key), str) or not payload.context.get(key) for key in ("robot_id", "target_fingerprint", "evidence_digest")):
-            return self._error(frame, "CONTEXT_REQUIRED")
         if context_digest(payload.context) != payload.context_digest:
             return self._error(frame, "CONTEXT_DIGEST_MISMATCH")
         context_target = payload.context.get("target_fingerprint")
         if context_target is not None and context_target != payload.target_fingerprint:
             return self._error(frame, "TARGET_FINGERPRINT_MISMATCH")
+        previous = self._puts.get(payload.dsl_digest)
+        if previous is not None and (
+            previous.context_digest != payload.context_digest
+            or previous.target_fingerprint != payload.target_fingerprint
+            or previous.compiler_version != payload.compiler_version
+        ):
+            return self._error(frame, "DSL_DIGEST_REBOUND")
         self._puts[payload.dsl_digest] = payload
         return DslFrame(frame_type=DslFrameType.DSL_EVENT, request_id=frame.request_id, payload={"phase": "PUT", "dsl_digest": payload.dsl_digest})
 
@@ -107,7 +132,10 @@ class TargetdDslService:
         )
 
     def _compile(self, frame: DslFrame) -> DslFrame:
-        payload = DslCompilePayload.model_validate(frame.payload)
+        try:
+            payload = DslCompilePayload.model_validate(frame.payload)
+        except ValueError:
+            return self._error(frame, "DSL_COMPILE_SCHEMA_INVALID", blocked=True)
         put = self._puts.get(payload.dsl_digest)
         if put is None:
             return self._error(frame, "DSL_NOT_FOUND")
@@ -125,13 +153,18 @@ class TargetdDslService:
                     self.runtime_resolver.resolve_binding(binding)
                 except ValueError as exc:
                     return self._error(frame, str(exc))
+        required_capabilities = self._normalize_capabilities(payload.required_capabilities)
         resolved_backend = None
         if self.backend_registry is not None:
             try:
-                resolved_backend = self._resolve_backend(put.dsl)
+                resolved_backend = self._resolve_backend(
+                    put.dsl,
+                    backend_hint=payload.backend_hint,
+                    required_capabilities=required_capabilities,
+                )
             except ValueError as exc:
                 return self._error(frame, str(exc))
-        key_data = f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}".encode()
+        key_data = f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}:{put.compiler_version}:{payload.backend_hint or ''}:{','.join(required_capabilities)}".encode()
         key = hashlib.sha256(key_data).hexdigest()
         artifact_dir = self.cache_dir / key
         result_file = artifact_dir / "result.json"
@@ -142,6 +175,8 @@ class TargetdDslService:
                 return self._error(frame, "CACHE_ARTIFACT_INVALID")
             if data.get("cache_key") != key or data.get("dsl_digest") != payload.dsl_digest:
                 return self._error(frame, "CACHE_DIGEST_MISMATCH")
+            if not self._verify_cache_digest(data):
+                return self._error(frame, "CACHE_ARTIFACT_DIGEST_MISMATCH")
             if resolved_backend is not None and data.get("backend_id") not in {None, resolved_backend.backend_id}:
                 return self._error(frame, "BACKEND_DIGEST_MISMATCH")
             if resolved_backend is not None:
@@ -149,6 +184,11 @@ class TargetdDslService:
                 data["resolved_binding"] = resolved_backend.binding
             data["cache_hit"] = True
             data.setdefault("phase", "TARGET_COMPILE")
+            # ``cache_hit`` is transport metadata, not part of the persisted
+            # artifact identity.  Recompute the envelope digest after adding
+            # any resolved backend projection so callers can verify the
+            # returned payload as well as the on-disk cache.
+            data["artifact_digest"] = self._cache_digest(data)
             return DslFrame(frame_type=DslFrameType.DSL_RESULT, request_id=frame.request_id, payload=data)
         result = self.compiler.compile(
             DslCompileRequest(
@@ -159,6 +199,8 @@ class TargetdDslService:
                 context_digest=payload.context_digest,
                 target_fingerprint=payload.target_fingerprint,
                 source_bundle_digest=payload.source_bundle_digest,
+                backend_id=payload.backend_hint,
+                required_capabilities=required_capabilities,
             ),
             artifact_dir,
         )
@@ -168,20 +210,29 @@ class TargetdDslService:
             "dsl_digest": result.dsl_digest,
             "ir_digest": result.ir_digest,
             "bundle_digest": result.bundle_digest,
+            "context_digest": payload.context_digest,
+            "compiler_version": put.compiler_version,
             "diagnostics": result.diagnostics,
             "cache_hit": False,
             "cache_key": key,
             "target_fingerprint": payload.target_fingerprint,
+            "backend_hint": payload.backend_hint,
         }
         if resolved_backend is not None:
             data["backend_id"] = resolved_backend.backend_id
             data["resolved_binding"] = resolved_backend.binding
+        data["artifact_digest"] = self._cache_digest(data)
         artifact_dir.mkdir(parents=True, exist_ok=True)
-        result_file.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+        temporary = result_file.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, result_file)
         return DslFrame(frame_type=DslFrameType.DSL_RESULT, request_id=frame.request_id, payload=data)
 
     def _conformance(self, frame: DslFrame) -> DslFrame:
-        payload = DslCompilePayload.model_validate(frame.payload)
+        try:
+            payload = DslCompilePayload.model_validate(frame.payload)
+        except ValueError:
+            return self._error(frame, "DSL_CONFORMANCE_SCHEMA_INVALID", blocked=True)
         put = self._puts.get(payload.dsl_digest)
         if put is None:
             return self._error(frame, "DSL_NOT_FOUND")
@@ -199,13 +250,18 @@ class TargetdDslService:
                     self.runtime_resolver.resolve_binding(binding)
                 except ValueError as exc:
                     return self._error(frame, str(exc))
+        required_capabilities = self._normalize_capabilities(payload.required_capabilities)
         resolved_backend = None
         if self.backend_registry is not None:
             try:
-                resolved_backend = self._resolve_backend(put.dsl)
+                resolved_backend = self._resolve_backend(
+                    put.dsl,
+                    backend_hint=payload.backend_hint,
+                    required_capabilities=required_capabilities,
+                )
             except ValueError as exc:
                 return self._error(frame, str(exc))
-        key_data = f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}".encode()
+        key_data = f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}:{put.compiler_version}:{payload.backend_hint or ''}:{','.join(required_capabilities)}".encode()
         result_file = self.cache_dir / hashlib.sha256(key_data).hexdigest() / "result.json"
         if not result_file.exists():
             return self._error(frame, "TARGET_COMPILE_REQUIRED")
@@ -214,10 +270,12 @@ class TargetdDslService:
         except (OSError, json.JSONDecodeError):
             return self._error(frame, "CACHE_ARTIFACT_INVALID")
         expected_key = hashlib.sha256(
-            f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}".encode()
+            f"{payload.dsl_digest}:{payload.context_digest}:{payload.target_fingerprint}:{put.compiler_version}:{payload.backend_hint or ''}:{','.join(required_capabilities)}".encode()
         ).hexdigest()
         if data.get("cache_key") != expected_key or data.get("dsl_digest") != payload.dsl_digest:
             return self._error(frame, "CACHE_DIGEST_MISMATCH")
+        if not self._verify_cache_digest(data):
+            return self._error(frame, "CACHE_ARTIFACT_DIGEST_MISMATCH")
         status = data.get("status")
         gate = "PASS" if status == "PASS" else "FAIL"
         runtime_gate = gate
@@ -238,7 +296,7 @@ class TargetdDslService:
                     runtime_diagnostics.append(str(exc))
         diagnostics = tuple(dict.fromkeys([*data.get("diagnostics", ()), *runtime_diagnostics]))
         report = {
-            "schema_version": "rolo-target-conformance/v1",
+            "schema_version": TARGET_CONFORMANCE_SCHEMA_VERSION,
             "t1_target_resolve": gate,
             "t2_bundle_build": gate,
             "t3_runtime_behavior": runtime_gate,
@@ -261,15 +319,48 @@ class TargetdDslService:
         if resolved_backend is not None:
             data["backend_id"] = resolved_backend.backend_id
             data["resolved_binding"] = resolved_backend.binding
+        # The conformance response extends the compile cache envelope with
+        # T1-T4 evidence.  Recompute the returned digest after that extension
+        # so consumers can verify the complete response rather than only the
+        # underlying compile result.
+        data["artifact_digest"] = self._cache_digest(data)
         return DslFrame(frame_type=DslFrameType.DSL_RESULT, request_id=frame.request_id, payload=data)
 
-    def _resolve_backend(self, dsl: dict) -> object:
+    def _resolve_backend(
+        self,
+        dsl: dict,
+        *,
+        backend_hint: str | None = None,
+        required_capabilities: tuple[str, ...] = (),
+    ) -> object:
         if self.backend_registry is None:
             raise ValueError("BACKEND_UNAVAILABLE")
         document, report = parse_document(dsl)
         if document is None or not report.ok:
             raise ValueError("DSL_COMPILE_FAILED")
-        return self.backend_registry.resolve(document.kind.value, document.binding)
+        resolved = self.backend_registry.resolve(
+            document.kind.value,
+            document.binding,
+            required_capabilities=required_capabilities,
+        )
+        if backend_hint is not None and resolved.backend_id != backend_hint:
+            raise ValueError("BACKEND_UNSUPPORTED")
+        return resolved
+
+    @staticmethod
+    def _normalize_capabilities(values: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(sorted({str(value).strip() for value in values if str(value).strip()}))
+
+    @staticmethod
+    def _cache_digest(data: dict) -> str:
+        payload = {key: value for key, value in data.items() if key not in {"artifact_digest", "cache_hit"}}
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+    @classmethod
+    def _verify_cache_digest(cls, data: dict) -> bool:
+        declared = data.get("artifact_digest")
+        return isinstance(declared, str) and declared == cls._cache_digest(data)
 
     @staticmethod
     def _validate_source_bundle(dsl: dict, payload: DslCompilePayload) -> None:
@@ -302,5 +393,13 @@ class TargetdDslService:
             if declared is not None and getattr(manifest, field) != declared:
                 raise ValueError("SOURCE_BUNDLE_CONTRACT_MISMATCH")
 
-    def _error(self, frame: DslFrame, code: str) -> DslFrame:
-        return DslFrame(frame_type=DslFrameType.DSL_RESULT, request_id=frame.request_id, payload={"status": "DSL_COMPILE_FAILED", "dsl_digest": "", "diagnostics": [code]})
+    def _error(self, frame: DslFrame, code: str, *, blocked: bool = False) -> DslFrame:
+        return DslFrame(
+            frame_type=DslFrameType.DSL_RESULT,
+            request_id=frame.request_id,
+            payload={
+                "status": "BLOCKED" if blocked else "DSL_COMPILE_FAILED",
+                "dsl_digest": "",
+                "diagnostics": [code],
+            },
+        )

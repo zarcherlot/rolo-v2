@@ -226,19 +226,6 @@ def _target_executor(
     )
 
 
-def _ros_binding_executor(target_executor: object, *, autonomous_source_confirmed: bool) -> RosBindingExecutor:
-    """Build the ROS provider while preserving the legacy constructor call.
-
-    The explicit source assertion is an opt-in extension. Omitting the
-    keyword for the default-false path keeps injected test/third-party
-    providers that implement the original constructor compatible.
-    """
-
-    if autonomous_source_confirmed:
-        return RosBindingExecutor(target_executor, autonomous_source_confirmed=True)
-    return RosBindingExecutor(target_executor)
-
-
 def _write_conformance(session) -> tuple[object, str]:
     report = conform_tool_surface(session.descriptor, session.runner.list_tools())
     relative = f"native/{session.descriptor.robot_id}/sessions/{session.descriptor.session_id}/conformance.json"
@@ -979,12 +966,14 @@ def execute_rotation(
                 # Dispatch through the generic application binding registry;
                 # ROS 2 is only the provider currently used by the rotation MVP.
                 dispatcher = ApplicationBindingDispatcher()
+                binding_executor_kwargs = (
+                    {"autonomous_source_confirmed": True}
+                    if autonomous_source_confirmed
+                    else {}
+                )
                 dispatcher.register(
                     "ros2_topic",
-                    _ros_binding_executor(
-                        target_executor,
-                        autonomous_source_confirmed=autonomous_source_confirmed,
-                    ).rotate,
+                    RosBindingExecutor(target_executor, **binding_executor_kwargs).rotate,
                 )
                 result = dispatcher.execute(
                     registered.binding, {"angle_degrees": angle_degrees, "max_speed_rad_s": max_speed_rad_s}
@@ -1071,12 +1060,14 @@ def invoke_tool(
             result = {"status": "BLOCKED", "error": "TARGET_EXECUTION_CHANNEL_UNAVAILABLE", "motion_started": False}
         else:
             dispatcher = ApplicationBindingDispatcher()
+            binding_executor_kwargs = (
+                {"autonomous_source_confirmed": True}
+                if autonomous_source_confirmed
+                else {}
+            )
             dispatcher.register(
                 "ros2_topic",
-                _ros_binding_executor(
-                    target_executor,
-                    autonomous_source_confirmed=autonomous_source_confirmed,
-                ).rotate,
+                RosBindingExecutor(target_executor, **binding_executor_kwargs).rotate,
             )
             result = dispatcher.execute(registered.binding, call_arguments)
         run_id = uuid4().hex

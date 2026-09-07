@@ -29,3 +29,21 @@ def test_candidate_index_is_observed_only_and_query_is_deterministic(tmp_path: P
 def test_candidate_index_does_not_invent_records() -> None:
     empty = context().model_copy(update={"routes": (), "published_tools": ()})
     assert build_candidate_index(empty).candidates == ()
+
+
+def test_candidate_index_preserves_record_evidence_and_gaps() -> None:
+    observed = context().model_copy(
+        update={
+            "routes": (
+                {
+                    "resource_id": "/map",
+                    "operation": "app.mapping.run",
+                    "evidence_refs": ["artifact://route/map.json"],
+                    "missing_evidence": ["map_schema"],
+                },
+            )
+        }
+    )
+    candidate = build_candidate_index(observed).candidates[0]
+    assert candidate.evidence_refs == ("artifact://probe/evidence", "artifact://route/map.json")
+    assert candidate.missing_evidence == ("map_schema",)

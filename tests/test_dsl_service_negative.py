@@ -69,3 +69,25 @@ def test_service_check_rejects_malformed_context_without_raising():
     result = RoloDslCompiler().check(request)
     assert result.status == "DSL_CHECK_FAILED"
     assert result.diagnostics == ("CONTEXT_INVALID",)
+
+
+def test_service_compile_rejects_malformed_context_without_writing_artifact(tmp_path):
+    dsl = {
+        "tool_id": "x",
+        "kind": "OBSERVE",
+        "target": {"robot_id": "r", "evidence_digest": "sha256:e"},
+        "binding": {"resource_id": "route:/state"},
+    }
+    result = RoloDslCompiler().compile(
+        DslCompileRequest(
+            dsl=dsl,
+            context={"robot_id": "r"},
+            dsl_digest="sha256:" + "0" * 64,
+            context_digest="sha256:" + "0" * 64,
+            target_fingerprint="fp",
+        ),
+        tmp_path,
+    )
+    assert result.status == "DSL_COMPILE_FAILED"
+    assert result.diagnostics == ("CONTEXT_INVALID",)
+    assert not list(tmp_path.iterdir())

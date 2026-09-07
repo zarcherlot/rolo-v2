@@ -55,9 +55,7 @@ class OdomEkfObservation(MvpModel):
     odom_pose_source: Literal["COMMAND_INTEGRATION", "MEASURED_FEEDBACK", "UNKNOWN"] = "UNKNOWN"
     raw_imu_orientation_valid: bool | None = None
     imu_orientation_covariance_valid: bool | None = None
-    imu_orientation_covariance_status: Literal[
-        "VALID", "UNKNOWN_ALL_ZERO", "UNAVAILABLE_SENTINEL", "MALFORMED", "MIXED"
-    ] | None = None
+    imu_orientation_covariance_status: Literal["VALID", "UNKNOWN_ALL_ZERO", "UNAVAILABLE_SENTINEL", "MALFORMED", "MIXED"] | None = None
     imu_use_mag: bool | None = None
     imu_absolute_yaw_available: bool | None = None
     imu_yaw_initialization: Literal["UNSET", "RELATIVE", "ABSOLUTE", "UNKNOWN"] = "UNKNOWN"
@@ -268,9 +266,7 @@ def assess_odom_ekf_observation(observation: OdomEkfObservation, *, yaw_toleranc
     # publisher in the same snapshot) is a distinct failure mode.  It often
     # means the diagnostic process ran under a different OS user or DDS
     # discovery had not converged yet; treating it as healthy is unsafe.
-    if (observation.graph_publisher_count > 0 and observation.odom_samples == 0) or (
-        observation.graph_publisher_count == 0 and observation.odom_samples > 0
-    ):
+    if (observation.graph_publisher_count > 0 and observation.odom_samples == 0) or (observation.graph_publisher_count == 0 and observation.odom_samples > 0):
         findings.append("GRAPH_RECEIPT_MISMATCH")
         missing.append("repeat graph and receipt capture under the publisher OS user after DDS discovery settles")
     if observation.command_publisher_count > 1:
@@ -321,10 +317,7 @@ def assess_odom_ekf_observation(observation: OdomEkfObservation, *, yaw_toleranc
         if observation.imu_yaw_fused is not False:
             findings.append("IMU_YAW_UNOBSERVABLE")
             missing.append("provide a calibrated absolute heading or disable absolute IMU yaw fusion and initialize a relative yaw")
-    if observation.imu_samples > 0 and (
-        observation.imu_absolute_yaw_available is None
-        or observation.imu_yaw_initialization == "UNKNOWN"
-    ):
+    if observation.imu_samples > 0 and (observation.imu_absolute_yaw_available is None or observation.imu_yaw_initialization == "UNKNOWN"):
         findings.append("IMU_YAW_SEMANTICS_UNKNOWN")
         missing.append("record whether /imu orientation is absolute, relative, or unavailable; finite quaternion data alone is insufficient")
     if observation.imu_yaw_initialization == "UNSET":
@@ -348,10 +341,12 @@ def assess_odom_ekf_observation(observation: OdomEkfObservation, *, yaw_toleranc
     if not observation.tf_odom_base_available:
         findings.append("TF_MISSING")
     if observation.raw_yaw_delta_rad is not None and observation.ekf_yaw_delta_rad is not None:
-        delta_error = abs(math.atan2(
-            math.sin(observation.raw_yaw_delta_rad - observation.ekf_yaw_delta_rad),
-            math.cos(observation.raw_yaw_delta_rad - observation.ekf_yaw_delta_rad),
-        ))
+        delta_error = abs(
+            math.atan2(
+                math.sin(observation.raw_yaw_delta_rad - observation.ekf_yaw_delta_rad),
+                math.cos(observation.raw_yaw_delta_rad - observation.ekf_yaw_delta_rad),
+            )
+        )
         if delta_error > yaw_tolerance_rad:
             findings.append("EKF_RAW_YAW_INCONSISTENT")
             missing.append("validate IMU yaw frame/covariance and fuse wheel yaw without an unverified absolute heading")
@@ -378,11 +373,7 @@ def assess_odom_ekf_observation(observation: OdomEkfObservation, *, yaw_toleranc
     if observation.command_to_raw_yaw_error_rad is not None and abs(observation.command_to_raw_yaw_error_rad) > yaw_tolerance_rad:
         findings.append("COMMAND_RAW_YAW_MISMATCH")
         missing.append("synchronize command and odom timestamps and determine whether /odom_raw is measured or command-integrated")
-    if (
-        observation.imu_yaw_rate_residual_abs_rad_s is not None
-        and observation.imu_yaw_rate_residual_abs_rad_s > 0.1
-        and observation.imu_yaw_fused is not False
-    ):
+    if observation.imu_yaw_rate_residual_abs_rad_s is not None and observation.imu_yaw_rate_residual_abs_rad_s > 0.1 and observation.imu_yaw_fused is not False:
         findings.append("IMU_YAW_RATE_CALIBRATION_MISMATCH")
         missing.append("calibrate gyro scale/sign/bias and verify orientation update timing before fusing IMU yaw")
     if observation.topic_rates_hz:
@@ -406,27 +397,31 @@ def assess_odom_ekf_observation(observation: OdomEkfObservation, *, yaw_toleranc
             findings.append("IMU_HEADING_CALIBRATION_MISSING")
             missing.append("calibrate/declare an absolute heading source or disable IMU orientation yaw fusion")
     if findings:
-        status = "INCONSISTENT" if any(
-            code in findings
-            for code in (
-                "EKF_RAW_YAW_INCONSISTENT",
-                "EKF_RAW_YAW_CONSTANT_OFFSET",
-                "IMU_RAW_YAW_INCONSISTENT",
-                "IMU_RAW_YAW_CONSTANT_OFFSET",
-                "IMU_ORIENTATION_COVARIANCE_INVALID",
-                "IMU_YAW_UNOBSERVABLE",
-                "IMU_SENSOR_CALIBRATION_MISSING",
-                "IMU_HEADING_CALIBRATION_MISSING",
-                "ODOM_OPEN_LOOP_COMMAND_INTEGRATION",
-                "ODOM_COMMAND_INTEGRATION_EVIDENCE",
-                "COMMAND_RAW_YAW_MISMATCH",
-                "IMU_YAW_RATE_CALIBRATION_MISMATCH",
-                "IMU_STREAMS_DISAGREE",
-                "ODOM_FRAME_MISMATCH",
-                "ROS_TIMESTAMP_INVALID",
-                "ROS_TIMESTAMP_REGRESSION",
+        status = (
+            "INCONSISTENT"
+            if any(
+                code in findings
+                for code in (
+                    "EKF_RAW_YAW_INCONSISTENT",
+                    "EKF_RAW_YAW_CONSTANT_OFFSET",
+                    "IMU_RAW_YAW_INCONSISTENT",
+                    "IMU_RAW_YAW_CONSTANT_OFFSET",
+                    "IMU_ORIENTATION_COVARIANCE_INVALID",
+                    "IMU_YAW_UNOBSERVABLE",
+                    "IMU_SENSOR_CALIBRATION_MISSING",
+                    "IMU_HEADING_CALIBRATION_MISSING",
+                    "ODOM_OPEN_LOOP_COMMAND_INTEGRATION",
+                    "ODOM_COMMAND_INTEGRATION_EVIDENCE",
+                    "COMMAND_RAW_YAW_MISMATCH",
+                    "IMU_YAW_RATE_CALIBRATION_MISMATCH",
+                    "IMU_STREAMS_DISAGREE",
+                    "ODOM_FRAME_MISMATCH",
+                    "ROS_TIMESTAMP_INVALID",
+                    "ROS_TIMESTAMP_REGRESSION",
+                )
             )
-        ) else "BLOCKED"
+            else "BLOCKED"
+        )
         action = "resolve the listed runtime gates, repeat the read-only chain, then admit rotation canary"
     else:
         status = "READY"
@@ -483,22 +478,13 @@ def observation_from_trace_payload(payload: Mapping[str, Any]) -> OdomEkfObserva
             return None
 
         def count_valid(items: list[Any], field: str = "yaw") -> int:
-            return sum(
-                1 for item in items
-                if isinstance(item, Mapping) and finite_value(item.get(field)) is not None
-            )
+            return sum(1 for item in items if isinstance(item, Mapping) and finite_value(item.get(field)) is not None)
 
         # ``quaternion_valid`` only says that the numeric quaternion is
         # non-zero.  It is deliberately *not* an absolute-orientation claim;
         # use the covariance-backed ``orientation_valid`` bit for that field.
-        imu_valid = [
-            item for item in imu_records
-            if isinstance(item, Mapping) and item.get("orientation_valid") is True
-        ]
-        imu_covariance_valid = [
-            item for item in imu_records
-            if isinstance(item, Mapping) and item.get("orientation_covariance_valid") is True
-        ]
+        imu_valid = [item for item in imu_records if isinstance(item, Mapping) and item.get("orientation_valid") is True]
+        imu_covariance_valid = [item for item in imu_records if isinstance(item, Mapping) and item.get("orientation_covariance_valid") is True]
         reset_graph = graph.get("/set_odom") if isinstance(graph.get("/set_odom"), Mapping) else {}
         motion_evidence = payload.get("independent_motion_evidence")
         if not isinstance(motion_evidence, Mapping):
@@ -546,32 +532,13 @@ def observation_from_trace_payload(payload: Mapping[str, Any]) -> OdomEkfObserva
             "imu_gyro_integrated_yaw_delta_rad": finite_value(payload.get("imu_gyro_integrated_yaw_delta_rad")),
             "imu_gyro_mean_rad_s": finite_value(payload.get("imu_gyro_mean_rad_s")),
             "imu_gyro_streams": {
-                str(name): finite_value(value)
-                for name, value in (
-                    motion_evidence.get("gyro_deltas_rad", {})
-                    if isinstance(motion_evidence.get("gyro_deltas_rad", {}), Mapping)
-                    else {}
-                ).items()
+                str(name): finite_value(value) for name, value in (motion_evidence.get("gyro_deltas_rad", {}) if isinstance(motion_evidence.get("gyro_deltas_rad", {}), Mapping) else {}).items()
             },
-            "imu_yaw_comparison_source": payload.get("imu_yaw_comparison_source") or (
-                "QUATERNION_RELATIVE" if any(
-                    isinstance(item, Mapping) and finite_value(item.get("quaternion_yaw")) is not None
-                    for item in imu_records
-                ) else "NONE"
-            ),
-            "physical_motion_verified": (
-                bool(motion_evidence.get("status") == "VERIFIED")
-                if motion_evidence else None
-            ),
-            "motion_evidence_status": (
-                str(motion_evidence.get("status"))
-                if motion_evidence.get("status") in {"VERIFIED", "NOT_VERIFIED"}
-                else None
-            ),
-            "motion_evidence_kind": (
-                str(motion_evidence.get("kind"))
-                if motion_evidence.get("kind") is not None else None
-            ),
+            "imu_yaw_comparison_source": payload.get("imu_yaw_comparison_source")
+            or ("QUATERNION_RELATIVE" if any(isinstance(item, Mapping) and finite_value(item.get("quaternion_yaw")) is not None for item in imu_records) else "NONE"),
+            "physical_motion_verified": (bool(motion_evidence.get("status") == "VERIFIED") if motion_evidence else None),
+            "motion_evidence_status": (str(motion_evidence.get("status")) if motion_evidence.get("status") in {"VERIFIED", "NOT_VERIFIED"} else None),
+            "motion_evidence_kind": (str(motion_evidence.get("kind")) if motion_evidence.get("kind") is not None else None),
             "independent_motion_evidence": dict(motion_evidence),
             "imu_valid_samples": len(imu_valid),
             "imu_invalid_orientation_samples": len(imu_records) - len(imu_valid),
@@ -664,9 +631,7 @@ def observation_from_trace_payload(payload: Mapping[str, Any]) -> OdomEkfObserva
 def diagnose_trace_payload(payload: Mapping[str, Any], *, yaw_tolerance_rad: float = 0.15) -> OdomEkfDiagnosis:
     """Build and assess one read-only trace artifact in a single call."""
 
-    return assess_odom_ekf_observation(
-        observation_from_trace_payload(payload), yaw_tolerance_rad=yaw_tolerance_rad
-    )
+    return assess_odom_ekf_observation(observation_from_trace_payload(payload), yaw_tolerance_rad=yaw_tolerance_rad)
 
 
 __all__ = [

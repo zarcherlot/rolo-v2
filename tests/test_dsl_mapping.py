@@ -1,4 +1,4 @@
-from rolo.dsl import OPERATION_PROMPTS, AdapterMappingRequest, DslRepairLoop, render_mapping_prompt
+from rolo.dsl import OPERATION_PROMPTS, AdapterMappingRequest, DslRepairLoop, build_mapping_request, render_mapping_prompt
 from rolo.dsl.canonical import context_digest
 
 
@@ -91,3 +91,11 @@ def test_repair_loop_blocks_when_context_identity_is_missing():
     assert result.status == "BLOCKED"
     assert result.attempts == 0
     assert result.diagnostics == ("CONTEXT_REQUIRED",)
+
+
+def test_mapping_request_builder_binds_context_and_observed_candidates():
+    context = {**_context(), "published_tools": [{"operation": "app.state"}]}
+    request = build_mapping_request(journey_session_id="journey-001", user_goal="read state", context=context)
+    assert request.context_digest == context_digest(context)
+    assert request.operation_candidates == ("app.state",)
+    assert request.available_tool_catalog_digest.startswith("sha256:")

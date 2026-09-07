@@ -26,6 +26,7 @@ def test_targetd_put_check_compile_and_cache(tmp_path):
     second = service.handle(DslFrame(frame_type="DSL_COMPILE", request_id="4", payload=compile_frame.payload))
     assert first.payload["status"] == "PASS" and first.payload["cache_hit"] is False
     assert second.payload["cache_hit"] is True
+    assert service._verify_cache_digest(second.payload)
 
 
 def test_targetd_plan_resolve_compile_and_conformance_phases(tmp_path):
@@ -65,6 +66,7 @@ def test_targetd_plan_resolve_compile_and_conformance_phases(tmp_path):
     assert conformance.payload["target_conformance"] == "PASS"
     assert conformance.payload["target_conformance_report"]["t4_release_integrity"] == "PASS"
     assert conformance.payload["target_conformance_digest"].startswith("sha256:")
+    assert service._verify_cache_digest(conformance.payload)
 
 
 def test_targetd_rejects_unbound_put_digest(tmp_path):
@@ -85,22 +87,25 @@ def test_targetd_rejects_unbound_put_digest(tmp_path):
     assert service.handle(frame).payload["diagnostics"] == ["DSL_DIGEST_MISMATCH"]
 
 
-def test_targetd_rejects_put_without_digest_bound_context(tmp_path):
-    dsl, _, dd, cd = values()
+def test_targetd_blocks_unsupported_contract_version(tmp_path):
+    dsl, context, dd, cd = values()
     service = TargetdDslService(tmp_path)
     frame = DslFrame(
         frame_type="DSL_PUT",
-        request_id="missing-context",
+        request_id="bad-version",
         payload={
-            "dsl": dsl,
-            "context": {},
+            "schema_version": "rolo-targetd-dsl-put/v1",
+            "dsl": {**dsl, "schema_version": "rolo-dsl/v2"},
+            "context": context,
             "compiler_version": "rolo-compiler/0.1",
             "dsl_digest": dd,
             "context_digest": cd,
             "target_fingerprint": "fp",
         },
     )
-    assert service.handle(frame).payload["diagnostics"] == ["CONTEXT_REQUIRED"]
+    result = service.handle(frame)
+    assert result.payload["status"] == "BLOCKED"
+    assert result.payload["diagnostics"] == ["DSL_SCHEMA_VERSION_UNSUPPORTED"]
 
 
 def test_targetd_runtime_resolver_blocks_unobserved_topic(tmp_path):

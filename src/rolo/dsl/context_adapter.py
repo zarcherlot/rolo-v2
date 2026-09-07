@@ -50,34 +50,56 @@ def build_probe_context(bundle: TargetEvidenceBundle | Mapping[str, Any]) -> Pro
     mhs_refs: list[str] = []
     mhs_digests: list[str] = []
     runtime_revisions: list[str] = []
+    freshness_values: dict[str, list[Any]] = {}
     limitations: set[str] = set()
     for probe in evidence.probes.values():
         payload = probe.data
-        routes.extend(_records(payload.get("routes")))
-        routes.extend(_records(payload.get("route_evidence")))
-        schemas.extend(_records(payload.get("message_schemas")))
-        published_tools.extend(_records(payload.get("published_tools")))
-        published_tools.extend(_records(payload.get("tool_catalog")))
-        revision = payload.get("runtime_revision") or payload.get("runtime_version")
-        if isinstance(revision, str) and revision:
-            runtime_revisions.append(revision)
-        mhs = payload.get("mhs_manifest") or payload.get("mhs_manifest_ref")
-        if isinstance(mhs, Mapping):
-            ref = mhs.get("ref") or mhs.get("artifact_ref") or mhs.get("manifest_ref")
-            digest = mhs.get("digest") or mhs.get("sha256") or mhs.get("manifest_digest")
-            if isinstance(ref, str):
-                mhs_refs.append(ref)
-            if isinstance(digest, str):
-                mhs_digests.append(digest)
-        elif isinstance(mhs, str):
-            mhs_refs.append(mhs)
+        # PARTIAL probes may contain useful observations, while FAILED and
+        # UNAVAILABLE probes must never promote their best-effort payload into
+        # the observed Compile Context.  Their diagnostics are retained below
+        # so the Agent can request a bounded follow-up instead.
+        observed = str(getattr(probe.status, "value", probe.status)).upper() in {"SUCCEEDED", "PARTIAL"}
+        if observed:
+            routes.extend(_records(payload.get("routes")))
+            routes.extend(_records(payload.get("route_evidence")))
+            schemas.extend(_records(payload.get("message_schemas")))
+            published_tools.extend(_records(payload.get("published_tools")))
+            published_tools.extend(_records(payload.get("tool_catalog")))
+        else:
+            limitations.add(f"probe_{probe.layer}_{str(getattr(probe.status, 'value', probe.status)).lower()}")
+        if observed:
+            revision = payload.get("runtime_revision") or payload.get("runtime_version")
+            if isinstance(revision, str) and revision:
+                runtime_revisions.append(revision)
+            mhs = payload.get("mhs_manifest") or payload.get("mhs_manifests") or payload.get("mhs_manifest_ref")
+            mhs_values = mhs if isinstance(mhs, (list, tuple)) else (mhs,)
+            for item in mhs_values:
+                if isinstance(item, Mapping):
+                    ref = item.get("ref") or item.get("artifact_ref") or item.get("manifest_ref")
+                    digest = item.get("digest") or item.get("sha256") or item.get("manifest_digest")
+                    if isinstance(ref, str):
+                        mhs_refs.append(ref)
+                    if isinstance(digest, str):
+                        mhs_digests.append(digest)
+                elif isinstance(item, str):
+                    mhs_refs.append(item)
         limitations.update(probe.warnings)
         limitations.update(probe.errors)
+        for key in ("limitations", "missing_evidence", "unknowns"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                limitations.add(value.strip())
+            elif isinstance(value, (list, tuple)):
+                limitations.update(item.strip() for item in value if isinstance(item, str) and item.strip())
+        _collect_freshness(freshness_values, payload)
     snapshot = evidence.source_snapshot
     if isinstance(snapshot, Mapping):
         revision = snapshot.get("runtime_revision") or snapshot.get("runtime_version")
         if isinstance(revision, str) and revision:
             runtime_revisions.append(revision)
+        routes.extend(_records(snapshot.get("routes")))
+        routes.extend(_records(snapshot.get("route_evidence")))
+        schemas.extend(_records(snapshot.get("message_schemas")))
         published_tools.extend(_records(snapshot.get("published_tools")))
         published_tools.extend(_records(snapshot.get("tool_catalog")))
         for key in ("mhs_manifest_refs", "manifest_refs", "mhs_manifest_ref", "manifest_ref"):
@@ -92,6 +114,19 @@ def build_probe_context(bundle: TargetEvidenceBundle | Mapping[str, Any]) -> Pro
                 mhs_digests.extend(item for item in value if isinstance(item, str))
             elif isinstance(value, str):
                 mhs_digests.append(value)
+        _collect_freshness(freshness_values, snapshot)
+        for key in ("limitations", "missing_evidence", "unknowns"):
+            value = snapshot.get(key)
+            if isinstance(value, str) and value.strip():
+                limitations.add(value.strip())
+            elif isinstance(value, (list, tuple)):
+                limitations.update(item.strip() for item in value if isinstance(item, str) and item.strip())
+
+    freshness = _stable_freshness(freshness_values)
+    # The signed bundle timestamp is always retained even when a probe did
+    # not provide a more specific freshness window.  It is explicit context
+    # metadata, not an inferred capability.
+    freshness.setdefault("collected_at", evidence.collected_at.isoformat())
 
     context = ProbeContext(
         robot_id=evidence.robot_id,
@@ -107,7 +142,7 @@ def build_probe_context(bundle: TargetEvidenceBundle | Mapping[str, Any]) -> Pro
         published_tools=_unique_records(published_tools),
         mhs_manifest_refs=tuple(sorted(set(mhs_refs))),
         mhs_manifest_digests=tuple(sorted(set(mhs_digests))),
-        freshness={"collected_at": evidence.collected_at.isoformat()},
+        freshness=freshness,
         limitations=tuple(sorted(limitations)),
     )
     # Force the same canonicalization path used by CompileRequest validation.
@@ -122,6 +157,37 @@ def _unique_records(records: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]
         key = json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
         unique[key] = record
     return tuple(unique[key] for key in sorted(unique))
+
+
+def _collect_freshness(target: dict[str, list[Any]], payload: Mapping[str, Any]) -> None:
+    """Collect explicit freshness/status fields without trusting guesses.
+
+    Probe layers are allowed to use either a nested ``freshness`` object or
+    the common top-level names.  Values are retained as evidence; no TTL is
+    invented when a layer omits it.
+    """
+
+    nested = payload.get("freshness")
+    if isinstance(nested, Mapping):
+        for key, value in nested.items():
+            target.setdefault(str(key), []).append(value)
+    for key in ("status", "observed_at", "collected_at", "fresh_until", "expires_at", "ttl_s"):
+        if key in payload:
+            target.setdefault(key, []).append(payload[key])
+
+
+def _stable_freshness(values: Mapping[str, list[Any]]) -> dict[str, Any]:
+    """Collapse repeated freshness observations deterministically."""
+
+    result: dict[str, Any] = {}
+    for key in sorted(values):
+        unique: dict[str, Any] = {}
+        for value in values[key]:
+            marker = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+            unique[marker] = value
+        ordered = [unique[marker] for marker in sorted(unique)]
+        result[key] = ordered[0] if len(ordered) == 1 else tuple(ordered)
+    return result
 
 
 def persist_compile_context(

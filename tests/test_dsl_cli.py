@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 from rolo.dsl.cli import main
 
@@ -78,9 +79,82 @@ def test_cli_candidates_writes_index_and_intent_matches(tmp_path, capsys):
     assert (output / "candidate-index.json").exists()
 
 
-def test_cli_bootstrap_verify_reports_success(tmp_path, capsys):
-    from datetime import datetime, timezone
+def test_cli_validate_canonicalize_and_replay_are_json_only(tmp_path, capsys):
+    dsl_path = tmp_path / "mapping.json"
+    dsl_path.write_text(json.dumps(_dsl()), encoding="utf-8")
 
+    assert main(["validate", str(dsl_path)]) == 0
+    validated = json.loads(capsys.readouterr().out)
+    assert validated["status"] == "PASS"
+
+    canonical_path = tmp_path / "canonical.json"
+    assert main(["canonicalize", str(dsl_path), "--output", str(canonical_path)]) == 0
+    canonicalized = json.loads(capsys.readouterr().out)
+    assert canonicalized["status"] == "PASS"
+    assert canonicalized["dsl_digest"].startswith("sha256:")
+    assert json.loads(canonical_path.read_text(encoding="utf-8"))["schema_version"] == "rolo-dsl/v1"
+
+    from rolo.dsl.canonical import context_digest
+    from rolo.dsl.parser import parse_document
+
+    context = {
+        "robot_id": "r",
+        "target_fingerprint": "fp",
+        "evidence_digest": "sha256:e",
+        "evidence_refs": ["route:/state"],
+    }
+    document, report = parse_document(_dsl())
+    assert document is not None and report.ok
+    request_path = tmp_path / "compile-request.json"
+    request_path.write_text(
+        json.dumps(
+            {
+                "dsl": _dsl(),
+                "context": context,
+                "dsl_digest": canonicalized["dsl_digest"],
+                "context_digest": context_digest(context),
+                "target_fingerprint": "fp",
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert main(["replay", str(request_path), "--output-dir", str(tmp_path / "replay")]) == 0
+    replayed = json.loads(capsys.readouterr().out)
+    assert replayed["status"] == "PASS"
+    assert replayed["stable"] is True
+    assert (tmp_path / "replay" / "first" / "manifest.json").exists()
+
+
+def test_cli_validate_accepts_yaml_and_rejects_duplicate_keys(tmp_path, capsys):
+    dsl_path = tmp_path / "mapping.yaml"
+    dsl_path.write_text(
+        "tool_id: state\n"
+        "kind: OBSERVE\n"
+        "target:\n"
+        "  robot_id: r\n"
+        "  evidence_digest: sha256:e\n"
+        "binding:\n"
+        "  resource_id: route:/state\n",
+        encoding="utf-8",
+    )
+    assert main(["validate", str(dsl_path)]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "PASS"
+
+    duplicate = tmp_path / "duplicate.yaml"
+    duplicate.write_text("tool_id: one\ntool_id: two\nkind: OBSERVE\n", encoding="utf-8")
+    assert main(["validate", str(duplicate)]) == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "ERROR"
+
+
+def test_cli_returns_structured_error_for_missing_input(tmp_path, capsys):
+    assert main(["check", str(tmp_path / "missing.json")]) == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "ERROR"
+    assert result["error"] == "FileNotFoundError"
+
+
+def test_cli_bootstrap_verify_reports_success(tmp_path, capsys):
     from rolo.dsl.bootstrap import BootstrapProbeProfile, run_bootstrap_projection
 
     bundle = {
@@ -110,7 +184,6 @@ def test_cli_bootstrap_verify_reports_success(tmp_path, capsys):
         profile=BootstrapProbeProfile(profile_id="p", robot_id="robot-1"),
         evidence_verified=True,
     )
-
     assert main(["bootstrap-verify", str(paths["manifest"].parent), "--robot-id", "robot-1"]) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "PASS"

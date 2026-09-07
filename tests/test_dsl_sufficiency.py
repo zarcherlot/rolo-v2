@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from rolo.dsl.candidates import build_candidate_index
@@ -44,3 +46,12 @@ def test_sufficiency_rejects_cross_context_index():
     index = build_candidate_index(context)
     with pytest.raises(ValueError, match="CONTEXT_DIGEST_MISMATCH"):
         assess_mapping_sufficiency(context.model_copy(update={"evidence_digest": "other"}), index, "rotate")
+
+
+def test_sufficiency_reprobes_expired_candidate_freshness():
+    context = _context(
+        freshness={"expires_at": (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()}
+    )
+    report = assess_mapping_sufficiency(context, build_candidate_index(context), "rotate base")
+    assert report.status == "NEEDS_PROBE"
+    assert "CANDIDATE_FRESHNESS_UNKNOWN" in report.reasons

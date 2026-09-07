@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from rolo.dsl.canonical import context_digest, dsl_digest
 from rolo.dsl.parser import parse_document
 from rolo.mvp.contracts import (
@@ -13,7 +15,7 @@ from rolo.mvp.contracts import (
     TraceSessionRequest,
 )
 from rolo.mvp.http import _services, current_release, register_release_bound_catalog
-from rolo.releases import PostCompilerJourney, ReleaseBoundCertify, ReleaseBoundTrace, ReleasePublisher
+from rolo.releases import PostCompilerJourney, PostCompilerJourneyResult, ReleaseBoundCertify, ReleaseBoundTrace, ReleasePublisher
 from scripts.mvp_release_gate import validate_artifact_index
 
 
@@ -32,6 +34,32 @@ def values():
         "evidence_refs": ["route:/state"],
     }
     return dsl, context
+
+
+def test_journey_result_rejects_unknown_schema_and_status() -> None:
+    with pytest.raises(ValueError):
+        PostCompilerJourneyResult.model_validate(
+            {
+                "schema_version": "rolo-post-compiler-journey-result/v2",
+                "status": "PASS",
+                "journey_session_id": "j",
+                "target_id": "r",
+                "dsl_digest": "sha256:dsl",
+                "context_digest": "sha256:context",
+                "target_compile_status": "PASS",
+            }
+        )
+    with pytest.raises(ValueError):
+        PostCompilerJourneyResult.model_validate(
+            {
+                "status": "UNKNOWN",
+                "journey_session_id": "j",
+                "target_id": "r",
+                "dsl_digest": "sha256:dsl",
+                "context_digest": "sha256:context",
+                "target_compile_status": "PASS",
+            }
+        )
 
 
 def test_post_compiler_journey_publishes_and_indexes_all_gates(tmp_path: Path):

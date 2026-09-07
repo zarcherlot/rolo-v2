@@ -22,11 +22,20 @@ class CapabilityCandidate(StrictModel):
     schema_version: Literal["rolo-capability-candidate/v1"] = "rolo-capability-candidate/v1"
     candidate_id: str = Field(min_length=1, max_length=256)
     operation: str = Field(min_length=1, max_length=256)
+    # The original ``operation``/``probe_template`` fields remain the compact
+    # v1 surface.  These explicit projections make the candidate index useful
+    # to an Agent without asking it to reinterpret raw Probe records.
+    intent_tags: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
+    possible_operations: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
+    observed_resources: tuple[str, ...] = Field(default_factory=tuple, max_length=64)
+    mhs_refs: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
     evidence_refs: tuple[str, ...] = Field(min_length=1, max_length=32)
     confidence: float = Field(ge=0.0, le=1.0)
     freshness: dict[str, Any] = Field(default_factory=dict, max_length=32)
     gaps: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
+    missing_evidence: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
     probe_template: tuple[str, ...] = Field(default_factory=tuple, max_length=16)
+    bounded_probe_templates: tuple[str, ...] = Field(default_factory=tuple, max_length=16)
 
 
 class CapabilityCandidateIndex(StrictModel):
@@ -65,16 +74,38 @@ def build_candidate_index(context: ProbeContext | Mapping[str, Any]) -> Capabili
         if operation is None:
             continue
         candidate_id = str(record.get("candidate_id") or record.get("tool_id") or record.get("route_id") or operation)
+        resources = _string_values(record, "resource_id", "endpoint", "route_id")
+        mhs_refs = _string_values(record, "mhs_manifest_ref", "mhs_ref", "manifest_ref")
+        record_evidence = _string_values(record, "evidence_ref", "evidence_refs")
+        record_gaps = _string_values(record, "gap", "gaps", "missing_evidence", "limitations")
+        tags = _string_values(record, "intent_tags", "tags", "intent")
+        possible = _string_values(record, "possible_operations", "operations")
+        templates = _string_values(record, "bounded_probe_templates", "probe_templates", "probe_template")
+        if not templates:
+            templates = ("route",)
+        observed_confidence = record.get("confidence")
+        candidate_confidence = (
+            float(observed_confidence)
+            if isinstance(observed_confidence, (int, float)) and 0 <= float(observed_confidence) <= 1
+            else confidence
+        )
         candidate = CapabilityCandidate(
             candidate_id=candidate_id,
             operation=operation,
-            evidence_refs=(evidence_ref,),
-            confidence=confidence,
+            intent_tags=tuple(sorted(set(tags))),
+            possible_operations=tuple(sorted(set((operation, *possible)))),
+            observed_resources=tuple(sorted(set(resources))),
+            mhs_refs=tuple(sorted(set(mhs_refs))),
+            evidence_refs=tuple(sorted(set((evidence_ref, *record_evidence)))),
+            confidence=candidate_confidence,
             freshness=dict(context_model.freshness),
-            gaps=limitation_gaps,
-            probe_template=(str(record.get("probe_template")),) if record.get("probe_template") else ("route",),
+            gaps=tuple(sorted(set((*limitation_gaps, *record_gaps)))),
+            missing_evidence=tuple(sorted(set((*limitation_gaps, *record_gaps)))),
+            probe_template=templates,
+            bounded_probe_templates=templates,
         )
-        candidates[candidate_id] = candidate
+        previous = candidates.get(candidate_id)
+        candidates[candidate_id] = candidate if previous is None else _merge_candidates(previous, candidate)
     index = CapabilityCandidateIndex(
         robot_id=context_model.robot_id,
         target_fingerprint=context_model.target_fingerprint,
@@ -91,10 +122,24 @@ def query_candidates(index: CapabilityCandidateIndex, intent: str, *, limit: int
 
     if not intent or not 1 <= limit <= 64:
         raise ValueError("intent must be non-empty and limit must be between 1 and 64")
+    index.verify()
     tokens = {token for token in _tokens(intent) if len(token) >= 2}
+    tokens.update(_intent_aliases(intent))
     scored: list[tuple[int, CapabilityCandidate]] = []
     for candidate in index.candidates:
-        haystack = set(_tokens(f"{candidate.candidate_id} {candidate.operation}"))
+        haystack = set(
+            _tokens(
+                " ".join(
+                    (
+                        candidate.candidate_id,
+                        candidate.operation,
+                        *candidate.intent_tags,
+                        *candidate.possible_operations,
+                        *candidate.observed_resources,
+                    )
+                )
+            )
+        )
         score = len(tokens & haystack)
         if score:
             scored.append((score, candidate))
@@ -123,8 +168,58 @@ def _operation_name(record: Mapping[str, Any]) -> str | None:
     return None
 
 
+def _string_values(record: Mapping[str, Any], *keys: str) -> tuple[str, ...]:
+    values: list[str] = []
+    for key in keys:
+        value = record.get(key)
+        if isinstance(value, str) and value.strip():
+            values.append(value.strip())
+        elif isinstance(value, (list, tuple)):
+            values.extend(str(item).strip() for item in value if isinstance(item, str) and item.strip())
+    return tuple(values)
+
+
+def _merge_candidates(left: CapabilityCandidate, right: CapabilityCandidate) -> CapabilityCandidate:
+    """Merge duplicate route/tool records without discarding evidence."""
+
+    return left.model_copy(
+        update={
+            "intent_tags": tuple(sorted(set((*left.intent_tags, *right.intent_tags)))),
+            "possible_operations": tuple(sorted(set((*left.possible_operations, *right.possible_operations)))),
+            "observed_resources": tuple(sorted(set((*left.observed_resources, *right.observed_resources)))),
+            "mhs_refs": tuple(sorted(set((*left.mhs_refs, *right.mhs_refs)))),
+            "evidence_refs": tuple(sorted(set((*left.evidence_refs, *right.evidence_refs)))),
+            "confidence": max(left.confidence, right.confidence),
+            "gaps": tuple(sorted(set((*left.gaps, *right.gaps)))),
+            "missing_evidence": tuple(sorted(set((*left.missing_evidence, *right.missing_evidence)))),
+            "probe_template": tuple(sorted(set((*left.probe_template, *right.probe_template)))),
+            "bounded_probe_templates": tuple(sorted(set((*left.bounded_probe_templates, *right.bounded_probe_templates)))),
+        }
+    )
+
+
 def _tokens(value: str) -> tuple[str, ...]:
-    return tuple(token for token in "".join(character.lower() if character.isalnum() else " " for character in value).split() if token)
+    normalized = "".join(character.lower() if character.isalnum() else " " for character in value)
+    tokens = [token for token in normalized.split() if token]
+    # Keep short CJK terms searchable even when the user phrase and the
+    # observed operation use different surrounding words (e.g. 完成建图 vs
+    # app.mapping.run).  This does not create a candidate; it only changes
+    # ranking among already observed records.
+    for token in tuple(tokens):
+        if any("\u4e00" <= character <= "\u9fff" for character in token):
+            tokens.extend(token[index : index + 2] for index in range(len(token) - 1))
+    return tuple(dict.fromkeys(tokens))
+
+
+def _intent_aliases(intent: str) -> set[str]:
+    aliases = {
+        "建图": {"map", "mapping", "slam"},
+        "地图": {"map", "mapping", "slam"},
+        "旋转": {"rotate", "rotation"},
+        "状态": {"state", "status"},
+        "导航": {"navigation", "navigate"},
+    }
+    return {alias for phrase, values in aliases.items() if phrase in intent for alias in values}
 
 
 __all__ = ["CapabilityCandidate", "CapabilityCandidateIndex", "build_candidate_index", "persist_candidate_index", "query_candidates"]

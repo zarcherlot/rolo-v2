@@ -12,10 +12,11 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from rolo.dsl.canonical import context_digest, dsl_digest
 from rolo.dsl.compiler import compile_document
+from rolo.dsl.contracts import JOURNEY_RESULT_SCHEMA_VERSION, RELEASE_BINDING_SCHEMA_VERSION
 from rolo.dsl.models import StrictModel
 from rolo.dsl.parser import parse_document
 from rolo.dsl.runner import ConformanceRunner
@@ -187,7 +188,7 @@ class ReleaseBoundTrace:
         binding_path.write_text(
             json.dumps(
                 {
-                    "schema_version": "rolo-release-binding/v1",
+                    "schema_version": RELEASE_BINDING_SCHEMA_VERSION,
                     "release_digest": self.bound_invoker.release_digest,
                     "target_fingerprint": self.bound_invoker.target_fingerprint,
                     "evidence_digest": self.bound_invoker.evidence_digest,
@@ -315,7 +316,7 @@ class ReleaseBoundCertify:
         binding_path.write_text(
             json.dumps(
                 {
-                    "schema_version": "rolo-release-binding/v1",
+                    "schema_version": RELEASE_BINDING_SCHEMA_VERSION,
                     "release_digests": dict(sorted(self.release_digests.items())),
                     "target_fingerprint": self.target_fingerprint,
                     "evidence_digest": self.evidence_digest,
@@ -347,8 +348,8 @@ class ReleaseBoundCertify:
 class PostCompilerJourneyResult(StrictModel):
     """Digest-linked summary of the offline-to-release part of a journey."""
 
-    schema_version: str = "rolo-post-compiler-journey-result/v1"
-    status: str
+    schema_version: Literal["rolo-post-compiler-journey-result/v1"] = JOURNEY_RESULT_SCHEMA_VERSION
+    status: Literal["PASS", "BLOCKED"]
     journey_session_id: str
     target_id: str
     dsl_digest: str

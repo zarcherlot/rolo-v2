@@ -25,6 +25,8 @@ class RuntimeBackend(Protocol):
 
     def execute(self, binding: Mapping[str, Any], arguments: Mapping[str, Any]) -> dict[str, Any]: ...
 
+    def capabilities(self) -> tuple[str, ...]: ...
+
 
 @dataclass(frozen=True)
 class ResolvedBackend:
@@ -37,6 +39,9 @@ class Ros2RuntimeBackend:
     """ROS2 provider whose routes are constrained by ``Ros2RuntimeResolver``."""
 
     backend_id = "ros2_runtime"
+
+    def capabilities(self) -> tuple[str, ...]:
+        return ("read_only_topic", "ros2")
 
     def __init__(self, resolver: Ros2RuntimeResolver, executor: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]] | None = None) -> None:
         self.resolver = resolver
@@ -128,6 +133,9 @@ class DeclarativeRuntimeBackend:
     def resolve(self, binding: Mapping[str, Any]) -> dict[str, Any]:
         return {"backend_id": self.backend_id, "binding": dict(binding)}
 
+    def capabilities(self) -> tuple[str, ...]:
+        return ("declarative",)
+
     def execute(self, binding: Mapping[str, Any], arguments: Mapping[str, Any]) -> dict[str, Any]:
         del binding, arguments
         return {"status": "BLOCKED", "error": "RUNTIME_EXECUTOR_REQUIRED", "backend_id": self.backend_id}
@@ -149,10 +157,19 @@ class RuntimeBackendRegistry:
             raise ValueError("runtime backend already registered")
         self._by_kind[normalized] = backend
 
-    def resolve(self, kind: str, binding: Mapping[str, Any]) -> ResolvedBackend:
+    def resolve(
+        self,
+        kind: str,
+        binding: Mapping[str, Any],
+        *,
+        required_capabilities: tuple[str, ...] = (),
+    ) -> ResolvedBackend:
         backend = self._by_kind.get(str(kind).upper())
         if backend is None:
             raise ValueError("BACKEND_UNAVAILABLE")
+        capabilities = tuple(getattr(backend, "capabilities", lambda: ())())
+        if any(required not in capabilities for required in required_capabilities):
+            raise ValueError("BACKEND_CAPABILITY_UNAVAILABLE")
         resolved = backend.resolve(binding)
         return ResolvedBackend(
             backend_id=str(resolved.get("backend_id", backend.backend_id)),

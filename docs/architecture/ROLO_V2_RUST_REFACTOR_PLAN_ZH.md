@@ -423,3 +423,4 @@ Agent → Rolo API → Rust execution plane → fixed SSH → Unix socket → ta
 4. `OBSERVE/COMPOSE/INVOKE` 优先使用 provider，`EXECUTE` 采用签名 bundle，长期迁移到 WASM；
 5. 不同步到业务 workspace，所有 bundle 使用 HAS/PUT/cache/COMMIT；
 6. Rust backend 必须先通过与 Python backend 的等价 contract tests，才能成为默认执行路径。
+

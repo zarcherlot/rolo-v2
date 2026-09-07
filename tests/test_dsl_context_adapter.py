@@ -80,3 +80,69 @@ def test_compile_context_persistence_writes_digest_index(tmp_path) -> None:
     index = files["index"].read_text(encoding="utf-8")
     assert context_digest(context) in index
     assert "signature_hmac_sha256" in index
+
+
+def test_failed_probe_payload_is_kept_as_limitation_not_observed_route() -> None:
+    context = build_probe_context(
+        {
+            "robot_id": "robot-1",
+            "source_id": "probe-1",
+            "target_host_fingerprint": "b" * 64,
+            "request_nonce": "c" * 32,
+            "requested_layers": ["ros"],
+            "collected_at": datetime.now(timezone.utc).isoformat(),
+            "probes": {
+                "ros": {
+                    "layer": "ros",
+                    "status": "FAILED",
+                    "data": {"routes": [{"resource_id": "/must-not-promote"}]},
+                    "warnings": [],
+                    "errors": ["permission denied"],
+                }
+            },
+            "payload_sha256": "a" * 64,
+            "signature_hmac_sha256": "d" * 64,
+        }
+    )
+    assert context.routes == ()
+    assert "probe_ros_failed" in context.limitations
+    assert "permission denied" in context.limitations
+
+
+def test_probe_context_preserves_explicit_freshness_and_unknown_status() -> None:
+    context = build_probe_context(
+        {
+            "robot_id": "robot-1",
+            "source_id": "probe-1",
+            "target_host_fingerprint": "b" * 64,
+            "request_nonce": "c" * 32,
+            "requested_layers": ["ros"],
+            "collected_at": datetime(2026, 9, 6, tzinfo=timezone.utc).isoformat(),
+            "probes": {
+                "ros": {
+                    "layer": "ros",
+                    "status": "PARTIAL",
+                    "data": {
+                        "routes": [{"resource_id": "/scan", "operation": "sensor.scan", "evidence_refs": ["artifact://route/scan"]}],
+                        "freshness": {"state": "STALE", "expires_at": "2026-09-05T00:00:00Z"},
+                    },
+                    "warnings": [],
+                    "errors": [],
+                },
+                "linux": {
+                    "layer": "linux",
+                    "status": "UNAVAILABLE",
+                    "data": {"routes": [{"resource_id": "/must-not-promote"}]},
+                    "warnings": [],
+                    "errors": [],
+                },
+            },
+            "payload_sha256": "a" * 64,
+            "signature_hmac_sha256": "d" * 64,
+        }
+    )
+    assert context.freshness["state"] == "STALE"
+    assert context.freshness["expires_at"] == "2026-09-05T00:00:00Z"
+    assert context.routes == ({"resource_id": "/scan", "operation": "sensor.scan", "evidence_refs": ["artifact://route/scan"]},)
+    assert "/must-not-promote" not in {record.get("resource_id") for record in context.routes}
+    assert "probe_linux_unavailable" in context.limitations

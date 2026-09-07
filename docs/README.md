@@ -66,6 +66,7 @@ TargetProfile → SSH Connector → TargetEvidenceBundle
 - [互补层离线旅程回放](../scripts/post_compiler_journey_replay.py)：在 fake target 上重放 DSL、targetd、Release、Trace 和 Certify，并生成 artifact index。
 - [Post-Compiler 离线回放证据](validation/POST_COMPILER_JOURNEY_REPLAY_20260906.md)：记录当前完整离线链路和验证边界。
 - [DSL Compiler G7 发布门禁证据](validation/DSL_COMPILER_G7_RELEASE_20260906.md)：记录互补开发启动条件、发行包和 digest。
+- [Post-Compiler P0–P2 状态](validation/POST_COMPILER_P0_P2_STATUS_20260907.md)：记录父 WIP 纳入后的离线交接、回归门禁和未关闭现场待办。
 - `src/rolo/observability.py`：journey 指标、日志脱敏和 artifact retention 的实现；契约 schema 位于 `../schemas/rolo-dsl/v1/journey-metric.json`。
 - `/v1/mvp/targets/{target_id}/releases/{tool_id}`：提供给 rolo-vis 的当前 Release 只读 read model。
 

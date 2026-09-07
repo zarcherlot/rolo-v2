@@ -4,13 +4,14 @@ from typing import Any, Literal
 
 from pydantic import Field
 
+from .contracts import COMPILE_CONTEXT_SCHEMA_VERSION
 from .models import StrictModel
 
 
 class CompileContext(StrictModel):
     """Frozen Probe-derived context consumed by the standalone Compiler."""
 
-    schema_version: Literal["rolo-compile-context/v1"] = "rolo-compile-context/v1"
+    schema_version: Literal["rolo-compile-context/v1"] = COMPILE_CONTEXT_SCHEMA_VERSION
     robot_id: str = Field(min_length=1)
     target_fingerprint: str = Field(min_length=1)
     runtime_revision: str | None = None

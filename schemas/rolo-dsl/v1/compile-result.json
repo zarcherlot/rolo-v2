@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-dsl-compile-result/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "dsl_digest", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "rolo-dsl-compile-result/v1"},
+    "status": {"type": "string", "minLength": 1},
+    "dsl_digest": {"type": "string"},
+    "context_digest": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"]},
+    "compiler_version": {"type": ["string", "null"]},
+    "ir_digest": {"type": ["string", "null"]},
+    "bundle_digest": {"type": ["string", "null"]},
+    "backend_id": {"type": ["string", "null"]},
+    "artifacts": {"type": "object", "additionalProperties": {"type": "string"}},
+    "diagnostics": {"type": "array", "items": {"type": "string"}},
+    "conformance": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["c1_dsl", "c2_evidence", "c3_compile", "c4_behavior", "diagnostics"],
+      "properties": {
+        "c1_dsl": {"enum": ["PASS", "FAIL"]},
+        "c2_evidence": {"enum": ["PASS", "FAIL"]},
+        "c3_compile": {"enum": ["PASS", "FAIL"]},
+        "c4_behavior": {"enum": ["PASS", "FAIL"]},
+        "diagnostics": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

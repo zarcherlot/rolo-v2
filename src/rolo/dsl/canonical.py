@@ -22,10 +22,28 @@ def _digest(value: Any) -> str:
 
 
 def dsl_digest(document: DslDocument) -> str:
+    if isinstance(document, dict):
+        try:
+            document = DslDocument.model_validate(document)
+        except Exception:
+            # Invalid documents are diagnosed by the parser; retaining the
+            # raw payload here keeps this low-level helper total for callers
+            # that need to fingerprint an invalid request envelope.
+            pass
     return _digest(document)
 
 
 def context_digest(context: Any) -> str:
+    # Normalize raw request dictionaries through the frozen context model so
+    # omitted defaults and explicit empty collections have one digest.  A
+    # malformed payload is left raw and will be rejected by the service layer.
+    if isinstance(context, dict):
+        try:
+            from .context import ProbeContext
+
+            context = ProbeContext.model_validate(context)
+        except Exception:
+            pass
     return _digest(context)
 
 
