@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import math
+
 import pytest
 
+from rolo.mvp.bounded_twist import goal_tolerance_rad as bounded_twist_goal_tolerance_rad
 from scripts.landerpi_rotation_canary import (
     _motor_message_summary,
     _relationship,
     classify_independent_motion,
-    integrate_angular_velocity,
+    goal_tolerance_rad,
     imu_yaw_evidence,
+    integrate_angular_velocity,
+    motion_observation_duration_s,
     orientation_covariance_status,
     orientation_covariance_valid,
     run_canary,
@@ -115,3 +120,60 @@ def test_independent_motion_rejects_opposite_sensor_sign() -> None:
     assert result["status"] == "NOT_VERIFIED"
     assert result["kind"] == "IMU_STREAMS_DISAGREE"
     assert "imu_raw" in result["opposing_gyro_streams"]
+
+
+def test_one_degree_goal_uses_scaled_tolerance_instead_of_stopping_at_point_two() -> None:
+    one_degree = math.radians(1)
+    tolerance = pytest.approx(math.radians(0.2), abs=1e-12)
+    assert goal_tolerance_rad(one_degree) == tolerance
+    assert bounded_twist_goal_tolerance_rad(one_degree) == tolerance
+
+
+def test_one_degree_fast_turn_uses_dynamic_observation_window() -> None:
+    assert motion_observation_duration_s(math.radians(1), 0.1) == pytest.approx(0.2)
+    assert motion_observation_duration_s(math.radians(1), 0.03) == pytest.approx(
+        math.radians(1) / 0.03 * 0.5
+    )
+
+
+def test_small_angle_independent_motion_threshold_is_reachable_but_fail_closed() -> None:
+    passing = classify_independent_motion(
+        math.radians(1),
+        gyro_delta_rad=0.012,
+        quaternion_delta_rad=None,
+        gyro_deltas_rad={"imu": 0.012},
+    )
+    assert passing["status"] == "VERIFIED"
+    assert passing["threshold_rad"] < math.radians(1)
+
+    below_threshold = classify_independent_motion(
+        math.radians(1),
+        gyro_delta_rad=0.004,
+        quaternion_delta_rad=None,
+        gyro_deltas_rad={"imu": 0.004},
+    )
+    assert below_threshold["status"] == "NOT_VERIFIED"
+    assert below_threshold["kind"] == "IMU_BELOW_THRESHOLD"
+
+
+def test_one_degree_opposite_stream_remains_not_verified() -> None:
+    result = classify_independent_motion(
+        math.radians(1),
+        gyro_delta_rad=0.012,
+        quaternion_delta_rad=None,
+        gyro_deltas_rad={"imu": 0.012, "imu_raw": -0.012},
+    )
+    assert result["status"] == "NOT_VERIFIED"
+    assert result["kind"] == "IMU_STREAMS_DISAGREE"
+    assert result["opposing_gyro_streams"] == {"imu_raw": -0.012}
+
+
+def test_one_degree_reverse_rotation_requires_negative_independent_delta() -> None:
+    result = classify_independent_motion(
+        -math.radians(1),
+        gyro_delta_rad=-0.012,
+        quaternion_delta_rad=None,
+        gyro_deltas_rad={"imu": -0.012},
+    )
+    assert result["status"] == "VERIFIED"
+    assert result["selected_gyro_stream"] == "imu"

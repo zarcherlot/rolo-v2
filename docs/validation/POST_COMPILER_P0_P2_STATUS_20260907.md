@@ -3,7 +3,8 @@
 # Post-Compiler P0–P2 状态（2026-09-07）
 
 本记录对应 `codex/dsl-compiler-mvp` worktree。父 checkout 的用户 WIP 已复制到本分支，
-父 checkout 未被清理、回退或重置；本记录只描述离线/fake-target 证据，不把真机门禁标成完成。
+父 checkout 未被清理、回退或重置。离线交接证据与真机 bounded canary 分开记录；真机
+证据不被离线回放替代，也不反向宣称完整 I8 旅程已经完成。
 
 ## 已完成的离线交接切片
 
@@ -20,9 +21,9 @@
 ```text
 python -m compileall -q src scripts                         PASS
 ruff check（post-compiler CI 同等路径）                      PASS
-pytest -o addopts='' --basetemp=.pytest-final7 -q            358 passed, 1 skipped, 1 warning
+pytest -o addopts='' --basetemp=.pytest-final-root2 -q            423 passed, 1 skipped, 1 warning
 scripts/post_compiler_journey_replay.py                     PASS（10-case Certify）
-scripts/check_docs.py                                        PASS（74 Markdown）
+scripts/check_docs.py                                        PASS（76 Markdown）
 ```
 
 ## 尚未关闭的待办
@@ -31,6 +32,14 @@ scripts/check_docs.py                                        PASS（74 Markdown�
 - P1：把真实签名 Probe/RKB/MHS 联合产物接入 Bootstrap，并在 rolo-vis 展示候选、freshness 和增量失效。
 - P2：把 Agent/skill 的真实 caller 接到 request builder、proposal 确认和 bounded Probe receipt；继续保留禁止自由 SSH/shell、直接发布和修改 Context 的负向门禁。
 - P3–P8：真实目标 runtime/backend、T1–T4、immutable catalog、Trace/Certify 现场旅程与安装升级 acceptance。
-- LanderPi：当前仍受真实命令源独占、EKF/IMU 语义和稳定启动复测约束；离线 replay 不能替代现场证据。
+- LanderPi：已完成一次真实、受监督的 bounded 1° `/cmd_vel` canary；独立三路 IMU
+  角度验收、零速停止和 settle 均通过，原始证据见
+  [`LANDERPI_BOUNDED_TWIST_CANARY_20260907.json`](LANDERPI_BOUNDED_TWIST_CANARY_20260907.json)。
+  随后已通过完整 targetd `OPEN → HANDOFF → PUT → CALL → CLOSE` journey 重跑同一
+  bundle/provider 路径，脱敏 receipt 见
+  [`LANDERPI_TARGETD_PROVIDER_CANARY_20260907.json`](LANDERPI_TARGETD_PROVIDER_CANARY_20260907.json)。
+  `/controller/cmd_vel` 仍是多发布者共享路由，必须显式指定并确认来源；不能把它当默认路由。
+  完整 Probe → DSL → targetd provider → publish → Trace/Certify 仍需现场 targetd 安装和
+  T1–T4 证据，离线 replay 不能替代这一步。
 
 因此本分支可以作为 P0–P2 的离线交接基线，但不能宣称 P7/I8 真机闭环完成。

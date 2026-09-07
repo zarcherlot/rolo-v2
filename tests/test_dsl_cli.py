@@ -147,6 +147,21 @@ def test_cli_validate_accepts_yaml_and_rejects_duplicate_keys(tmp_path, capsys):
     assert result["status"] == "ERROR"
 
 
+def test_cli_validate_rejects_duplicate_json_keys(tmp_path, capsys):
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text(
+        '{"tool_id":"state","tool_id":"shadow","kind":"OBSERVE",'
+        '"target":{"robot_id":"r","evidence_digest":"sha256:e"},'
+        '"binding":{"resource_id":"route:/state"}}',
+        encoding="utf-8",
+    )
+    assert main(["validate", str(duplicate)]) == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "ERROR"
+    assert result["error"] == "ValueError"
+    assert "duplicate mapping key" in result["message"]
+
+
 def test_cli_returns_structured_error_for_missing_input(tmp_path, capsys):
     assert main(["check", str(tmp_path / "missing.json")]) == 2
     result = json.loads(capsys.readouterr().out)

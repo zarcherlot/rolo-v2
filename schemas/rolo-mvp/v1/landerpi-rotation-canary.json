@@ -31,20 +31,24 @@
       "type": "number",
       "anyOf": [
         {"exclusiveMinimum": 0, "maximum": 30},
-        {"exclusiveMinimum": -30, "exclusiveMaximum": 0}
+        {"minimum": -30, "exclusiveMaximum": 0}
       ]
     },
     "requested_speed_rad_s": {
       "type": "number",
       "anyOf": [
         {"exclusiveMinimum": 0, "maximum": 0.15},
-        {"exclusiveMinimum": -0.15, "exclusiveMaximum": 0}
+        {"minimum": -0.15, "exclusiveMaximum": 0}
       ]
     },
     "duration_limit_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+    "feedback_tolerance_degrees": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.8},
     "measured_angle_degrees": {"type": ["number", "null"]},
     "angle_error_degrees": {"type": ["number", "null"]},
     "stop_published": {"type": "boolean"},
+    "physical_stop_verified": {"type": "boolean"},
+    "settled": {"type": "boolean"},
+    "angle_accuracy_verified": {"type": "boolean"},
     "stop_attempts": {"type": "integer", "minimum": 0},
     "stop_successes": {"type": "integer", "minimum": 0},
     "stop_errors": {"type": "array", "items": {"type": "string"}},
@@ -95,6 +99,14 @@
         "selected_gyro_stream": {"type": ["string", "null"]},
         "gyro_stream_spread_rad": {"type": ["number", "null"]},
         "opposing_gyro_streams": {"type": "object", "additionalProperties": {"type": "number"}},
+        "settled": {"type": "boolean"},
+        "settle_sample_count": {"type": "integer", "minimum": 0},
+        "settle_tail_sample_count": {"type": "integer", "minimum": 0},
+        "settle_peak_rate_rad_s": {"type": ["number", "null"]},
+        "settle_tail_max_rate_rad_s": {"type": ["number", "null"]},
+        "target_angle_error_rad": {"type": ["number", "null"]},
+        "target_angle_tolerance_rad": {"type": "number", "exclusiveMinimum": 0},
+        "angle_accuracy_status": {"enum": ["VERIFIED", "NOT_VERIFIED"]},
         "quaternion_delta_rad": {"type": ["number", "null"]},
         "agreement_error_rad": {"type": ["number", "null"]},
         "independent_of_odom": {"const": true}

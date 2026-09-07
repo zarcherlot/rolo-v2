@@ -368,10 +368,24 @@ class PostCompilerJourney:
     is failed and writes a digest-linked manifest for replay.
     """
 
-    def __init__(self, root: Path, *, publisher: ReleasePublisher, targetd: TargetdDslService | None = None, observability: ObservabilityRecorder | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        publisher: ReleasePublisher,
+        targetd: TargetdDslService | None = None,
+        observability: ObservabilityRecorder | None = None,
+        offline_replay: bool = False,
+    ) -> None:
         self.root = Path(root)
         self.publisher = publisher
-        self.targetd = targetd or TargetdDslService(self.root / "targetd-cache")
+        # A real journey is fail-closed unless its caller injects a targetd
+        # service bound to the observed runtime and backend registry.  Offline
+        # replay is an explicit opt-in so a default constructor cannot
+        # accidentally publish a release without T3 runtime evidence.
+        self.targetd = targetd or TargetdDslService(
+            self.root / "targetd-cache", allow_unbound_runtime=offline_replay
+        )
         self.observability = observability
 
     def _metric(self, *, event: str, status: str, journey_session_id: str, target_id: str, payload: Mapping[str, Any] | None = None) -> None:

@@ -1,5 +1,6 @@
 """Pure YAML/JSON parser for Rolo DSL documents."""
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,30 @@ def _construct_unique_mapping(loader: _UniqueKeyLoader, node: yaml.MappingNode, 
 
 
 _UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
+
+
+def _construct_unique_json_mapping(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build one JSON object while rejecting duplicate member names.
+
+    ``json.loads`` otherwise keeps the last value for duplicate keys.  That
+    behavior is dangerous at the DSL/targetd boundary because two producers
+    can sign or digest different logical documents while a consumer silently
+    sees only one of them.  Keep the same diagnostic wording as the YAML
+    loader so callers can share their negative-path assertions.
+    """
+
+    mapping: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in mapping:
+            raise ValueError(f"duplicate mapping key: {key!r}")
+        mapping[key] = value
+    return mapping
+
+
+def loads_unique_json(value: str | bytes | bytearray) -> Any:
+    """Decode JSON without accepting duplicate object member names."""
+
+    return json.loads(value, object_pairs_hook=_construct_unique_json_mapping)
 
 
 def parse_document(value: str | bytes | dict[str, Any]) -> tuple[DslDocument | None, DiagnosticReport]:

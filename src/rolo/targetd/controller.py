@@ -23,6 +23,7 @@ class TargetdJourneyController:
         execute_calls: bool = True,
         provider: str = "none",
         container: str = "MentorPi",
+        autonomous_source_confirmed: bool = False,
         artifact_root=None,
     ) -> None:
         if not remote_root.startswith("/") or not state_root.startswith("/"):
@@ -41,6 +42,8 @@ class TargetdJourneyController:
             self.remote.append("--execute-calls")
         if provider != "none":
             self.remote.extend(["--provider", provider])
+        if autonomous_source_confirmed:
+            self.remote.append("--autonomous-source-confirmed")
         self.remote.extend(["--container", container])
         self.channel: SshStdioChannel | None = None
         self.client: JourneySessionClient | None = None

@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from rolo.core.hashing import canonical_json_sha256
 from rolo.core.persistence import atomic_write_text
+from rolo.dsl.parser import loads_unique_json
 
 _SHA256 = r"^[0-9a-f]{64}$"
 _TOKEN = r"^[A-Za-z0-9_-]{22,128}$"
@@ -227,8 +228,11 @@ def decode_frame(encoded: bytes) -> ProtocolFrame:
     if len(encoded) != size + 4:
         raise ProtocolError("protocol frame length does not match payload")
     try:
-        return ProtocolFrame.model_validate_json(encoded[4:].decode("utf-8"))
-    except (UnicodeDecodeError, ValueError) as exc:
+        # Pydantic's JSON helper follows the standard last-key-wins behavior;
+        # use the repository-wide strict loader so a signed frame cannot have
+        # two logical payloads under duplicate member names.
+        return ProtocolFrame.model_validate(loads_unique_json(encoded[4:].decode("utf-8")))
+    except (UnicodeDecodeError, ValueError, TypeError) as exc:
         raise ProtocolError("protocol frame payload is invalid") from exc
 
 
@@ -308,7 +312,9 @@ class BundleCache:
     def load(self, bundle_digest: str) -> tuple[ExecutionBundleManifest, bytes]:
         path = self.root / "bundles" / bundle_digest
         try:
-            manifest = ExecutionBundleManifest.model_validate_json((path / "manifest.json").read_text(encoding="utf-8"))
+            manifest = ExecutionBundleManifest.model_validate(
+                loads_unique_json((path / "manifest.json").read_text(encoding="utf-8"))
+            )
             source = (path / "source.py").read_bytes()
         except (OSError, ValueError) as exc:
             raise ProtocolError(f"bundle cache entry is unreadable: {bundle_digest}") from exc
@@ -326,10 +332,20 @@ class TargetdStateStore:
 
     def _read(self) -> dict[str, Any]:
         try:
-            return json.loads(self.path.read_text(encoding="utf-8"))
+            value = loads_unique_json(self.path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("targetd state must be an object")
+            for collection in ("sessions", "calls"):
+                if collection in value and not isinstance(value[collection], dict):
+                    raise ValueError(f"targetd state {collection} must be an object")
+            return value
         except FileNotFoundError:
             return {"sessions": {}, "calls": {}}
-        except (OSError, json.JSONDecodeError) as exc:
+        # ``loads_unique_json`` raises ``ValueError`` for duplicate object
+        # keys (``JSONDecodeError`` is only one subclass of it).  Normalize
+        # both malformed and duplicate-key state into the protocol-level
+        # error instead of leaking an implementation exception to the daemon.
+        except (OSError, ValueError) as exc:
             raise ProtocolError("targetd state is unreadable") from exc
 
     def save_session(self, session: JourneySession) -> None:

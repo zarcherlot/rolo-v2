@@ -32,7 +32,9 @@ def run(output: Path) -> dict[str, object]:
         "binding": {"resource_id": "route:/state"},
     }
     publisher = ReleasePublisher(output / "catalog")
-    journey, release = PostCompilerJourney(output / "journey", publisher=publisher).run(
+    journey, release = PostCompilerJourney(
+        output / "journey", publisher=publisher, offline_replay=True
+    ).run(
         journey_session_id="replay-journey-1",
         target_id="mentorpi",
         dsl=dsl,

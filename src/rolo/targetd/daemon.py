@@ -15,6 +15,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from rolo.core.rotation_evidence import has_verified_rotation_evidence
+
 from .protocol import (
     ExecutionBundleManifest,
     ExecutionRequest,
@@ -96,7 +98,7 @@ class TargetdDaemon:
                 run_id=frame.run_id,
                 payload={"request_kind": frame.kind.value, "ok": True, **payload},
             )
-        except (KeyError, ProtocolError, ValueError) as exc:
+        except (KeyError, ProtocolError, TypeError, ValueError) as exc:
             return ProtocolFrame.create(
                 kind=FrameKind.RESULT,
                 sequence=self._sequence,
@@ -158,19 +160,35 @@ class TargetdDaemon:
             return {"bundle_digest": manifest.bundle_digest, "present": True}
         if frame.kind == FrameKind.CALL:
             request = ExecutionRequest.model_validate(frame.payload)
+            if request.session_id != frame.session_id:
+                raise ProtocolError("execution request session does not match frame")
+            if frame.run_id is not None and request.run_id != frame.run_id:
+                raise ProtocolError("execution request run does not match frame")
             manifest, source = self.service.cache.load(request.bundle_digest)
             receipt = self.service.accept_call(request, manifest)
             if self.worker is not None and receipt.status == "ACCEPTED":
                 started = time.monotonic()
                 try:
+                    if (
+                        manifest.tool_id == "app.base.rotate"
+                        and not isinstance(self.worker.provider, RosContainerProvider)
+                    ):
+                        raise ProtocolError("rotation provider is required")
                     result = self.worker.execute(manifest, source, request.arguments)
                     max_duration = float(manifest.limits.get("max_duration_s", 60))
                     if time.monotonic() - started > max_duration:
                         raise ProtocolError("bundle execution exceeded max_duration_s")
+                    terminal_status = self._terminal_status(manifest, result)
                     receipt = self.service.complete_call(
-                        request.idempotency_key, status="SUCCEEDED", result=result
+                        request.idempotency_key, status=terminal_status, result=result
                     )
-                except ProtocolError as exc:
+                except Exception as exc:
+                    # A worker/provider failure must not leave an ACCEPTED
+                    # receipt indefinitely.  ``PythonBundleWorker`` normally
+                    # normalizes provider exceptions to ProtocolError, but
+                    # limits/result normalization can still raise a built-in
+                    # exception after the receipt has been accepted.  Always
+                    # persist a terminal failure before returning the frame.
                     receipt = self.service.complete_call(
                         request.idempotency_key, status="FAILED", result={"error": str(exc)}
                     )
@@ -189,6 +207,51 @@ class TargetdDaemon:
             return {"closed": True}
         raise ProtocolError(f"unsupported targetd frame: {frame.kind.value}")
 
+    @staticmethod
+    def _terminal_status(manifest: ExecutionBundleManifest, result: object) -> str:
+        """Map a worker result to the persisted receipt without false success.
+
+        Generic EXECUTE bundles may legitimately return an application object
+        without a ``status`` field.  Rotation is different: it is a physical
+        write and may be marked ``SUCCEEDED`` only when the runtime supplied
+        stop and independent-motion evidence.  The raw result remains in the
+        receipt for diagnosis/replay.
+        """
+
+        if manifest.tool_id != "app.base.rotate":
+            # Generic bundles may return an application object with no
+            # ``status`` member; that remains a successful invocation for
+            # backwards compatibility.  When a bundle does declare a status,
+            # however, never erase an explicit failure/block/unknown result by
+            # unconditionally marking the receipt ``SUCCEEDED``.
+            if not isinstance(result, dict) or "status" not in result:
+                return "SUCCEEDED"
+            status = str(result.get("status", "UNKNOWN")).upper()
+            if status in {"SUCCEEDED", "SUCCESS", "PASS", "PASSED"}:
+                return "SUCCEEDED"
+            if status in {"CANCELLED", "STOPPED", "FAILED", "UNKNOWN", "NOT_ACCEPTED"}:
+                return status
+            if status == "BLOCKED":
+                return "FAILED"
+            return "UNKNOWN"
+        if not isinstance(result, dict):
+            return "UNKNOWN"
+        status = str(result.get("status", "UNKNOWN")).upper()
+        if status == "SUCCEEDED":
+            if (
+                result.get("stop_published") is True
+                and result.get("physical_stop_verified") is True
+                and result.get("stopped_observed") is True
+                and has_verified_rotation_evidence(result)
+            ):
+                return "SUCCEEDED"
+            return "UNKNOWN"
+        if status in {"CANCELLED", "STOPPED", "FAILED", "UNKNOWN", "NOT_ACCEPTED"}:
+            return status
+        if status == "BLOCKED":
+            return "FAILED"
+        return "UNKNOWN"
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -198,6 +261,7 @@ def main() -> None:
     parser.add_argument("--execute-calls", action="store_true")
     parser.add_argument("--provider", choices=("none", "ros-container"), default="none")
     parser.add_argument("--container", default="MentorPi")
+    parser.add_argument("--autonomous-source-confirmed", action="store_true")
     args = parser.parse_args()
     service = TargetdService(
         target_id=args.target_id,
@@ -205,7 +269,13 @@ def main() -> None:
         signing_key=args.signing_key.encode("utf-8"),
     )
     try:
-        provider = RosContainerProvider(args.container) if args.provider == "ros-container" else None
+        provider = (
+            RosContainerProvider(
+                args.container,
+                autonomous_source_confirmed=args.autonomous_source_confirmed,
+            )
+            if args.provider == "ros-container" else None
+        )
         TargetdDaemon(service, execute_calls=args.execute_calls, provider=provider).serve(sys.stdin.buffer, sys.stdout.buffer)
     except ProtocolError as exc:
         print(f"targetd protocol error: {exc}", file=sys.stderr)

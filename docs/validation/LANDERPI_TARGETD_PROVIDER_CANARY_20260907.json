@@ -1,0 +1,83 @@
+{
+  "schema_version": "rolo-targetd-provider-canary/v1",
+  "status": "SUCCEEDED",
+  "captured_at": "2026-09-07T11:56:04.458967Z",
+  "target": {
+    "target_id": "mentorpi",
+    "profile_id": "landerpi",
+    "container": "MentorPi"
+  },
+  "journey": [
+    "OPEN_JOURNEY",
+    "HANDOFF",
+    "PUT",
+    "CALL",
+    "CLOSE_SESSION"
+  ],
+  "bundle": {
+    "tool_id": "app.base.rotate",
+    "bundle_digest": "1b90ab74a48f90003696764053117322775b8934381e6efc292b617329b59135",
+    "source_digest": "56564c5a4a25324c930111834865391fdac2759ac6098892bd3a8352aec3d90e",
+    "binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "release_version": "field-canary-20260907",
+    "observation_contract": {
+      "provider": "ros-container",
+      "operation": "base.rotate",
+      "command_endpoint": "/cmd_vel",
+      "feedback_endpoints": [
+        "/odom_raw",
+        "/odom"
+      ],
+      "independent_feedback_endpoints": [
+        "/imu",
+        "/imu_corrected",
+        "/ros_robot_controller/imu_raw"
+      ],
+      "interface_type": "geometry_msgs/msg/Twist",
+      "stop_strategy": "zero_velocity"
+    }
+  },
+  "request": {
+    "angle_degrees": 1,
+    "max_speed_rad_s": 0.15,
+    "mode": "SUPERVISED_FIELD_DEBUG",
+    "idempotency_key": "field-canary-call"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "motion_started": true,
+    "motion_elapsed_s": 0.2094,
+    "measured_angle_degrees": 1.6282,
+    "angle_error_degrees": 0.6282,
+    "angle_accuracy_verified": true,
+    "stop_published": true,
+    "command_stopped": true,
+    "stopped_observed": true,
+    "physical_stop_verified": true,
+    "feedback_topic": "/odom_raw",
+    "final_speed_rad_s": 0.0,
+    "independent_motion_evidence": {
+      "status": "VERIFIED",
+      "kind": "IMU_GYRO_MULTI_STREAM",
+      "selected_gyro_stream": "/imu",
+      "gyro_delta_rad": 0.01406881854150818,
+      "gyro_deltas_rad": {
+        "/imu": 0.01406881854150818,
+        "/imu_corrected": 0.014050231887413268,
+        "/ros_robot_controller/imu_raw": 0.013435755455884065
+      },
+      "gyro_stream_spread_rad": 0.0006330630856241151,
+      "target_angle_error_rad": 0.003384473978435115,
+      "target_angle_tolerance_rad": 0.005,
+      "angle_accuracy_status": "VERIFIED",
+      "independent_of_odom": true,
+      "settled": true,
+      "settle_tail_max_rate_rad_s": 0.004295146206079795
+    }
+  },
+  "raw_capture_hashes": {
+    "input_sha256": "0f738f4840a5352a41016f69463311e6b8f1e87790bf593362169a9e9ad1aa98",
+    "output_sha256": "c8750e178fd24de847cb089654215a3ec35edd17f37c2ca3a418bd0269166d8c",
+    "metadata_sha256": "7c34dc222e6a64689a3723a5283874204febd6567526bba6063403928d78117"
+  }
+}

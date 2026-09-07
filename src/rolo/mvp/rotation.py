@@ -115,7 +115,7 @@ def rotation_tool_proposal(*, target_id: str, evidence_ref: str) -> ToolRegistra
             kind="ros2_topic",
             command_endpoint="/cmd_vel",
             interface_type="geometry_msgs/msg/Twist",
-            feedback_endpoints=["/odom_raw", "/odom_rf2o"],
+            feedback_endpoints=["/odom_raw", "/odom"],
             stop_strategy="zero_velocity",
             parameter_mapping={"angle_degrees": "angular.z", "max_speed_rad_s": "angular.z.abs"},
             evidence_refs=[evidence_ref],
