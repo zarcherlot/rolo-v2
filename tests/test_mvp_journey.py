@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from rolo.agent_tools.conformance import ToolConformanceCheck, ToolConformanceReport
-from rolo.agent_tools.native_tools import AgentNativeToolDescriptor
-from rolo.agent_tools.session import native_catalog_sha256
-from rolo.mvp.catalog import build_target_catalog
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from rolo.agent_tools.conformance import ToolConformanceCheck, ToolConformanceReport
+from rolo.agent_tools.native_tools import AgentNativeToolDescriptor
+from rolo.agent_tools.session import native_catalog_sha256
+from rolo.mvp.catalog import build_target_catalog
 from rolo.mvp.certify import CertificationRunner
 from rolo.mvp.contracts import (
     CertificationCase,

@@ -34,6 +34,7 @@ from .contracts import (
 )
 from .harness_codegen import build_codegen_artifact, generate_contract_source
 from .harness_execution import HarnessCodeBundle, HarnessCodeExecutor, build_python_launcher, make_code_bundle
+from .journey_cli import run_certify, run_trace
 from .probe_registration import (
     ExecutionBinding,
     ProbeAnalysisInput,
@@ -49,7 +50,6 @@ from .probe_registration import (
 from .ros_binding import RosBindingExecutor
 from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness, rotation_tool_proposal
 from .trace import TraceService
-from .journey_cli import run_certify, run_trace
 from .trace_diagnostics import (
     OdomEkfDiagnosis,
     OdomEkfObservation,

@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import build_artifact_index, write_artifact_index
-from .certify import CertificationRunner, load_suite, write_report
 from .catalog import load_target_catalog
+from .certify import CertificationRunner, load_suite, write_report
 from .contracts import (
     CertificationReport,
     CertificationSuite,
@@ -31,7 +31,6 @@ from .contracts import (
     TraceSessionRequest,
 )
 from .trace import TraceService
-
 
 FIXTURE_SCHEMA = "rolo-mvp-invocation-fixture/v1"
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
