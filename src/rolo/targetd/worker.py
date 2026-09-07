@@ -22,11 +22,19 @@ class Provider(Protocol):
 class RosContainerProvider:
     """Run a bounded ROS provider program inside an existing Docker runtime."""
 
-    def __init__(self, container: str = "MentorPi", *, timeout_s: float = 120.0) -> None:
+    def __init__(
+        self, container: str = "MentorPi", *, timeout_s: float = 120.0,
+        container_user: str = "ubuntu",
+    ) -> None:
         if not container or any(c in container for c in "\x00\r\n '"):
             raise ValueError("ROS container name is invalid")
+        if not container_user or any(c in container_user for c in "\x00\r\n '"):
+            raise ValueError("ROS container user is invalid")
+        if not math.isfinite(float(timeout_s)) or float(timeout_s) <= 0:
+            raise ValueError("ROS provider timeout is invalid")
         self.container = container
-        self.timeout_s = timeout_s
+        self.container_user = container_user
+        self.timeout_s = float(timeout_s)
 
     def invoke(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if operation != "base.rotate":
@@ -39,8 +47,11 @@ class RosContainerProvider:
         if not math.isfinite(angle) or not math.isfinite(speed) or speed <= 0 or abs(angle) > 360:
             raise ProtocolError("rotate arguments are outside provider limits")
         command = [
-            "docker", "exec", "-i", self.container, "bash", "--noprofile", "--norc", "-c",
-            ". /opt/ros/humble/setup.bash; exec python3 -",
+            "docker", "exec", "-i", "-u", self.container_user, self.container,
+            "bash", "--noprofile", "--norc", "-c",
+            "if [ -f /opt/ros/humble/setup.bash ]; then . /opt/ros/humble/setup.bash; fi; "
+            "if [ -f /home/ubuntu/ros2_ws/install/setup.bash ]; then . /home/ubuntu/ros2_ws/install/setup.bash; fi; "
+            "exec python3 -",
         ]
         program = _ROS_ROTATE_PROGRAM.replace(
             "__ROLO_ARGS__", json.dumps({"angle_degrees": angle, "max_speed_rad_s": speed})
@@ -48,7 +59,7 @@ class RosContainerProvider:
         try:
             completed = subprocess.run(
                 command, input=f"{program}\n", text=True,
-                capture_output=True, check=False, timeout=self.timeout_s,
+                capture_output=True, check=False, timeout=max(1.0, self.timeout_s + 1.5),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise ProtocolError(f"ROS provider execution failed: {exc}") from exc
@@ -64,36 +75,92 @@ class RosContainerProvider:
 
 
 _ROS_ROTATE_PROGRAM = r'''
-import json, math, sys, time
+import json, math, time
 import rclpy
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+
 args = __ROLO_ARGS__
 angle = float(args["angle_degrees"])
 speed = float(args["max_speed_rad_s"])
+endpoint = "/controller/cmd_vel"
+odom_endpoint = "/odom"
+tolerance = math.radians(3.0)
+target = abs(math.radians(angle))
+direction = 1.0 if angle >= 0 else -1.0
+max_duration = max(5.0, min(60.0, target / speed * 2.5 + 3.0))
+
+def yaw_from_quaternion(q):
+    return math.atan2(2.0 * (q.w * q.z + q.x * q.y),
+                      1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
+def angle_delta(current, initial):
+    return math.atan2(math.sin(current - initial), math.cos(current - initial))
+
 rclpy.init(args=None)
 node = rclpy.create_node("rolo_signed_bundle_rotate")
-publisher = node.create_publisher(Twist, "/cmd_vel", 10)
-duration = abs(math.radians(angle)) / speed
-direction = 1.0 if angle >= 0 else -1.0
-deadline = time.monotonic() + duration
-message = Twist()
-message.angular.z = direction * speed
+publisher = None
+latest_yaw = None
+initial_yaw = None
+last_sample = None
+
+def odom_callback(message):
+    global latest_yaw, last_sample
+    latest_yaw = yaw_from_quaternion(message.pose.pose.orientation)
+    last_sample = time.monotonic()
+
+subscription = node.create_subscription(Odometry, odom_endpoint, odom_callback, 10)
+status = "BLOCKED"
+error = None
+measured = 0.0
+discovered_command_publishers = 0
+started = time.monotonic()
 try:
-    while time.monotonic() < deadline and rclpy.ok():
-        publisher.publish(message)
-        rclpy.spin_once(node, timeout_sec=0.02)
-        time.sleep(0.02)
+    # The field profile designates this provider as the autonomous command
+    # source.  Other discovered publishers (for example joystick/app nodes)
+    # are recorded by the ROS graph but are outside this canary's command
+    # contract and must not be treated as an automatic failure.
+    while time.monotonic() - started < 3.0 and rclpy.ok():
+        rclpy.spin_once(node, timeout_sec=0.05)
+        discovered_command_publishers = node.count_publishers(endpoint)
+        if node.count_subscribers(endpoint) > 0 and latest_yaw is not None:
+            initial_yaw = latest_yaw
+            publisher = node.create_publisher(Twist, endpoint, 10)
+            break
+    if error is None and publisher is None:
+        error = "ROS_COMMAND_OR_ODOM_UNREADY"
+    if error is None:
+        command = Twist()
+        command.angular.z = direction * speed
+        deadline = time.monotonic() + max_duration
+        while time.monotonic() < deadline and rclpy.ok():
+            publisher.publish(command)
+            rclpy.spin_once(node, timeout_sec=0.05)
+            if latest_yaw is not None and initial_yaw is not None:
+                measured = abs(angle_delta(latest_yaw, initial_yaw))
+                if measured + tolerance >= target:
+                    status = "SUCCEEDED"
+                    break
+            time.sleep(0.02)
+        if status != "SUCCEEDED" and error is None:
+            error = "ODOM_TARGET_NOT_REACHED"
 finally:
-    message.angular.z = 0.0
-    for _ in range(5):
-        publisher.publish(message)
-        rclpy.spin_once(node, timeout_sec=0.02)
-        time.sleep(0.02)
+    if publisher is not None:
+        stop = Twist()
+        for _ in range(8):
+            publisher.publish(stop)
+            rclpy.spin_once(node, timeout_sec=0.02)
+            time.sleep(0.02)
     node.destroy_node()
     rclpy.shutdown()
-print(json.dumps({"operation": "base.rotate", "angle_degrees": angle,
-                  "max_speed_rad_s": speed, "duration_s": duration,
-                  "stop_published": True}, separators=(",", ":")))
+result = {"operation": "base.rotate", "status": status,
+          "angle_degrees": angle, "max_speed_rad_s": speed,
+          "measured_angle_degrees": math.degrees(measured),
+          "discovered_command_publishers": discovered_command_publishers,
+          "duration_s": time.monotonic() - started, "stop_published": publisher is not None}
+if error is not None:
+    result["error"] = error
+print(json.dumps(result, separators=(",", ":")))
 '''.strip()
 
 

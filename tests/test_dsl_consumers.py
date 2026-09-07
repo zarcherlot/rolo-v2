@@ -29,3 +29,36 @@ def test_consumer_rejects_stale_target(tmp_path):
         assert str(exc) == "TARGET_FINGERPRINT_MISMATCH"
     else:
         raise AssertionError("stale target must be rejected")
+
+
+def test_consumer_rejects_context_and_mhs_drift(tmp_path):
+    release = setup(tmp_path)
+    publisher_release = release.model_copy(update={"compile_context_digest": "ctx-1", "mhs_manifest_digests": ("mhs-1",)})
+    try:
+        TraceConsumer().consume(
+            publisher_release,
+            release_digest="sha256:release",
+            session_id="s",
+            evidence_digest="sha256:e",
+            target_fingerprint="fp",
+            compile_context_digest="ctx-2",
+            mhs_manifest_digests=("mhs-1",),
+        )
+    except ValueError as exc:
+        assert str(exc) == "CONTEXT_DIGEST_MISMATCH"
+    else:
+        raise AssertionError("context drift must be rejected")
+    try:
+        TraceConsumer().consume(
+            publisher_release,
+            release_digest="sha256:release",
+            session_id="s",
+            evidence_digest="sha256:e",
+            target_fingerprint="fp",
+            compile_context_digest="ctx-1",
+            mhs_manifest_digests=("mhs-2",),
+        )
+    except ValueError as exc:
+        assert str(exc) == "MHS_MANIFEST_DIGEST_MISMATCH"
+    else:
+        raise AssertionError("MHS drift must be rejected")

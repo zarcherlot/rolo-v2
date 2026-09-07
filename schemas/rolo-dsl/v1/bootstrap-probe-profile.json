@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-bootstrap-probe-profile/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "robot_id", "active_probe", "requested_layers"],
+  "properties": {
+    "schema_version": {"const": "rolo-bootstrap-probe-profile/v1"},
+    "profile_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "robot_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "active_probe": {"const": "runtime-readonly"},
+    "requested_layers": {"type": "array", "maxItems": 16, "items": {"type": "string"}}
+  }
+}

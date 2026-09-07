@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-mvp/v1/invocation-fixture.json",
+  "title": "Rolo MVP offline invocation fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "results"],
+  "properties": {
+    "schema_version": {
+      "const": "rolo-mvp-invocation-fixture/v1"
+    },
+    "results": {
+      "oneOf": [
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {}
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["result"],
+            "properties": {
+              "tool_id": {"type": "string", "minLength": 1},
+              "case_id": {"type": "string", "minLength": 1},
+              "operation_id": {"type": "string", "minLength": 1},
+              "result": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

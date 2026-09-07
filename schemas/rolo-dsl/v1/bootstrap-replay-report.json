@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-bootstrap-replay-report/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "diagnostics",
+    "verified_artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-bootstrap-replay-report/v1"},
+    "status": {"enum": ["PASS", "BLOCKED"]},
+    "discovery_session_id": {"type": ["string", "null"]},
+    "robot_id": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"]},
+    "diagnostics": {"type": "array", "items": {"type": "string"}},
+    "verified_artifacts": {"type": "array", "items": {"type": "string"}}
+  }
+}

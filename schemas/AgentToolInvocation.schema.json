@@ -8,7 +8,8 @@
     "target_id": {"type": "string", "minLength": 1},
     "session_id": {"type": "string", "minLength": 1},
     "tool_id": {"type": "string", "minLength": 1},
-    "arguments": {"type": "object"}
+    "arguments": {"type": "object"},
+    "idempotency_key": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9._:-]{1,128}$"}
   },
   "additionalProperties": false
 }

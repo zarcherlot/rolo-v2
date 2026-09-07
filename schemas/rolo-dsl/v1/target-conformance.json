@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-target-conformance/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "t1_target_resolve", "t2_bundle_build", "t3_runtime_behavior", "t4_release_integrity", "target_fingerprint", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "rolo-target-conformance/v1"},
+    "t1_target_resolve": {"enum": ["PASS", "FAIL"]},
+    "t2_bundle_build": {"enum": ["PASS", "FAIL"]},
+    "t3_runtime_behavior": {"enum": ["PASS", "FAIL"]},
+    "t4_release_integrity": {"enum": ["PASS", "FAIL"]},
+    "target_fingerprint": {"type": "string", "minLength": 1},
+    "diagnostics": {"type": "array", "items": {"type": "string"}}
+  }
+}

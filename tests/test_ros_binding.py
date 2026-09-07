@@ -13,13 +13,14 @@ from rolo.mvp.bounded_twist import execute_bounded_twist
 class VirtualIO:
     cancelled = False
 
-    def __init__(self, *, responsive=True, subscribers=True, fail_motion=False, fail_stop=False):
+    def __init__(self, *, responsive=True, subscribers=True, exclusive=True, fail_motion=False, fail_stop=False):
         self.t = 0.0
         self.yaw = 0.0
         self.velocity = 0.0
         self.calls = []
         self.responsive = responsive
         self.subscribers = subscribers
+        self.exclusive = exclusive
         self.fail_motion = fail_motion
         self.fail_stop = fail_stop
 
@@ -31,6 +32,9 @@ class VirtualIO:
 
     def latest(self):
         return {'yaw': self.yaw, 'angular_speed': self.velocity if self.responsive else 0, 'at': self.t}
+
+    def command_exclusive(self):
+        return self.exclusive
 
     def spin(self, seconds):
         self.t += seconds
@@ -65,6 +69,20 @@ def test_missing_command_subscriber_blocks_without_motion():
     assert io.calls == []
 
 
+def test_multiple_command_publishers_block_before_motion():
+    io = VirtualIO(exclusive=False)
+    result = execute_bounded_twist(io, request())
+    assert result == {'status': 'BLOCKED', 'error': 'COMMAND_MULTIPLE_PUBLISHERS', 'motion_started': False}
+    assert io.calls == []
+
+
+def test_confirmed_autonomous_source_allows_known_background_publishers():
+    io = VirtualIO(exclusive=False)
+    result = execute_bounded_twist(io, {**request(), 'autonomous_source_confirmed': True})
+    assert result['status'] == 'SUCCEEDED'
+    assert result['stopped_observed']
+
+
 @pytest.mark.parametrize('failure', ['fail_motion', 'fail_stop'])
 def test_publish_or_stop_failure_never_claims_success(failure):
     io = VirtualIO(**{failure: True})
@@ -97,7 +115,23 @@ def test_controller_uses_one_target_call_and_serialized_parameters():
     assert len(calls) == 1
     assert calls[0][0][:2] == ['python3', '-c']
     assert json.loads(calls[0][0][-1])['duration_s'] == pytest.approx(1.9634954074936207)
+    assert json.loads(calls[0][0][-1])['autonomous_source_confirmed'] is False
     assert calls[0][1]['timeout_s'] < 20
+
+
+def test_controller_propagates_explicit_autonomous_source_confirmation():
+    calls = []
+
+    class Target:
+        def run_bound(self, argv, **kwargs):
+            calls.append((argv, kwargs))
+            return SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'SUCCEEDED'}), stderr='')
+
+    result = RosBindingExecutor(Target(), autonomous_source_confirmed=True).rotate(
+        binding(), {'angle_degrees': 5, 'max_speed_rad_s': 0.1}
+    )
+    assert result['status'] == 'SUCCEEDED'
+    assert json.loads(calls[0][0][-1])['autonomous_source_confirmed'] is True
 
 
 def test_overlong_motion_rejected_instead_of_clamping():

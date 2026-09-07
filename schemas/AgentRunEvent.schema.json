@@ -6,11 +6,24 @@
   "properties": {
     "schema_version": {"const": "rolo-agent-run-event/v1"},
     "run_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
     "target_id": {"type": "string", "minLength": 1},
     "state": {"type": "string"},
     "sequence": {"type": "integer", "minimum": 1},
     "event": {"type": "string"},
-    "evidence_ids": {"type": "array", "items": {"type": "string"}}
+    "tool_id": {"type": ["string", "null"]},
+    "arguments": {"type": ["object", "null"]},
+    "result": {},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "error_code": {"type": ["string", "null"]},
+    "error": {"type": ["string", "null"]},
+    "attempt": {"type": ["integer", "null"], "minimum": 1},
+    "operation_id": {"type": ["string", "null"]},
+    "idempotency_key": {"type": ["string", "null"]},
+    "release_digest": {"type": ["string", "null"]},
+    "compile_context_digest": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "created_at": {"type": ["string", "null"]}
   },
   "additionalProperties": false
 }

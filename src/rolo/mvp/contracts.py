@@ -41,6 +41,7 @@ class CaseStatus(str, Enum):
     FAIL = "FAIL"
     BLOCKED = "BLOCKED"
     UNKNOWN = "UNKNOWN"
+    NOT_RUN = "NOT_RUN"
 
 
 class MvpModel(BaseModel):
@@ -136,6 +137,12 @@ class TraceSessionRequest(MvpModel):
     max_calls: int = Field(default=32, ge=1, le=10_000)
     operator_id: str | None = Field(default=None, max_length=128)
     safety_confirmed: bool = False
+    # Optional release/context identity is populated by release-bound callers
+    # and retained in every resulting event for audit and replay.
+    release_digest: str | None = Field(default=None, max_length=256)
+    compile_context_digest: str | None = Field(default=None, max_length=256)
+    target_fingerprint: str | None = Field(default=None, max_length=256, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
+    scope: tuple[str, ...] = Field(default=(), max_length=32)
 
     @model_validator(mode="after")
     def mode_requirements(self) -> TraceSessionRequest:
@@ -149,12 +156,21 @@ class TraceSessionRequest(MvpModel):
 class TraceCall(MvpModel):
     tool_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     arguments: dict[str, Any] = Field(default_factory=dict)
+    # Retries after a transport interruption must be idempotent.  A missing
+    # key is filled deterministically by TraceService.
+    idempotency_key: str | None = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
 class TraceEvent(MvpModel):
     schema_version: Literal["rolo-mvp-trace-event/v1"] = "rolo-mvp-trace-event/v1"
     sequence: int = Field(ge=1)
+    # ``run_id`` is the connector-facing alias for ``session_id``.  Keeping
+    # both fields makes an event self-contained when it is consumed through
+    # the generic AgentRunEvent contract while preserving the historical MVP
+    # session terminology.
+    run_id: str
     session_id: str
+    target_id: str
     state: SessionState
     event: str = Field(min_length=1, max_length=128)
     tool_id: str | None = None
@@ -162,7 +178,32 @@ class TraceEvent(MvpModel):
     result: Any = None
     evidence_ids: list[str] = Field(default_factory=list, max_length=128)
     error_code: str | None = None
+    error: str | None = None
+    attempt: int | None = Field(default=None, ge=1)
+    operation_id: str | None = None
+    idempotency_key: str | None = None
+    release_digest: str | None = None
+    compile_context_digest: str | None = None
+    target_fingerprint: str | None = None
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def backfill_identity_for_legacy_events(cls, value: Any) -> Any:
+        """Read v1 events written before run/target identity was added.
+
+        New events always provide both fields from ``TraceService``.  The
+        compatibility fill keeps persisted pre-contract evidence readable
+        without weakening the public AgentRunEvent projection, which replaces
+        the unknown target with the session's verified target before serving it.
+        """
+
+        if isinstance(value, dict):
+            data = dict(value)
+            data.setdefault("run_id", data.get("session_id") or "UNKNOWN")
+            data.setdefault("target_id", "UNKNOWN")
+            return data
+        return value
 
 
 class TraceSession(MvpModel):
@@ -182,6 +223,15 @@ class TraceSession(MvpModel):
     events: list[TraceEvent] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    release_digest: str | None = None
+    compile_context_digest: str | None = None
+    target_fingerprint: str | None = None
+    scope: tuple[str, ...] = ()
+    operation_ids: list[str] = Field(default_factory=list)
+    artifact_index_ref: str | None = None
+    diagnosis_attempts: int = Field(default=0, ge=0)
+    recovery_attempts: int = Field(default=0, ge=0)
+    resume_count: int = Field(default=0, ge=0)
 
 
 class CertificationCase(MvpModel):
@@ -231,6 +281,12 @@ class CertificationCaseResult(MvpModel):
     elapsed_ms: int = Field(ge=0)
     failure_class: str | None = None
     operator_notes: str | None = None
+    # Release/context identity is repeated per case so a report remains
+    # auditable even when a suite contains multiple tools.
+    release_digest: str | None = None
+    compile_context_digest: str | None = None
+    target_fingerprint: str | None = None
+    idempotency_key: str | None = None
 
 
 class CertificationReport(MvpModel):
@@ -244,3 +300,32 @@ class CertificationReport(MvpModel):
     artifact_digests: list[str] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     limitations: list[str] = Field(default_factory=list)
+    compile_context_digest: str | None = None
+    target_fingerprint: str | None = None
+    failure_policy: Literal["continue", "fail_fast"] = "continue"
+    event_count: int = Field(default=0, ge=0)
+
+
+class CertifyRequest(MvpModel):
+    """Explicit Agent request for a certification run.
+
+    Certify is intentionally a separate request type: no Trace endpoint may
+    implicitly create a test run.  ``suite_ref`` is resolved by the Rolo
+    process and must point at a regular, non-symlink file.
+    """
+
+    schema_version: Literal["rolo-certify-request/v1"] = "rolo-certify-request/v1"
+    target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    suite_ref: str = Field(min_length=1, max_length=1024)
+    snapshot_digest: str = Field(default="UNKNOWN", max_length=256)
+    compile_context_digest: str | None = Field(default=None, max_length=256)
+    target_fingerprint: str | None = Field(default=None, max_length=256, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
+    failure_policy: Literal["continue", "fail_fast"] = "continue"
+    session_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+
+
+class TraceStartRequest(MvpModel):
+    """Convenience envelope for the single-call Trace connector endpoint."""
+
+    request: TraceSessionRequest
+    calls: list[TraceCall] = Field(default_factory=list, max_length=128)

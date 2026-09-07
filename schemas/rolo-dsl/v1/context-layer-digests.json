@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-context-layer-digests/v1",
+  "title": "Rolo context layer digests",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_identity_digest", "runtime_snapshot_digest", "surface_digest", "evidence_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-context-layer-digests/v1"},
+    "target_identity_digest": {"type": "string", "minLength": 1},
+    "runtime_snapshot_digest": {"type": "string", "minLength": 1},
+    "surface_digest": {"type": "string", "minLength": 1},
+    "evidence_digest": {"type": "string", "minLength": 1}
+  }
+}

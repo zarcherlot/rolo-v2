@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-capability-candidate-index/v1",
+  "title": "Rolo capability candidate index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "robot_id", "target_fingerprint", "context_digest", "evidence_digest", "candidates", "index_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-capability-candidate-index/v1"},
+    "robot_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_fingerprint": {"type": "string", "minLength": 1, "maxLength": 256},
+    "context_digest": {"type": "string", "minLength": 1},
+    "evidence_digest": {"type": "string", "minLength": 1},
+    "candidates": {"type": "array", "maxItems": 256, "items": {"$ref": "rolo-capability-candidate/v1"}},
+    "index_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

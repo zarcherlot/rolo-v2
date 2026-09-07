@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from rolo.target_ref import parse_target_ref
 from rolo.targetd import JourneySession
 from rolo.targetd.controller import TargetdJourneyController
@@ -46,4 +48,25 @@ def test_targetd_installer_archive_contains_rolo_package(tmp_path: Path):
     import io
     import tarfile
     with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as tar:
-        assert sorted(tar.getnames()) == ["rolo/__init__.py", "rolo/targetd/daemon.py"]
+        assert sorted(tar.getnames()) == [
+            "rolo/INSTALL-MANIFEST.json",
+            "rolo/__init__.py",
+            "rolo/targetd/daemon.py",
+        ]
+
+
+def test_targetd_installer_manifest_is_stable_and_uninstall_requires_confirmation(tmp_path: Path):
+    package = tmp_path / "src" / "rolo"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("VERSION = '1'\n", encoding="utf-8")
+    executor = SshTargetExecutor(
+        parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts"
+    )
+    installer = TargetdInstaller(executor, package_root=tmp_path / "src")
+    assert installer.build_archive() == installer.build_archive()
+    manifest = installer.manifest()
+    assert manifest.archive_sha256 != "0" * 64
+    with pytest.raises(ValueError, match="explicit confirmation"):
+        installer.uninstall("/opt/rolo")
+    with pytest.raises(ValueError, match="non-root"):
+        installer.uninstall("/")

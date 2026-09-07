@@ -19,6 +19,7 @@ from .contracts import (
     CertificationCaseResult,
     CertificationReport,
     CertificationSuite,
+    CertifyRequest,
     MhsInventoryEntry,
     RkbModelRef,
     RunMode,
@@ -29,9 +30,11 @@ from .contracts import (
     TraceEvent,
     TraceSession,
     TraceSessionRequest,
+    TraceStartRequest,
 )
 from .harness_codegen import build_codegen_artifact, generate_contract_source
 from .harness_execution import HarnessCodeBundle, HarnessCodeExecutor, build_python_launcher, make_code_bundle
+from .journey_cli import run_certify, run_trace
 from .probe_registration import (
     ExecutionBinding,
     ProbeAnalysisInput,
@@ -47,6 +50,16 @@ from .probe_registration import (
 from .ros_binding import RosBindingExecutor
 from .rotation import RotationDebugAssessment, RotationDebugRequest, assess_rotation_readiness, rotation_tool_proposal
 from .trace import TraceService
+from .trace_diagnostics import (
+    OdomEkfDiagnosis,
+    OdomEkfObservation,
+    TraceDiagnosticPlan,
+    TraceDiagnosticStep,
+    assess_odom_ekf_observation,
+    build_odom_ekf_diagnostic_plan,
+    diagnose_trace_payload,
+    observation_from_trace_payload,
+)
 
 __all__ = [
     "AgentAdapter",
@@ -65,12 +78,15 @@ __all__ = [
     "AgentContext",
     "build_agent_context",
     "TraceService",
+    "run_trace",
+    "run_certify",
     "CaseStatus",
     "CatalogTool",
     "CertificationCase",
     "CertificationCaseResult",
     "CertificationReport",
     "CertificationSuite",
+    "CertifyRequest",
     "MhsInventoryEntry",
     "RkbModelRef",
     "RunMode",
@@ -81,6 +97,15 @@ __all__ = [
     "TraceEvent",
     "TraceSession",
     "TraceSessionRequest",
+    "TraceStartRequest",
+    "TraceDiagnosticStep",
+    "TraceDiagnosticPlan",
+    "OdomEkfObservation",
+    "OdomEkfDiagnosis",
+    "build_odom_ekf_diagnostic_plan",
+    "assess_odom_ekf_observation",
+    "observation_from_trace_payload",
+    "diagnose_trace_payload",
     "RotationDebugAssessment",
     "RotationDebugRequest",
     "assess_rotation_readiness",

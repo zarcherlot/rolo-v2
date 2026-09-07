@@ -9,7 +9,11 @@
     "task": {"type": "string", "minLength": 1},
     "mode": {"enum": ["OBSERVATION_ONLY", "SUPERVISED_FIELD_DEBUG", "UNATTENDED_REMOTE"]},
     "ttl_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 86400},
-    "max_calls": {"type": "integer", "minimum": 1}
+    "max_calls": {"type": "integer", "minimum": 1},
+    "release_digest": {"type": ["string", "null"]},
+    "compile_context_digest": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "scope": {"type": "array", "items": {"type": "string"}, "maxItems": 32}
   },
   "additionalProperties": false
 }

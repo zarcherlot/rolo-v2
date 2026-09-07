@@ -40,6 +40,13 @@ model is only an interface and planner.
 - Stream Agent output as progress only; deterministic Rolo results remain the
   source of truth for release and invoke decisions.
 
+For Compiler mapping work, construct a `rolo-adapter-mapping-request/v1` and
+use the bounded `rolo.dsl.DslRepairLoop`. Feed compiler diagnostics back to the
+generator; a missing route, schema, target or evidence reference becomes a
+structured `rolo-probe-follow-up-request/v1`. The loop cannot publish a Tool or
+open a target connection, and its attempt, artifact and wall-clock limits must
+remain enabled.
+
 The skill is the harness playbook, not the registration authority. For every
 tool, preserve the Probe evidence reference, proposal digest and registration
 artifact. The harness may ask the user for corrections in its live coding

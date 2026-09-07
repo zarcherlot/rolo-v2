@@ -1,0 +1,28 @@
+{
+  "schema_version": "rolo-landerpi-rotation-result/v1",
+  "target_id": "landerpi",
+  "container": "MentorPi",
+  "executor_user": "ubuntu",
+  "ekf_trial": {
+    "imu_absolute_yaw": "disabled_in_persisted_config",
+    "odom_and_odom_raw_baseline": "reset_survives_after_set_odom_fix",
+    "temporary_config_persisted": true
+  },
+  "bounded_canary": {
+    "requested_angle_degrees": 10.0,
+    "max_speed_rad_s": 0.05,
+    "duration_s": 8.0,
+    "feedback_topic": "/odom",
+    "autonomous_source_confirmed": true,
+    "motion_started": true,
+    "measured_angle_degrees": 9.0915,
+    "angle_error_degrees": -0.9085,
+    "stop_published": true,
+    "stopped_observed": true,
+    "status": "SUCCEEDED"
+  },
+  "safety": {
+    "physical_canary_complete": true,
+    "qualification": "single supervised 10 degree canary; repeatability and full 10-case Certify remain open"
+  }
+}
