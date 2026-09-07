@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-release-read-model/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "tool_id", "release_digest", "status", "agent_callable", "release"],
+  "properties": {
+    "schema_version": {"const": "rolo-release-read-model/v1"},
+    "target_id": {"type": "string", "minLength": 1},
+    "tool_id": {"type": "string", "minLength": 1},
+    "release_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"type": "string", "enum": ["PUBLISHED", "STALE", "BLOCKED"]},
+    "agent_callable": {"type": "boolean"},
+    "release": {"type": "object"}
+  }
+}

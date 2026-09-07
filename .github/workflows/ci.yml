@@ -110,7 +110,7 @@ jobs:
           scripts/targetd_pending_recovery_smoke.py
           scripts/targetd_certify_landerpi.py
       - name: Compile the v2 source and test tree
-        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py scripts/mhs_readonly_canary.py scripts/probe_baseline.py scripts/targetd_pending_recovery_smoke.py scripts/targetd_certify_landerpi.py
+        run: python -m compileall -q src tests examples scripts/rkb2_landerpi_smoke.py scripts/rkb2_capacity_baseline.py scripts/rkb2_canary.py scripts/mhs_readonly_canary.py scripts/probe_baseline.py scripts/targetd_pending_recovery_smoke.py scripts/targetd_certify_landerpi.py scripts/landerpi_ros2_snapshot.py
 
   package:
     runs-on: ubuntu-latest
@@ -148,8 +148,66 @@ jobs:
         run: uv run pytest -q tests/test_mvp_journey.py tests/test_mvp_release_gate.py
       - name: Execute release gate entrypoint
         run: uv run python scripts/mvp_release_gate.py --suite examples/chassis-rotation-10.json --output-dir .mvp-release-gate
+      - name: Audit post-compiler contract matrix
+        run: uv run pytest -q tests/test_dsl_contract_matrix.py
+      - name: Lint and replay post-compiler journey
+        run: >-
+          uv run ruff check
+          src/rolo/dsl
+          src/rolo/targetd
+          src/rolo/releases
+          src/rolo/observability.py
+          src/rolo/mvp/http.py
+          scripts/post_compiler_journey_replay.py
+          scripts/landerpi_ros2_snapshot.py
+          tests/test_dsl_cli.py
+          tests/test_dsl_service.py
+          tests/test_dsl_service_negative.py
+          tests/test_dsl_context_adapter.py
+          tests/test_dsl_mapping.py
+          tests/test_release_journey.py
+          tests/test_targetd_dsl_service.py
+          tests/test_targetd_ros2_runtime.py
+          tests/test_landerpi_ros2_snapshot.py
+          tests/test_observability.py
+          tests/test_dsl_candidates.py
+          tests/test_dsl_proposal.py
+          tests/test_dsl_context_digests.py
+          tests/test_dsl_contract.py
+          tests/test_dsl_contract_matrix.py
+          tests/test_dsl_execute_contract.py
+          tests/test_dsl_sufficiency.py
+          tests/test_dsl_bootstrap.py
+          tests/test_dsl_bootstrap_replay.py
+          tests/test_journey_cli.py
+          && uv run pytest -q
+          tests/test_dsl_contract.py
+          tests/test_dsl_contract_matrix.py
+          tests/test_dsl_execute_contract.py
+          tests/test_dsl_cli.py
+          tests/test_dsl_service.py
+          tests/test_dsl_service_negative.py
+          tests/test_dsl_context_adapter.py
+          tests/test_dsl_mapping.py
+          tests/test_dsl_consumers.py
+          tests/test_release_lifecycle.py
+          tests/test_release_journey.py
+          tests/test_targetd_dsl_service.py
+          tests/test_targetd_ros2_runtime.py
+          tests/test_landerpi_ros2_snapshot.py
+          tests/test_observability.py
+          tests/test_dsl_candidates.py
+          tests/test_dsl_proposal.py
+          tests/test_dsl_context_digests.py
+          tests/test_dsl_bootstrap.py
+          tests/test_dsl_bootstrap_replay.py
+          tests/test_dsl_sufficiency.py
+          tests/test_journey_cli.py
+          && uv run python scripts/post_compiler_journey_replay.py --output-dir .post-compiler-replay
       - name: Upload replay evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rolo-mvp-offline-replay
-          path: .mvp-release-gate/
+          path: |
+            .mvp-release-gate/
+            .post-compiler-replay/

@@ -22,7 +22,7 @@ def check_semantics(document: DslDocument) -> DiagnosticReport:
     if document.kind == OperationKind.EXECUTE and not document.implementation:
         diagnostics.append(Diagnostic(code="IMPLEMENTATION_REQUIRED", path="implementation", severity=DiagnosticSeverity.ERROR, message="EXECUTE requires an implementation contract"))
     diagnostics.extend(check_types(document).diagnostics)
-    return DiagnosticReport(diagnostics=tuple(diagnostics))
+    return DiagnosticReport(diagnostics=tuple(diagnostics)).stable()
 
 
 def compile_frontend(document: DslDocument) -> tuple[CanonicalIR | None, DiagnosticReport, str]:

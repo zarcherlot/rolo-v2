@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rolo Trace Diagnostic Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plan_id", "steps", "physical_write_allowed"],
+  "properties": {
+    "schema_version": {"const": "rolo-trace-diagnostic-plan/v1"},
+    "plan_id": {"const": "landerpi-odom-ekf/v1"},
+    "physical_write_allowed": {"const": false},
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "step_id", "title", "argv", "timeout_s", "read_only", "pass_condition", "block_code"],
+        "properties": {
+          "schema_version": {"const": "rolo-trace-diagnostic-step/v1"},
+          "step_id": {"type": "string"},
+          "title": {"type": "string"},
+          "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "timeout_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+          "read_only": {"const": true},
+          "pass_condition": {"type": "string"},
+          "block_code": {"type": "string"}
+        }
+      }
+    }
+  }
+}

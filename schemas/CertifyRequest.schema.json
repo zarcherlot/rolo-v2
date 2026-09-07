@@ -5,9 +5,13 @@
   "required": ["schema_version", "target_id", "suite_ref"],
   "properties": {
     "schema_version": {"const": "rolo-certify-request/v1"},
-    "target_id": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
     "suite_ref": {"type": "string", "minLength": 1},
-    "snapshot_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "snapshot_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "compile_context_digest": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "failure_policy": {"enum": ["continue", "fail_fast"]},
+    "session_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}
   },
   "additionalProperties": false
 }

@@ -1,0 +1,34 @@
+{
+  "schema_version": "rolo-landerpi-rotation-canary/v1",
+  "observed_at": "2026-09-06T02:20:00Z",
+  "target_id": "landerpi",
+  "container": "MentorPi",
+  "access": "SUPERVISED_FIELD_DEBUG",
+  "request": {
+    "tool_id": "app.base.rotate",
+    "angle_degrees": 1.0,
+    "max_speed_rad_s": 0.1,
+    "feedback_endpoints": ["/odom", "/odom_raw"]
+  },
+  "result": {
+    "status": "BLOCKED",
+    "error": "NO_LIVE_SUBSCRIBER_OR_ODOMETRY",
+    "motion_started": false,
+    "feedback_topic": null
+  },
+  "read_only_diagnostics": {
+    "cmd_vel_type": "geometry_msgs/msg/Twist",
+    "cmd_vel_publisher_count": 0,
+    "cmd_vel_subscription_count": 1,
+    "odom_type": "nav_msgs/msg/Odometry",
+    "odom_publisher_count": 1,
+    "odom_echo": "NO_MESSAGE_WITHIN_5_SECONDS",
+    "odom_raw_echo": "NO_MESSAGE_WITHIN_5_SECONDS",
+    "clock_topic": "NOT_OBSERVED"
+  },
+  "safety": {
+    "motion_command_published": false,
+    "stop_command_required": false,
+    "next_action": "restore live odometry/controller data, then repeat the same 1 degree canary"
+  }
+}

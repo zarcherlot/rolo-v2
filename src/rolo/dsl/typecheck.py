@@ -64,4 +64,4 @@ def check_types(document: DslDocument) -> DiagnosticReport:
             diagnostics.append(
                 Diagnostic(code="SOURCE_BUNDLE_DIGEST_INVALID", path="implementation.source_bundle_digest", severity=DiagnosticSeverity.ERROR, message="source bundle digest must use sha256:<hex>")
             )
-    return DiagnosticReport(diagnostics=tuple(diagnostics))
+    return DiagnosticReport(diagnostics=tuple(diagnostics)).stable()

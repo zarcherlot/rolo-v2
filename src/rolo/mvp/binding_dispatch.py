@@ -24,7 +24,12 @@ class ApplicationBindingDispatcher:
         self._handlers[kind] = handler
 
     @classmethod
-    def for_target_executor(cls, target_executor: Any) -> ApplicationBindingDispatcher:
+    def for_target_executor(
+        cls,
+        target_executor: Any,
+        *,
+        autonomous_source_confirmed: bool = False,
+    ) -> ApplicationBindingDispatcher:
         """Create the default provider registry for a target.
 
         ROS 2 is one provider registration, not the dispatcher contract.  New
@@ -34,7 +39,10 @@ class ApplicationBindingDispatcher:
 
         from .ros_binding import RosBindingExecutor
 
-        ros = RosBindingExecutor(target_executor)
+        ros = RosBindingExecutor(
+            target_executor,
+            autonomous_source_confirmed=autonomous_source_confirmed,
+        )
         dispatcher = cls()
         dispatcher.register("ros2_topic", lambda binding, arguments: ros.rotate(binding, arguments))
         return dispatcher

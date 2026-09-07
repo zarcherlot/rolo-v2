@@ -225,7 +225,7 @@ def test_ros_container_provider_uses_fixed_docker_argv(monkeypatch):
         "base.rotate", {"angle_degrees": 15, "max_speed_rad_s": 0.2}
     )
     assert result["stop_published"] is True
-    assert seen["command"][:5] == ["docker", "exec", "-i", "MentorPi", "bash"]
+    assert seen["command"][:7] == ["docker", "exec", "-i", "-u", "ubuntu", "MentorPi", "bash"]
     assert "ros2 topic pub" not in seen["input"]
     assert "angle_degrees" in seen["input"]
 

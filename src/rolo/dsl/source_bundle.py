@@ -1,12 +1,14 @@
 """EXECUTE source bundle contract and deterministic manifest validation."""
 
+from typing import Literal
+
 from pydantic import Field, field_validator
 
 from .models import StrictModel
 
 
 class SourceBundleManifest(StrictModel):
-    schema_version: str = "rolo-source-bundle/v1"
+    schema_version: Literal["rolo-source-bundle/v1"] = "rolo-source-bundle/v1"
     source_bundle_digest: str = Field(min_length=7)
     entrypoint: str = Field(min_length=1)
     runtime: str = Field(min_length=1)

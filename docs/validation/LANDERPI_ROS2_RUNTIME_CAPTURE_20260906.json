@@ -1,0 +1,27 @@
+{
+  "schema_version": "rolo-ros2-runtime-capture/v1",
+  "target_id": "landerpi",
+  "observed_at": "2026-09-06T02:19:36Z",
+  "distro": "humble",
+  "ros2_path": "/opt/ros/humble/bin/ros2",
+  "topic_format": "list",
+  "topic_output": [
+    "/cmd_vel [geometry_msgs/msg/Twist]",
+    "/odom [nav_msgs/msg/Odometry]",
+    "/scan [sensor_msgs/msg/LaserScan]",
+    "/tf [tf2_msgs/msg/TFMessage]",
+    "/tf_static [tf2_msgs/msg/TFMessage]",
+    "/joint_states [sensor_msgs/msg/JointState]",
+    "/imu [sensor_msgs/msg/Imu]",
+    "/diagnostics [diagnostic_msgs/msg/DiagnosticArray]",
+    "/rosout [rcl_interfaces/msg/Log]"
+  ],
+  "node_output": [],
+  "package_output": [
+    "rclpy",
+    "sensor_msgs",
+    "geometry_msgs",
+    "nav_msgs",
+    "tf2_msgs"
+  ]
+}

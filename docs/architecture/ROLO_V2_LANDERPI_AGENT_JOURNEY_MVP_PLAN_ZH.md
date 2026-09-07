@@ -146,6 +146,10 @@ Probe、Trace、Certify 分别有独立集成门，不要求一次旅程全部�
 - `start_certify(suite_path, target_id)`：仅在用户明确要求测试时启动 Certify；
 - `get_run(run_id)`：读取 Trace/Certify 状态、Episode 和 artifact index。
 
+在没有目标机连接的回放环境中，`rolo trace` 和 `rolo certify` 提供上述两个入口的
+CLI 适配；它们必须接收显式结果 fixture，并在产物中标记 `fixture_only=true`，不能把
+回放结果当作真机行为证据。
+
 Agent 产品自身的 harness 负责加载 `rolo skill`、完成安装/preflight、循环调度、上下文压缩
 和模型调用；Rolo 不再另造一个通用 harness，但必须提供上述稳定 connector contract 和可
 离线 replay 的 fake server。`rolo skill` 根据用户意图指导调用 `probe`、`trace`、

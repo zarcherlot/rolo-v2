@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-journey-metric/v1",
+  "title": "Rolo journey metric",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event", "stage", "status", "labels", "payload", "recorded_at"],
+  "properties": {
+    "schema_version": {"const": "rolo-journey-metric/v1"},
+    "event": {"type": "string", "minLength": 1, "maxLength": 128},
+    "stage": {"type": "string", "minLength": 1, "maxLength": 64},
+    "status": {"type": "string", "minLength": 1, "maxLength": 32},
+    "session_id": {"type": ["string", "null"], "maxLength": 256},
+    "target_id": {"type": ["string", "null"], "maxLength": 128},
+    "duration_ms": {"type": ["integer", "null"], "minimum": 0, "maximum": 86400000},
+    "labels": {"type": "object", "maxProperties": 32, "additionalProperties": {"type": "string", "maxLength": 256}},
+    "payload": {"type": "object", "maxProperties": 64},
+    "recorded_at": {"type": "string", "format": "date-time"}
+  }
+}

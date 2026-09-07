@@ -1,0 +1,137 @@
+{
+  "access": "READ_ONLY",
+  "limitations": [
+    "ROS2 graph is a point-in-time observation",
+    "message schema bytes were not captured; interface type is retained"
+  ],
+  "observed_at": "2026-09-06T02:19:36Z",
+  "routes": [
+    {
+      "endpoint": "/cmd_vel",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "geometry_msgs/msg/Twist",
+      "kind": "ros_topic",
+      "resource_id": "/cmd_vel",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/diagnostics",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "diagnostic_msgs/msg/DiagnosticArray",
+      "kind": "ros_topic",
+      "resource_id": "/diagnostics",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/imu",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "sensor_msgs/msg/Imu",
+      "kind": "ros_topic",
+      "resource_id": "/imu",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/joint_states",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "sensor_msgs/msg/JointState",
+      "kind": "ros_topic",
+      "resource_id": "/joint_states",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/odom",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "nav_msgs/msg/Odometry",
+      "kind": "ros_topic",
+      "resource_id": "/odom",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/rosout",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "rcl_interfaces/msg/Log",
+      "kind": "ros_topic",
+      "resource_id": "/rosout",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/scan",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "sensor_msgs/msg/LaserScan",
+      "kind": "ros_topic",
+      "resource_id": "/scan",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/tf",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "tf2_msgs/msg/TFMessage",
+      "kind": "ros_topic",
+      "resource_id": "/tf",
+      "source": "targetd:ros2 topic observation"
+    },
+    {
+      "endpoint": "/tf_static",
+      "evidence_origin": "OBSERVED_RUNTIME",
+      "interface_type": "tf2_msgs/msg/TFMessage",
+      "kind": "ros_topic",
+      "resource_id": "/tf_static",
+      "source": "targetd:ros2 topic observation"
+    }
+  ],
+  "runtime_digest": "sha256:3fd4e5ca0c6e124386810ab49bb782a1a4ed2d577bff2f62375f5f4de041b0bd",
+  "schema_version": "rolo-ros2-runtime-observation/v1",
+  "snapshot": {
+    "distro": "humble",
+    "nodes": [],
+    "packages": [
+      "geometry_msgs",
+      "nav_msgs",
+      "rclpy",
+      "sensor_msgs",
+      "tf2_msgs"
+    ],
+    "ros2_path": "/opt/ros/humble/bin/ros2",
+    "runtime_digest": "sha256:3fd4e5ca0c6e124386810ab49bb782a1a4ed2d577bff2f62375f5f4de041b0bd",
+    "schema_version": "rolo-ros2-runtime-snapshot/v1",
+    "topics": [
+      {
+        "interface_type": "geometry_msgs/msg/Twist",
+        "name": "/cmd_vel"
+      },
+      {
+        "interface_type": "diagnostic_msgs/msg/DiagnosticArray",
+        "name": "/diagnostics"
+      },
+      {
+        "interface_type": "sensor_msgs/msg/Imu",
+        "name": "/imu"
+      },
+      {
+        "interface_type": "sensor_msgs/msg/JointState",
+        "name": "/joint_states"
+      },
+      {
+        "interface_type": "nav_msgs/msg/Odometry",
+        "name": "/odom"
+      },
+      {
+        "interface_type": "rcl_interfaces/msg/Log",
+        "name": "/rosout"
+      },
+      {
+        "interface_type": "sensor_msgs/msg/LaserScan",
+        "name": "/scan"
+      },
+      {
+        "interface_type": "tf2_msgs/msg/TFMessage",
+        "name": "/tf"
+      },
+      {
+        "interface_type": "tf2_msgs/msg/TFMessage",
+        "name": "/tf_static"
+      }
+    ]
+  },
+  "target_id": "landerpi"
+}

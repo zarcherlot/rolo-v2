@@ -15,9 +15,21 @@ from .probe_registration import ExecutionBinding
 
 
 class RosBindingExecutor:
-    def __init__(self, target_executor: Any, *, ros_setup_files: tuple[str, ...] = ()) -> None:
+    def __init__(
+        self,
+        target_executor: Any,
+        *,
+        ros_setup_files: tuple[str, ...] = (),
+        autonomous_source_confirmed: bool = False,
+    ) -> None:
         self.target_executor = target_executor
         self.ros_setup_files = ros_setup_files
+        # This is a separate operator assertion from the physical safety
+        # confirmation.  The target runtime uses it only to admit a canary
+        # when other idle cmd_vel publishers are present; it is deliberately
+        # false by default so a generic binding cannot silently commandeer a
+        # shared command topic.
+        self.autonomous_source_confirmed = bool(autonomous_source_confirmed)
 
     def rotate(self, binding: ExecutionBinding, arguments: Mapping[str, Any]) -> dict[str, Any]:
         if (binding.kind != 'ros2_topic' or binding.interface_type != 'geometry_msgs/msg/Twist'
@@ -52,6 +64,7 @@ class RosBindingExecutor:
             'binding': binding.model_dump(mode='json'),
             'command_endpoint': binding.command_endpoint,
             'feedback_endpoints': binding.feedback_endpoints,
+            'autonomous_source_confirmed': self.autonomous_source_confirmed,
             'angular_speed_rad_s': math.copysign(speed, angle),
             'duration_s': duration,
             'goal_yaw_rad': math.radians(angle),

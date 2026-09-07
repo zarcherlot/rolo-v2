@@ -9,7 +9,11 @@
     "snapshot_digest": {"type": "string"},
     "suite_digest": {"type": "string"},
     "results": {"type": "array"},
-    "conclusion": {"enum": ["PASS", "CONDITIONAL", "BLOCKED"]}
+    "conclusion": {"enum": ["PASS", "CONDITIONAL", "BLOCKED"]},
+    "compile_context_digest": {"type": ["string", "null"]},
+    "target_fingerprint": {"type": ["string", "null"]},
+    "failure_policy": {"enum": ["continue", "fail_fast"]},
+    "event_count": {"type": "integer", "minimum": 0}
   },
   "additionalProperties": false
 }

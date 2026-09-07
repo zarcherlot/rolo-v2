@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-contract-manifest/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "versions"],
+  "properties": {
+    "schema_version": {"const": "rolo-contract-manifest/v1"},
+    "versions": {
+      "type": "object",
+      "minProperties": 18,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  }
+}

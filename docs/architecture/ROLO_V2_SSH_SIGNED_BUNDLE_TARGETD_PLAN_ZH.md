@@ -1,4 +1,4 @@
-<!-- status: draft; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-04 -->
+<!-- status: draft; authority: plan; owner: rolo maintainers; last_reviewed: 2026-09-06 -->
 
 # Rolo v2 优雅 SSH Bundle 与 rolo-targetd 开发计划
 
@@ -21,6 +21,12 @@ SSH stdio 通道，在 session 内复用多次 Tool 调用、事件流和取消�
 当前 main 已有 `SshTargetExecutor.run_transient_code`（stdin → `python3 -`）和
 `HarnessCodeBundle.source_sha256`。本计划将其升级为 manifest 签名、调用与 bundle 分离、
 分帧协议、目标端缓存和断线恢复；不引入 collector 抽象。
+
+DSL 互补层的 targetd 帧已固定为 `DSL_PUT → DSL_CHECK → PLAN_RESOLVE → TARGET_COMPILE →
+TARGET_CONFORMANCE`；`TargetdDslService` 在 PUT 时校验 DSL、Context 和 target fingerprint
+digest，并在专用 cache 中保留可复用的编译结果。目标 runtime backend 只接受已观测的
+ROS2 binding；EXECUTE 还必须提交与 DSL 一致的 source bundle digest、manifest 和 source
+payload，并校验 entrypoint、runtime 与 implementation contract。
 
 ## 2. 调用方向和安装策略
 

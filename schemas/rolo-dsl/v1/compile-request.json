@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-dsl-compile-request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "dsl", "context", "dsl_digest", "context_digest", "target_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "rolo-dsl-compile-request/v1"},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "dsl": {"type": "object"},
+    "context": {"type": "object"},
+    "compiler_version": {"type": "string", "minLength": 1},
+    "dsl_digest": {"type": "string", "minLength": 1},
+    "context_digest": {"type": "string", "minLength": 1},
+    "target_fingerprint": {"type": "string", "minLength": 1},
+    "mhs_manifest_digests": {"type": "array", "items": {"type": "string"}},
+    "source_bundle_digest": {"type": ["string", "null"]},
+    "backend_id": {"type": ["string", "null"]},
+    "required_capabilities": {"type": "array", "items": {"type": "string"}}
+  }
+}

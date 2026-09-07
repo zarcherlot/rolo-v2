@@ -276,10 +276,11 @@ path/code 稳定排序：
 ## 7. CLI、SDK 和模块结构
 
 ```bash
-rolo dsl validate mapping.dsl --context compile-context.json
-rolo dsl canonicalize mapping.dsl --output canonical.dsl.json
-rolo dsl compile mapping.dsl --context compile-context.json --backend fake_runtime
-rolo dsl replay compile-request.json
+rolo-dsl validate mapping.dsl --context compile-context.json
+rolo-dsl canonicalize mapping.dsl --output canonical.dsl.json
+rolo-dsl compile compile-request.json --output-dir .rolo-dsl-output
+rolo-dsl replay compile-request.json
+rolo-dsl bootstrap-verify bootstrap-session/
 ```
 
 CLI 只输出 JSON envelope，人类日志写入 stderr；不包含 SSH、targetd、Agent、Release、
@@ -367,6 +368,9 @@ tests/test_dsl_cli.py
 | G6 CLI/SDK | CLI、Python API 和 artifact 字段一致 |
 | G7 Standalone Release | wheel、schema、replay、ruff、pytest 和文档检查全部通过 |
 
+当前 G7 门禁结果和发行包 digest 记录在
+`docs/validation/DSL_COMPILER_G7_RELEASE_20260906.md`；该证据是互补开发计划的启动依据。
+
 Compiler standalone 完成后的硬条件：
 
 - 不导入 Agent、SSH、targetd 或真实设备依赖；
@@ -384,6 +388,17 @@ python -m ruff check src/rolo/dsl
 python scripts/check_docs.py
 python -m build
 ```
+
+Standalone CLI：
+
+```bash
+rolo-dsl check request.json
+rolo-dsl compile request.json --output-dir .rolo-dsl-output
+# 等价入口：python -m rolo.dsl check request.json
+```
+
+CLI 输入是对应的 `DslCheckRequest` 或 `DslCompileRequest` JSON 对象；输出为
+`DslCompileResult` JSON，失败状态使用非零退出码。
 
 ## 11. 对外交接契约
 

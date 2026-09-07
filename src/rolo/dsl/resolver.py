@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from .canonical import context_digest
 from .context import ProbeContext
 from .diagnostics import Diagnostic, DiagnosticReport, DiagnosticSeverity
 from .models import DslDocument
@@ -15,9 +16,25 @@ def resolve_evidence(document: DslDocument, context: ProbeContext | dict[str, An
     probe = _context(context)
     diagnostics: list[Diagnostic] = []
     if probe.robot_id != document.target.robot_id:
-        diagnostics.append(Diagnostic(code="TARGET_MISMATCH", path="target.robot_id", severity=DiagnosticSeverity.ERROR, message="DSL target does not match Probe Context"))
+        diagnostics.append(
+            Diagnostic(
+                code="TARGET_MISMATCH",
+                path="target.robot_id",
+                severity=DiagnosticSeverity.ERROR,
+                message="DSL target does not match Probe Context",
+                details={"context_robot_id": probe.robot_id, "dsl_robot_id": document.target.robot_id},
+            )
+        )
     if probe.evidence_digest != document.target.evidence_digest:
-        diagnostics.append(Diagnostic(code="EVIDENCE_DIGEST_MISMATCH", path="target.evidence_digest", severity=DiagnosticSeverity.ERROR, message="DSL evidence digest does not match Probe Context"))
+        diagnostics.append(
+            Diagnostic(
+                code="EVIDENCE_DIGEST_MISMATCH",
+                path="target.evidence_digest",
+                severity=DiagnosticSeverity.ERROR,
+                message="DSL evidence digest does not match Probe Context",
+                details={"context_digest": context_digest(probe)},
+            )
+        )
     available = set(probe.evidence_refs)
     routes = {item.get("resource_id") for item in probe.routes}
     schemas = {item.get("schema_id") for item in probe.message_schemas}
@@ -27,7 +44,15 @@ def resolve_evidence(document: DslDocument, context: ProbeContext | dict[str, An
             diagnostics.append(Diagnostic(code="EVIDENCE_REF_NOT_FOUND", path=f"evidence_refs[{index}]", severity=DiagnosticSeverity.ERROR, message=f"reference {reference!r} was not observed"))
     binding_ref = document.binding.get("resource_id")
     if binding_ref and binding_ref not in available:
-        diagnostics.append(Diagnostic(code="RESOURCE_NOT_OBSERVED", path="binding.resource_id", severity=DiagnosticSeverity.ERROR, message=f"resource {binding_ref!r} was not observed"))
+        diagnostics.append(
+            Diagnostic(
+                code="RESOURCE_NOT_OBSERVED",
+                path="binding.resource_id",
+                severity=DiagnosticSeverity.ERROR,
+                message=f"resource {binding_ref!r} was not observed",
+                details={"context_digest": context_digest(probe), "resource_id": binding_ref},
+            )
+        )
     schema_ref = document.binding.get("message_schema") or document.binding.get("message_type")
     if schema_ref and schema_ref not in schemas:
         diagnostics.append(Diagnostic(code="MESSAGE_SCHEMA_NOT_OBSERVED", path="binding.message_schema", severity=DiagnosticSeverity.ERROR, message=f"message schema {schema_ref!r} was not observed"))
@@ -41,4 +66,4 @@ def resolve_evidence(document: DslDocument, context: ProbeContext | dict[str, An
                     message=f"MHS manifest {reference!r} was not present in Probe Context",
                 )
             )
-    return DiagnosticReport(diagnostics=tuple(diagnostics))
+    return DiagnosticReport(diagnostics=tuple(diagnostics)).stable()

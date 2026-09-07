@@ -49,6 +49,12 @@ class ProbeStartResult(BaseModel):
     snapshot_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     episode_ref: str | None = None
     episode_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    discovery_session_id: str | None = None
+    compile_context_ref: str | None = None
+    compile_context_digest: str | None = None
+    candidate_index_ref: str | None = None
+    candidate_index_digest: str | None = None
+    bootstrap_ref: str | None = None
     next_step: str
     limitations: list[str] = Field(default_factory=list)
     observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -176,6 +182,17 @@ def run_probe_start(
     )
     artifact_root = settings.rolo_artifact_dir.resolve()
 
+    # A verified Bootstrap Probe immediately feeds the frozen Compiler handoff
+    # artifacts.  This is still read-only; no Tool is registered or executed.
+    from rolo.dsl.bootstrap import BootstrapProbeProfile, run_bootstrap_projection
+
+    bootstrap, _bootstrap_paths = run_bootstrap_projection(
+        bundle,
+        artifact_root,
+        profile=BootstrapProbeProfile(profile_id=f"{robot_id}-bootstrap", robot_id=robot_id),
+        evidence_verified=True,
+    )
+
     def artifact_ref(path: Path) -> str:
         return f"artifact://{path.resolve().relative_to(artifact_root).as_posix()}"
 
@@ -188,8 +205,14 @@ def run_probe_start(
         snapshot_sha256=snapshot.digest,
         episode_ref=artifact_ref(episode_path),
         episode_sha256=episode.content_sha256,
+        discovery_session_id=bootstrap.discovery_session_id,
+        compile_context_ref=bootstrap.compile_context_ref,
+        compile_context_digest=bootstrap.compile_context_digest,
+        candidate_index_ref=bootstrap.candidate_index_ref,
+        candidate_index_digest=bootstrap.candidate_index_digest,
+        bootstrap_ref=bootstrap.manifest_ref,
         next_step=(
-            f"agent reads `rolo target tool-surface --profile {robot_id}` and emits a ToolPlan"
+            f"agent reads `{bootstrap.candidate_index_ref}` and emits a digest-bound Mapping Proposal"
         ),
         limitations=["target evidence is a read-only snapshot, not a physical safety certificate"],
     )

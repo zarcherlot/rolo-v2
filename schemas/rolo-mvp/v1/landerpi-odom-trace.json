@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-mvp/v1/landerpi-odom-trace.json",
+  "title": "LanderPi read-only odom EKF trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "observed_at",
+    "duration_s",
+    "samples",
+    "executor_user",
+    "graph",
+    "nodes",
+    "services",
+    "series",
+    "topic_summaries",
+    "sample_records",
+    "tf_pairs",
+    "parameters",
+    "launch_environment",
+    "observation",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-landerpi-odom-trace/v1"},
+    "observed_at": {"type": "string", "minLength": 1},
+    "duration_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 300},
+    "samples": {"type": "integer", "minimum": 0},
+    "executor_user": {"type": "string", "minLength": 1},
+    "executor_uid": {"type": ["integer", "null"], "minimum": 0},
+    "publisher_user": {"type": ["string", "null"]},
+    "rmw_implementation": {"type": ["string", "null"]},
+    "ros_domain_id": {"type": ["string", "null"]},
+    "graph": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/topic_graph"}
+    },
+    "nodes": {"type": "array", "items": {"type": "string"}},
+    "services": {"type": "array", "items": {"type": "string"}},
+    "series": {"type": "object", "additionalProperties": {"$ref": "#/$defs/series_summary"}},
+    "topic_summaries": {"type": "object", "additionalProperties": {"type": "object"}},
+    "sample_records": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "object"}}},
+    "tf_pairs": {"type": "array", "items": {"type": "string"}},
+    "parameters": {"type": "object"},
+    "launch_environment": {"$ref": "#/$defs/launch_environment"},
+    "observation": {"$ref": "odom-ekf-observation.json"},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "series_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["count"],
+      "properties": {"count": {"type": "integer", "minimum": 0}}
+    },
+    "topic_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publisher_count", "subscription_count", "publisher_nodes", "subscription_nodes", "publishers", "subscriptions"],
+      "properties": {
+        "publisher_count": {"type": "integer", "minimum": 0},
+        "subscription_count": {"type": "integer", "minimum": 0},
+        "publisher_nodes": {"type": "array", "items": {"type": "string"}},
+        "subscription_nodes": {"type": "array", "items": {"type": "string"}},
+        "publishers": {"type": "array", "items": {"type": "object"}},
+        "subscriptions": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "launch_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_keys", "present", "missing", "complete"],
+      "properties": {
+        "required_keys": {"type": "array", "items": {"type": "string"}},
+        "present": {"type": "object", "additionalProperties": {"type": "string"}},
+        "missing": {"type": "array", "items": {"type": "string"}},
+        "complete": {"type": "boolean"}
+      }
+    }
+  }
+}

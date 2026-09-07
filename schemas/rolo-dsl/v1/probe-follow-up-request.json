@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-probe-follow-up-request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "journey_session_id", "reason_code", "requested_items", "context_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-probe-follow-up-request/v1"},
+    "journey_session_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "reason_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_.-]{1,63}$"},
+    "requested_items": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "string"}},
+    "context_digest": {"type": "string", "minLength": 1},
+    "max_attempts": {"type": "integer", "minimum": 1, "maximum": 32},
+    "max_artifacts": {"type": "integer", "minimum": 1, "maximum": 128},
+    "deadline_at": {"type": ["string", "null"], "format": "date-time"}
+  }
+}
