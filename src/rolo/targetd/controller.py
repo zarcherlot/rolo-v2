@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
+
 from rolo.core.artifacts import ArtifactStore
 from rolo.targets.executor import SshTargetExecutor
 
 from .protocol import ExecutionBundleManifest, ExecutionRequest, FrameKind, JourneySession, ProtocolFrame
 from .transport import JourneySessionClient, SshStdioChannel
+
+
+def _artifact_segment(value: str) -> str:
+    """Map a protocol identifier to a portable artifact filename segment."""
+
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", value)
+    if safe == value:
+        return safe
+    # Preserve readability while preventing two distinct keys from silently
+    # sharing one Windows filename after punctuation normalization.
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+    return f"{safe[:96]}-{digest}"
 
 
 class TargetdJourneyController:
@@ -59,6 +74,11 @@ class TargetdJourneyController:
                 "target_id": self.session.target_id,
                 "profile_id": self.session.profile_id,
                 "resume_token": self.session.resume_token,
+                **(
+                    {"surface_digest": self.session.surface_digest}
+                    if self.session.surface_digest is not None
+                    else {}
+                ),
             },
         )
 
@@ -104,7 +124,7 @@ class TargetdJourneyController:
             bundle_ref = signed_store.publish(bundle_artifact)
             relative = (
                 f"targetd/{self.session.target_id}/sessions/{self.session.session_id}/"
-                f"calls/{request.idempotency_key}.json"
+                f"calls/{_artifact_segment(request.idempotency_key)}.json"
             )
             payload = dict(response.payload)
             receipt = dict(payload.get("receipt") or {})
@@ -174,7 +194,7 @@ class TargetdJourneyController:
         if self.artifacts is not None:
             relative = (
                 f"targetd/{self.session.target_id}/sessions/{self.session.session_id}/"
-                f"calls/{idempotency_key}-query.json"
+                f"calls/{_artifact_segment(idempotency_key)}-query.json"
             )
             self.artifacts.write_json(relative, response.payload)
         return response

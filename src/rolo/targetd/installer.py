@@ -13,6 +13,8 @@ from pydantic import Field
 from rolo.dsl.models import StrictModel
 from rolo.targets.executor import SshTargetExecutor
 
+MAPPING_RUNTIME_SOURCE = "landerpi_autonomous_mapping_runtime.py"
+
 
 class TargetdInstallManifest(StrictModel):
     """Digest and version record embedded in every targetd installation."""
@@ -33,15 +35,11 @@ class TargetdInstaller:
 
     def build_archive(self) -> bytes:
         """Build a deterministic source archive containing the complete rolo package."""
-        source_root = self.package_root / "rolo"
-        if not source_root.is_dir():
-            raise ValueError(f"Rolo source package is missing: {source_root}")
-        files = sorted(source_root.rglob("*.py"))
-        source_digest = self._source_digest(files, source_root)
+        entries = self._archive_entries()
+        source_digest = self._source_digest(entries)
         output = io.BytesIO()
         with tarfile.open(fileobj=output, mode="w") as archive:
-            for path in files:
-                arcname = str(Path("rolo") / path.relative_to(source_root))
+            for path, arcname in entries:
                 info = archive.gettarinfo(str(path), arcname=arcname)
                 info.mtime = 0
                 info.uid = info.gid = 0
@@ -51,7 +49,7 @@ class TargetdInstaller:
             manifest = TargetdInstallManifest(
                 package_version=self.package_version,
                 archive_sha256=source_digest,
-                files=tuple(str(Path("rolo") / path.relative_to(source_root)).replace("\\", "/") for path in files),
+                files=tuple(arcname for _, arcname in entries),
             )
             encoded = manifest.model_dump_json().encode("utf-8")
             info = tarfile.TarInfo("rolo/INSTALL-MANIFEST.json")
@@ -63,29 +61,54 @@ class TargetdInstaller:
 
     def manifest(self) -> TargetdInstallManifest:
         """Return the local source manifest without contacting a target."""
-        source_root = self.package_root / "rolo"
-        files_on_disk = sorted(source_root.rglob("*.py"))
-        files = tuple(
-            str(Path("rolo") / path.relative_to(source_root)).replace("\\", "/")
-            for path in files_on_disk
-        )
+        entries = self._archive_entries()
         return TargetdInstallManifest(
             package_version=self.package_version,
-            archive_sha256=self._source_digest(files_on_disk, source_root),
-            files=files,
+            archive_sha256=self._source_digest(entries),
+            files=tuple(arcname for _, arcname in entries),
         )
 
     @staticmethod
-    def _source_digest(files: list[Path], source_root: Path) -> str:
+    def _source_digest(entries: list[tuple[Path, str]]) -> str:
         digest = hashlib.sha256()
-        for path in files:
-            relative = str(path.relative_to(source_root)).replace("\\", "/").encode("utf-8")
+        for path, arcname in entries:
+            relative = arcname.replace("\\", "/").encode("utf-8")
             content = path.read_bytes()
             digest.update(len(relative).to_bytes(4, "big"))
             digest.update(relative)
             digest.update(len(content).to_bytes(8, "big"))
             digest.update(content)
         return digest.hexdigest()
+
+    def _archive_entries(self) -> list[tuple[Path, str]]:
+        """Return deterministic package files plus the reviewed mapping runtime.
+
+        ``targetd`` is installed as a source tree rather than a wheel.  The
+        mapping provider source intentionally lives in ``scripts/`` because it
+        is a target-only debug runtime, so it would otherwise be omitted from
+        the archive and unavailable after an SSH install.  Put it next to the
+        worker under the package namespace on the target.  Small fixture trees
+        used by installer tests (and downstream callers) do not have a
+        ``scripts/`` sibling, in which case the ordinary package-only archive
+        remains unchanged.
+        """
+        source_root = self.package_root / "rolo"
+        if not source_root.is_dir():
+            raise ValueError(f"Rolo source package is missing: {source_root}")
+
+        entries = [
+            (
+                path,
+                str(Path("rolo") / path.relative_to(source_root)).replace("\\", "/"),
+            )
+            for path in sorted(source_root.rglob("*.py"))
+        ]
+        arcname = f"rolo/targetd/{MAPPING_RUNTIME_SOURCE}"
+        runtime = self.package_root.parent / "scripts" / MAPPING_RUNTIME_SOURCE
+        if runtime.is_file() and all(existing_arcname != arcname for _, existing_arcname in entries):
+            entries.append((runtime, arcname))
+        entries.sort(key=lambda item: item[1])
+        return entries
 
     @staticmethod
     def _validate_remote_root(remote_root: str) -> None:

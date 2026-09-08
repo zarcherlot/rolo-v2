@@ -55,6 +55,32 @@ def test_targetd_installer_archive_contains_rolo_package(tmp_path: Path):
         ]
 
 
+def test_targetd_installer_bundles_mapping_runtime_next_to_worker(tmp_path: Path):
+    package = tmp_path / "src" / "rolo"
+    (package / "targetd").mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "targetd" / "worker.py").write_text("# worker\n", encoding="utf-8")
+    runtime = tmp_path / "scripts" / "landerpi_autonomous_mapping_runtime.py"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_text("# reviewed mapping runtime\n", encoding="utf-8")
+    executor = SshTargetExecutor(
+        parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts"
+    )
+    installer = TargetdInstaller(executor, package_root=tmp_path / "src")
+    archive = installer.build_archive()
+    import io
+    import tarfile
+
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as tar:
+        bundled = tar.extractfile("rolo/targetd/landerpi_autonomous_mapping_runtime.py")
+        assert bundled is not None
+        assert bundled.read() == runtime.read_bytes()
+        manifest = tar.extractfile("rolo/INSTALL-MANIFEST.json")
+        assert manifest is not None
+        assert "rolo/targetd/landerpi_autonomous_mapping_runtime.py" in manifest.read().decode()
+    assert "rolo/targetd/landerpi_autonomous_mapping_runtime.py" in installer.manifest().files
+
+
 def test_targetd_installer_manifest_is_stable_and_uninstall_requires_confirmation(tmp_path: Path):
     package = tmp_path / "src" / "rolo"
     package.mkdir(parents=True)
