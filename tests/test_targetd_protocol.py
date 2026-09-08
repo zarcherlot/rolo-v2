@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+import rolo.targetd.worker as worker_module
 from rolo.core.hashing import canonical_json_sha256
 from rolo.targetd import (
     BundleCache,
@@ -289,6 +290,32 @@ def test_targetd_daemon_handoff_updates_persisted_phase(tmp_path):
     assert service.state.load_session(session.session_id).phase.value == "PROBE"
 
 
+def test_targetd_daemon_open_rejects_surface_digest_conflict(tmp_path):
+    service = TargetdService(target_id="mentorpi", state_root=tmp_path / "state")
+    session = service.open_session(
+        JourneySession.create(
+            session_id="surface-conflict",
+            target_id="mentorpi",
+            profile_id="landerpi",
+        ).model_copy(update={"surface_digest": "a" * 64})
+    )
+    daemon = TargetdDaemon(service)
+    response = daemon._handle(
+        ProtocolFrame.create(
+            kind=FrameKind.OPEN_JOURNEY,
+            sequence=0,
+            session_id=session.session_id,
+            payload={
+                "target_id": "mentorpi",
+                "profile_id": "landerpi",
+                "surface_digest": "b" * 64,
+            },
+        )
+    )
+    assert response.payload["ok"] is False
+    assert "surface digest conflicts" in response.payload["error"]
+
+
 def test_targetd_daemon_resumes_session_and_queries_receipt(tmp_path):
     service = TargetdService(target_id="mentorpi", state_root=tmp_path / "state")
     session = service.open_session(
@@ -476,6 +503,29 @@ def test_targetd_generic_receipt_preserves_explicit_result_status(reported, expe
     assert TargetdDaemon._terminal_status(manifest, reported) == expected
 
 
+@pytest.mark.parametrize(
+    ("reported", "expected"),
+    [
+        ({"status": "SUCCEEDED"}, "SUCCEEDED"),
+        ({"status": "STOPPED"}, "STOPPED"),
+        ({"status": "CANCELLED"}, "CANCELLED"),
+        ({"status": "FAILED"}, "FAILED"),
+        ({"status": "BLOCKED"}, "FAILED"),
+        ({"status": "RUNNING"}, "UNKNOWN"),
+        ({"value": "missing-status"}, "UNKNOWN"),
+    ],
+)
+def test_targetd_mapping_receipt_is_terminal_and_fail_closed(reported, expected):
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.mapping.status",
+        source=b"def execute(arguments): return arguments\n",
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+    )
+    assert TargetdDaemon._terminal_status(manifest, reported) == expected
+
+
 def test_python_bundle_worker_uses_generic_entrypoint_and_limits_output():
     source = b"def execute(arguments):\n    return {'received': arguments}\n"
     manifest = ExecutionBundleManifest.build(
@@ -541,6 +591,54 @@ def test_python_bundle_worker_does_not_alias_ros_rotation_through_generic_tool()
     with pytest.raises(ProtocolError, match="requires app.base.rotate"):
         PythonBundleWorker(RosContainerProvider("MentorPi")).execute(
             manifest, source, {"angle_degrees": 1, "max_speed_rad_s": 0.1}
+        )
+
+
+def test_python_bundle_worker_allows_registered_mapping_tool(monkeypatch):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen["input"] = kwargs["input"]
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": '{"schema_version":"rolo-landerpi-mapping-runtime/v1","status":"SUCCEEDED","mode":"status"}\n',
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    source = b"def execute(arguments, provider):\n    return provider.invoke('mapping.status', arguments)\n"
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.mapping.status",
+        source=source,
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+        observation_contract=_mapping_contract(),
+    )
+    result = PythonBundleWorker(RosContainerProvider("MentorPi")).execute(
+        manifest, source, {"status_window_s": 2}
+    )
+    assert result["status"] == "SUCCEEDED"
+    assert "--mode\",\"status" in seen["input"]
+
+
+def test_python_bundle_worker_rejects_mapping_tool_operation_alias(monkeypatch):
+    source = b"def execute(arguments, provider):\n    return provider.invoke('mapping.stop', arguments)\n"
+    manifest = ExecutionBundleManifest.build(
+        tool_id="app.mapping.status",
+        source=source,
+        binding_digest="a" * 64,
+        signer_key_id="rolo-dev",
+        signing_key=b"secret",
+        observation_contract=_mapping_contract(),
+    )
+    with pytest.raises(ProtocolError, match="operation mismatches|tool id"):
+        PythonBundleWorker(RosContainerProvider("MentorPi")).execute(
+            manifest, source, {}
         )
 
 
@@ -636,6 +734,180 @@ def test_ros_container_provider_preserves_v1_topic_contract_alias(monkeypatch):
         },
     )
     assert _embedded_provider_request(seen["input"])["command_endpoint"] == "/controller/cmd_vel"
+
+
+def _mapping_contract(operation: str = "mapping.status") -> dict[str, str]:
+    return {
+        "provider": "ros-container",
+        "operation": operation,
+        "runtime": "rolo-mapping-v1",
+        "cmd_topic": "/controller/cmd_vel",
+        "scan_topic": "/scan",
+        "odom_topic": "/odom",
+        "map_topic": "/map",
+        "stop_marker": "/tmp/rolo-mapping-stop",
+        "status_file": "/tmp/rolo-mapping-status.json",
+        "map_dir": "/home/ubuntu/rolo_debug/maps",
+    }
+
+
+def _embedded_mapping_argv(program: str) -> list[str]:
+    match = re.search(r"sys\.argv = (\[.*\])\n", program)
+    assert match is not None
+    return json.loads(match.group(1))
+
+
+def test_ros_container_provider_mapping_uses_fixed_runtime_and_contract(monkeypatch):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen["command"] = command
+        seen["input"] = kwargs["input"]
+        seen["timeout"] = kwargs["timeout"]
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": '{"schema_version":"rolo-landerpi-mapping-runtime/v1","status":"SUCCEEDED","mode":"status"}\n',
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    result = RosContainerProvider("MentorPi").invoke(
+        "mapping.status",
+        {"status_window_s": 3, "__rolo_observation_contract": _mapping_contract()},
+    )
+    assert result["status"] == "SUCCEEDED"
+    assert seen["command"][:7] == ["docker", "exec", "-i", "-u", "ubuntu", "MentorPi", "bash"]
+    argv = _embedded_mapping_argv(seen["input"])
+    assert argv[:3] == ["rolo_mapping_runtime", "--mode", "status"]
+    assert "--cmd-topic" in argv and "/controller/cmd_vel" in argv
+    assert "--map-topic" in argv and "/map" in argv
+    # The reviewed runtime reserves the fixed topic-publisher fallback for the
+    # explicit stop operation; status itself remains a sensor observation.
+    assert "_stop_immediate" in seen["input"]
+    assert "rolo-landerpi-mapping-runtime/v1" in seen["input"]
+    # Status is bounded by its observation window; a stalled DDS graph must
+    # not hold the targetd channel for the provider's 120-second default.
+    assert seen["timeout"] == 11.0
+
+
+def test_mapping_runtime_source_prefers_installed_worker_adjacent_copy(tmp_path, monkeypatch):
+    worker_path = tmp_path / "remote" / "rolo" / "targetd" / "worker.py"
+    worker_path.parent.mkdir(parents=True)
+    worker_path.write_text("# worker\n", encoding="utf-8")
+    bundled = worker_path.with_name("landerpi_autonomous_mapping_runtime.py")
+    bundled.write_text("# bundled runtime\n", encoding="utf-8")
+    monkeypatch.setattr(worker_module, "__file__", str(worker_path))
+    assert RosContainerProvider._mapping_runtime_source() == bundled.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("operation", "arguments", "mode"),
+    [
+        ("mapping.run", {"duration_s": 5, "max_distance_m": 0.2, "obstacle_stop_m": 0.3}, "run"),
+        ("mapping.stop", {}, "stop"),
+        ("mapping.save", {"map_name": "field-1", "save_timeout_s": 5}, "save"),
+    ],
+)
+def test_ros_container_provider_mapping_operations_have_fixed_modes(
+    monkeypatch, operation, arguments, mode
+):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen["input"] = kwargs["input"]
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": json.dumps(
+                    {
+                        "schema_version": "rolo-landerpi-mapping-runtime/v1",
+                        "status": "STOPPED",
+                        "mode": mode,
+                    }
+                ) + "\n",
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    provider = RosContainerProvider("MentorPi", autonomous_source_confirmed=True)
+    result = provider.invoke(
+        operation,
+        {**arguments, "__rolo_observation_contract": _mapping_contract(operation)},
+    )
+    assert result["mode"] == mode
+    argv = _embedded_mapping_argv(seen["input"])
+    assert argv[argv.index("--mode") + 1] == mode
+
+
+@pytest.mark.parametrize(
+    "contract_update",
+    [
+        {"runtime": "other"},
+        {"operation": "mapping.run"},
+        {"provider": "other"},
+        {"map_dir": "/tmp/escape"},
+        {"unexpected": "field"},
+    ],
+)
+def test_ros_container_provider_mapping_contract_fails_closed(contract_update):
+    contract = _mapping_contract()
+    contract.update(contract_update)
+    with pytest.raises(ProtocolError, match="mapping"):
+        RosContainerProvider("MentorPi").invoke(
+            "mapping.status",
+            {"__rolo_observation_contract": contract},
+        )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"status_window_s": 0.9},
+        {"status_window_s": True},
+        {"unknown": 1},
+    ],
+)
+def test_ros_container_provider_mapping_arguments_fail_closed(arguments):
+    with pytest.raises(ProtocolError, match="mapping"):
+        RosContainerProvider("MentorPi").invoke(
+            "mapping.status",
+            {**arguments, "__rolo_observation_contract": _mapping_contract()},
+        )
+
+
+def test_ros_container_provider_mapping_run_requires_supervised_source_confirmation():
+    with pytest.raises(ProtocolError, match="confirmation"):
+        RosContainerProvider("MentorPi").invoke(
+            "mapping.run",
+            {"__rolo_observation_contract": _mapping_contract("mapping.run")},
+        )
+
+
+@pytest.mark.parametrize(
+    "stdout",
+    [
+        '{"status":"SUCCEEDED","mode":"status"}\n',
+        '{"schema_version":"other","status":"SUCCEEDED","mode":"status"}\n',
+        '{"schema_version":"rolo-landerpi-mapping-runtime/v1","status":"SUCCEEDED","mode":"run"}\n',
+    ],
+)
+def test_ros_container_provider_mapping_result_contract_is_strict(monkeypatch, stdout):
+    def fake_run(command, **kwargs):
+        return type("Completed", (), {"returncode": 0, "stdout": stdout, "stderr": ""})()
+
+    monkeypatch.setattr("rolo.targetd.worker.subprocess.run", fake_run)
+    with pytest.raises(ProtocolError, match="mapping provider result"):
+        RosContainerProvider("MentorPi").invoke(
+            "mapping.status",
+            {"__rolo_observation_contract": _mapping_contract()},
+        )
 
 
 @pytest.mark.parametrize(

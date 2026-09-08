@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import subprocess
 from collections.abc import Mapping
 from pathlib import Path
@@ -20,6 +21,63 @@ from .protocol import ExecutionBundleManifest, ProtocolError
 
 MAX_ROTATION_ANGLE_DEGREES = 30.0
 MAX_ROTATION_SPEED_RAD_S = 0.15
+
+# Mapping is deliberately a small, target-only provider surface.  The
+# operation names below are the provider names; the corresponding published
+# Tool ids retain the ``app.`` prefix.  Keeping this table explicit prevents a
+# generated bundle from turning an arbitrary string into a target-side
+# executable operation.
+MAPPING_RUNTIME_ID = "rolo-mapping-v1"
+MAPPING_RUNTIME_SOURCE = "landerpi_autonomous_mapping_runtime.py"
+MAPPING_TOOL_OPERATIONS = {
+    "app.mapping.status": "mapping.status",
+    "app.mapping.save": "mapping.save",
+    "app.mapping.run": "mapping.run",
+    "app.mapping.stop": "mapping.stop",
+}
+MAPPING_OPERATIONS = frozenset(MAPPING_TOOL_OPERATIONS.values())
+MAPPING_STATUSES = frozenset(
+    {"SUCCEEDED", "RUNNING", "STOPPED", "CANCELLED", "FAILED", "UNKNOWN", "NOT_ACCEPTED", "BLOCKED"}
+)
+_MAPPING_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+
+# These defaults are also the only filesystem locations accepted by the
+# temporary LanderPi runtime.  They are intentionally not caller-controlled:
+# a signed observation contract may repeat them, but may not redirect a save
+# operation into an arbitrary target path.
+MAPPING_DEFAULTS: dict[str, str] = {
+    "cmd_topic": "/controller/cmd_vel",
+    "scan_topic": "/scan",
+    "odom_topic": "/odom",
+    "map_topic": "/map",
+    "stop_marker": "/tmp/rolo-mapping-stop",
+    "status_file": "/tmp/rolo-mapping-status.json",
+    "map_dir": "/home/ubuntu/rolo_debug/maps",
+}
+
+_MAPPING_CONTRACT_KEYS = frozenset(
+    {
+        "provider",
+        "operation",
+        "runtime",
+        "cmd_topic",
+        "scan_topic",
+        "odom_topic",
+        "map_topic",
+        "stop_marker",
+        "status_file",
+        "map_dir",
+        # The endpoint spellings are accepted as a v1 compatibility alias for
+        # the route vocabulary used by rotation bindings.  They normalize to
+        # the fixed runtime names above and cannot be supplied together with
+        # the canonical spelling.
+        "command_endpoint",
+        "scan_endpoint",
+        "odom_endpoint",
+        "map_endpoint",
+    }
+)
+_MAPPING_ENDPOINT_KEYS = ("cmd_topic", "scan_topic", "odom_topic", "map_topic")
 
 
 class Provider(Protocol):
@@ -45,8 +103,300 @@ class RosContainerProvider:
         self.autonomous_source_confirmed = bool(autonomous_source_confirmed)
 
     def invoke(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Invoke one explicitly registered ROS operation.
+
+        ``base.rotate`` keeps its existing compatibility behavior.  Mapping
+        operations are intentionally separate: they always require a signed
+        observation contract and are dispatched through the fixed, bounded
+        runtime source in ``scripts/``.  No operation name is ever converted
+        into a shell command or module path.
+        """
+
+        normalized_operation = self._normalize_mapping_operation(operation)
+        if normalized_operation in MAPPING_OPERATIONS:
+            return self._invoke_mapping(normalized_operation, arguments)
         if operation != "base.rotate":
             raise ProtocolError(f"ROS provider operation is not registered: {operation}")
+        return self._invoke_rotation(operation, arguments)
+
+    @staticmethod
+    def _normalize_mapping_operation(operation: str) -> str:
+        if operation in MAPPING_OPERATIONS:
+            return operation
+        if isinstance(operation, str) and operation.startswith("app.mapping."):
+            candidate = operation[4:]
+            if candidate in MAPPING_OPERATIONS:
+                return candidate
+        return ""
+
+    @staticmethod
+    def _safe_endpoint(value: Any, field: str) -> str:
+        if (
+            not isinstance(value, str)
+            or not value.startswith("/")
+            or len(value) > 127
+            or ".." in value
+            or any(character in value for character in "\x00\r\n '\";")
+        ):
+            raise ProtocolError(f"mapping {field} is invalid")
+        return value
+
+    @classmethod
+    def _mapping_contract(
+        cls,
+        operation: str,
+        raw_contract: Any,
+        *,
+        tool_id: str | None = None,
+    ) -> dict[str, str]:
+        """Validate and normalize the fixed mapping observation contract."""
+
+        if not isinstance(raw_contract, Mapping) or not raw_contract:
+            raise ProtocolError("mapping observation contract is required")
+        contract = dict(raw_contract)
+        unknown = sorted(set(contract) - _MAPPING_CONTRACT_KEYS)
+        if unknown:
+            raise ProtocolError(f"mapping observation contract has unknown fields: {unknown}")
+        if contract.get("provider") != "ros-container":
+            raise ProtocolError("mapping observation provider is required")
+        declared_operation = cls._normalize_mapping_operation(str(contract.get("operation", "")))
+        if declared_operation != operation:
+            raise ProtocolError("mapping observation operation mismatches provider")
+        if contract.get("runtime") != MAPPING_RUNTIME_ID:
+            raise ProtocolError("mapping runtime contract is unsupported")
+        if tool_id is not None:
+            expected_tool = next(
+                (candidate for candidate, candidate_operation in MAPPING_TOOL_OPERATIONS.items()
+                 if candidate_operation == operation),
+                None,
+            )
+            if tool_id != expected_tool:
+                raise ProtocolError("mapping tool id does not match provider operation")
+
+        normalized: dict[str, str] = {
+            "provider": "ros-container",
+            "operation": operation,
+            "runtime": MAPPING_RUNTIME_ID,
+        }
+        aliases = {
+            "cmd_topic": "command_endpoint",
+            "scan_topic": "scan_endpoint",
+            "odom_topic": "odom_endpoint",
+            "map_topic": "map_endpoint",
+        }
+        for canonical in _MAPPING_ENDPOINT_KEYS:
+            alias = aliases[canonical]
+            canonical_value = contract.get(canonical)
+            alias_value = contract.get(alias)
+            if canonical_value is None and alias_value is None:
+                raise ProtocolError(f"mapping {canonical} is required")
+            if canonical_value is not None and alias_value is not None and canonical_value != alias_value:
+                raise ProtocolError(f"mapping {canonical} conflicts with {alias}")
+            value = canonical_value if canonical_value is not None else alias_value
+            normalized[canonical] = cls._safe_endpoint(value, canonical)
+
+        # Filesystem paths are fixed to the debug runtime's bounded locations.
+        # Accepting a different path here would turn a signed mapping Tool into
+        # a general file writer, so fail closed even when the path is syntactically
+        # safe.
+        for field in ("stop_marker", "status_file", "map_dir"):
+            if field not in contract:
+                raise ProtocolError(f"mapping {field} is required")
+            value = contract[field]
+            if value != MAPPING_DEFAULTS[field]:
+                raise ProtocolError(f"mapping {field} is not the fixed debug path")
+            normalized[field] = value
+        return normalized
+
+    @staticmethod
+    def _number(
+        value: Any,
+        field: str,
+        *,
+        lower: float,
+        upper: float,
+    ) -> float:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ProtocolError(f"mapping {field} is invalid")
+        try:
+            result = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ProtocolError(f"mapping {field} is invalid") from exc
+        if not math.isfinite(result) or not lower <= result <= upper:
+            raise ProtocolError(f"mapping {field} is outside provider limits")
+        return result
+
+    @classmethod
+    def _mapping_arguments(cls, operation: str, raw_arguments: Any) -> dict[str, Any]:
+        if not isinstance(raw_arguments, Mapping):
+            raise ProtocolError("mapping arguments must be an object")
+        arguments = dict(raw_arguments)
+        # Reserved keys are inserted by PythonBundleWorker, never accepted as
+        # user arguments.  They are removed by ``_invoke_mapping`` first.
+        schemas: dict[str, tuple[set[str], dict[str, Any]]] = {
+            "mapping.status": (
+                {"status_window_s"},
+                {"status_window_s": 4.0},
+            ),
+            "mapping.run": (
+                {"duration_s", "max_distance_m", "obstacle_stop_m"},
+                {"duration_s": 60.0, "max_distance_m": 3.0, "obstacle_stop_m": 0.55},
+            ),
+            "mapping.stop": (set(), {}),
+            "mapping.save": (
+                {"map_name", "save_timeout_s"},
+                {"map_name": "rolo_debug_map", "save_timeout_s": 30.0},
+            ),
+        }
+        allowed, defaults = schemas[operation]
+        unknown = sorted(set(arguments) - allowed)
+        if unknown:
+            raise ProtocolError(f"mapping arguments have unknown fields: {unknown}")
+        values = {**defaults, **arguments}
+        if operation == "mapping.status":
+            values["status_window_s"] = cls._number(
+                values["status_window_s"], "status_window_s", lower=1.0, upper=30.0
+            )
+        elif operation == "mapping.run":
+            values["duration_s"] = cls._number(
+                values["duration_s"], "duration_s", lower=5.0, upper=120.0
+            )
+            values["max_distance_m"] = cls._number(
+                values["max_distance_m"], "max_distance_m", lower=0.2, upper=10.0
+            )
+            values["obstacle_stop_m"] = cls._number(
+                values["obstacle_stop_m"], "obstacle_stop_m", lower=0.3, upper=1.2
+            )
+        elif operation == "mapping.save":
+            map_name = values["map_name"]
+            if not isinstance(map_name, str) or not _MAPPING_NAME.fullmatch(map_name):
+                raise ProtocolError("mapping map_name is invalid")
+            values["save_timeout_s"] = cls._number(
+                values["save_timeout_s"], "save_timeout_s", lower=5.0, upper=120.0
+            )
+        return values
+
+    @staticmethod
+    def _mapping_runtime_source() -> str:
+        # Installed targetd runs from a self-contained source tree.  The
+        # installer places the reviewed runtime beside this worker so the
+        # target does not need a checkout of the controller repository.  Keep
+        # the repository ``scripts/`` fallback for local development and for
+        # source-tree tests, but never accept a caller-provided path or source
+        # blob.
+        worker_path = Path(__file__).resolve()
+        candidates = [worker_path.with_name(MAPPING_RUNTIME_SOURCE)]
+        # ``worker.py`` normally lives at ``<repo>/src/rolo/targetd``.  Keep
+        # the fallback guarded for embedded/minimal package layouts where the
+        # expected ancestor does not exist.
+        if len(worker_path.parents) > 3:
+            candidates.append(worker_path.parents[3] / "scripts" / MAPPING_RUNTIME_SOURCE)
+        for path in candidates:
+            try:
+                return path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+        raise ProtocolError("mapping runtime source is unavailable")
+
+    def _invoke_mapping(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        raw_arguments = dict(arguments)
+        raw_contract = raw_arguments.pop("__rolo_observation_contract", None)
+        raw_tool_id = raw_arguments.pop("__rolo_tool_id", None)
+        contract = self._mapping_contract(operation, raw_contract, tool_id=raw_tool_id)
+        values = self._mapping_arguments(operation, raw_arguments)
+        if operation == "mapping.run" and not self.autonomous_source_confirmed:
+            raise ProtocolError("mapping autonomous source confirmation is required")
+
+        mode = operation.rsplit(".", 1)[1]
+        argv = [
+            "rolo_mapping_runtime",
+            "--mode", mode,
+            "--cmd-topic", contract["cmd_topic"],
+            "--scan-topic", contract["scan_topic"],
+            "--odom-topic", contract["odom_topic"],
+            "--map-topic", contract["map_topic"],
+            "--stop-marker", contract["stop_marker"],
+            "--status-file", contract["status_file"],
+            "--map-dir", contract["map_dir"],
+        ]
+        for key, flag in (
+            ("status_window_s", "--status-window-s"),
+            ("duration_s", "--duration-s"),
+            ("max_distance_m", "--max-distance-m"),
+            ("obstacle_stop_m", "--obstacle-stop-m"),
+            ("map_name", "--map-name"),
+            ("save_timeout_s", "--save-timeout-s"),
+        ):
+            if key in values:
+                argv.extend([flag, str(values[key])])
+        if operation == "mapping.run":
+            argv.append("--autonomous-source-confirmed")
+        runtime = self._mapping_runtime_source()
+        program = (
+            "import json, sys\n"
+            f"sys.argv = {json.dumps(argv, ensure_ascii=False, separators=(',', ':'))}\n"
+            f"exec(compile({json.dumps(runtime, ensure_ascii=False)}, '<rolo-mapping-runtime>', 'exec'), {{'__name__': '__main__'}})\n"
+        )
+        provider_timeout = self.timeout_s
+        if operation == "mapping.stop":
+            # A stop is a safety action, not a long-running exploration.
+            # Bound discovery/context teardown separately so a stuck DDS
+            # graph cannot hold the targetd channel for the full provider
+            # default (128 seconds in the field).
+            provider_timeout = min(provider_timeout, 15.0)
+        elif operation == "mapping.status":
+            provider_timeout = min(provider_timeout, float(values.get("status_window_s", 4.0)) + 8.0)
+        elif operation == "mapping.save":
+            provider_timeout = min(provider_timeout, float(values.get("save_timeout_s", 30.0)) + 8.0)
+        execution_timeout = max(provider_timeout, float(values.get("duration_s", 0.0)) + 8.0)
+        reaper_timeout = max(1.0, execution_timeout - 1.0)
+        command = [
+            "docker", "exec", "-i", "-u", self.container_user, self.container,
+            "bash", "--noprofile", "--norc", "-c",
+            "if [ -f /opt/ros/humble/setup.bash ]; then . /opt/ros/humble/setup.bash; fi; "
+            "if [ -f /home/ubuntu/ros2_ws/install/setup.bash ]; then . /home/ubuntu/ros2_ws/install/setup.bash; fi; "
+            # The provider is fed over stdin.  GNU timeout inside the
+            # container is an independent reaper: if the DDS interpreter
+            # ignores rclpy shutdown, closing the outer docker exec must not
+            # leave an anonymous ``python3 -`` publisher behind.
+            f"exec timeout --foreground --kill-after=2s "
+            f"{reaper_timeout:.3f}s python3 -",
+        ]
+        try:
+            completed = subprocess.run(
+                command,
+                input=f"{program}\n",
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=execution_timeout,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise ProtocolError(f"mapping provider execution failed: {exc}") from exc
+        if completed.returncode not in {0, 2}:
+            raise ProtocolError(
+                f"mapping provider exited {completed.returncode}: {completed.stderr[-512:]}"
+            )
+        try:
+            output = completed.stdout.strip().splitlines()[-1]
+            result = loads_unique_json(output)
+        except (IndexError, ValueError) as exc:
+            raise ProtocolError("mapping provider returned invalid JSON") from exc
+        if not isinstance(result, dict):
+            raise ProtocolError("mapping provider result is not an object")
+        if result.get("schema_version") != "rolo-landerpi-mapping-runtime/v1":
+            raise ProtocolError("mapping provider result schema is unsupported")
+        status = result.get("status")
+        if not isinstance(status, str) or status.upper() not in MAPPING_STATUSES:
+            raise ProtocolError("mapping provider result status is invalid")
+        result["status"] = status.upper()
+        if result.get("mode") != mode:
+            raise ProtocolError("mapping provider result mode mismatches operation")
+        if completed.returncode == 2:
+            result.setdefault("runtime_returncode", completed.returncode)
+        return result
+
+    def _invoke_rotation(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         arguments = dict(arguments)
         # The signed bundle manifest is the source of truth for target routes.
         # ``PythonBundleWorker`` passes it under a reserved, internal key so a
@@ -225,16 +575,25 @@ class PythonBundleWorker:
                 # contracts.  The ROS provider itself fail-closes when this
                 # marker is present but the contract is empty/invalid.
                 if isinstance(self.provider, RosContainerProvider):
-                    # This provider currently exposes one physical write
-                    # operation.  Do not let a differently named generic
-                    # bundle invoke ``base.rotate`` and then inherit the
-                    # generic receipt path (which would bypass the exact
-                    # angle/evidence gate in targetd.
-                    if manifest.tool_id != "app.base.rotate":
-                        raise ProtocolError(
-                            "ROS rotation provider requires app.base.rotate"
-                        )
+                    # Keep the provider allowlist tied to the signed Tool id.
+                    # A bundle cannot invoke rotation or mapping under a
+                    # differently named generic Tool and thereby bypass the
+                    # operation-specific receipt/evidence gates.
+                    expected_operation = {
+                        "app.base.rotate": "base.rotate",
+                        **MAPPING_TOOL_OPERATIONS,
+                    }.get(manifest.tool_id)
+                    if expected_operation is None:
+                        if manifest.observation_contract.get("operation") == "base.rotate":
+                            # Preserve the stable diagnostic used by the
+                            # rotation aliasing gate and its callers.
+                            raise ProtocolError(
+                                "ROS rotation provider requires app.base.rotate"
+                            )
+                        raise ProtocolError("ROS provider tool is not registered")
                     provider_arguments["__rolo_observation_contract"] = manifest.observation_contract
+                    if manifest.tool_id in MAPPING_TOOL_OPERATIONS:
+                        provider_arguments["__rolo_tool_id"] = manifest.tool_id
                 result = entrypoint(provider_arguments, self.provider)
             else:
                 result = entrypoint(arguments)

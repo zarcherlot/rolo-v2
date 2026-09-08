@@ -29,7 +29,12 @@ from .protocol import (
     encode_frame,
 )
 from .service import TargetdService
-from .worker import Provider, PythonBundleWorker, RosContainerProvider
+from .worker import (
+    MAPPING_TOOL_OPERATIONS,
+    Provider,
+    PythonBundleWorker,
+    RosContainerProvider,
+)
 
 
 def _read_exact(stream, size: int) -> bytes:
@@ -128,7 +133,21 @@ class TargetdDaemon:
                 supplied_token = frame.payload.get("resume_token")
                 if supplied_token:
                     session = session.model_copy(update={"resume_token": str(supplied_token)})
+                supplied_surface = frame.payload.get("surface_digest")
+                if supplied_surface is not None:
+                    session = session.model_copy(update={"surface_digest": str(supplied_surface)})
                 self.service.open_session(session)
+            else:
+                if session.target_id != target_id or session.profile_id != profile_id:
+                    raise ProtocolError("journey session identity conflicts with stored session")
+                supplied_surface = frame.payload.get("surface_digest")
+                if supplied_surface is not None:
+                    supplied_surface = str(supplied_surface)
+                    if session.surface_digest not in (None, supplied_surface):
+                        raise ProtocolError("journey session surface digest conflicts with stored session")
+                    if session.surface_digest is None:
+                        session = session.model_copy(update={"surface_digest": supplied_surface})
+                        self.service.state.save_session(session)
             self._session = session
             return {"session": session.model_dump(mode="json")}
         if frame.kind == FrameKind.RESUME_SESSION:
@@ -218,6 +237,23 @@ class TargetdDaemon:
         receipt for diagnosis/replay.
         """
 
+        if manifest.tool_id in MAPPING_TOOL_OPERATIONS:
+            # Mapping is a target-side physical/debug operation too.  Unlike a
+            # generic EXECUTE bundle, a missing status must never be promoted
+            # to success; the provider contract is deliberately terminal and
+            # fail-closed.
+            if not isinstance(result, dict) or "status" not in result:
+                return "UNKNOWN"
+            status = str(result.get("status", "UNKNOWN")).upper()
+            if status in {"SUCCEEDED", "SUCCESS", "PASS", "PASSED"}:
+                return "SUCCEEDED"
+            if status in {"CANCELLED", "STOPPED", "FAILED", "UNKNOWN", "NOT_ACCEPTED"}:
+                return status
+            if status == "BLOCKED":
+                return "FAILED"
+            # RUNNING (or any future non-terminal status) cannot be persisted
+            # as a TargetdCallReceipt terminal value.
+            return "UNKNOWN"
         if manifest.tool_id != "app.base.rotate":
             # Generic bundles may return an application object with no
             # ``status`` member; that remains a successful invocation for
