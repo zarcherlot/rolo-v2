@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-targetd-durable-request-v1.json",
+  "title": "Rolo immutable targetd request record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "idempotency_key", "request_b64", "content_digest", "request_digest", "created_at", "timeout_s", "envelope_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-targetd-durable-request/v1"},
+    "kind": {"enum": ["CERTIFY", "TRACE"]},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "request_b64": {"type": "string", "minLength": 1, "maxLength": 400000, "contentEncoding": "base64"},
+    "content_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "request_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "timeout_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 300},
+    "envelope_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

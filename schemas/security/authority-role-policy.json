@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-authority-role-policy/v1",
+  "title": "Rolo production authority role policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operator_assertion", "acl_decision", "ledger_head"],
+  "properties": {
+    "operator_assertion": {
+      "$ref": "#/$defs/operatorPin"
+    },
+    "acl_decision": {
+      "$ref": "#/$defs/aclPin"
+    },
+    "ledger_head": {
+      "$ref": "#/$defs/headPin"
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["purpose", "issuer_id", "key_id", "trust_root_digest"],
+      "properties": {
+        "purpose": {
+          "enum": ["OPERATOR_ASSERTION", "ACL_DECISION", "LEDGER_HEAD"]
+        },
+        "issuer_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "key_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "trust_root_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "operatorPin": {
+      "allOf": [
+        {"$ref": "#/$defs/pin"},
+        {"properties": {"purpose": {"const": "OPERATOR_ASSERTION"}}}
+      ]
+    },
+    "aclPin": {
+      "allOf": [
+        {"$ref": "#/$defs/pin"},
+        {"properties": {"purpose": {"const": "ACL_DECISION"}}}
+      ]
+    },
+    "headPin": {
+      "allOf": [
+        {"$ref": "#/$defs/pin"},
+        {"properties": {"purpose": {"const": "LEDGER_HEAD"}}}
+      ]
+    }
+  }
+}

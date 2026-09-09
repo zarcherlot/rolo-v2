@@ -1,0 +1,84 @@
+{
+  "evidence_digest": "sha256:c0c83a38ec4cce428fc86dafd94dfd33997d31cc77baedabb749ca1b5e4122a7",
+  "graph_topology_digest": "sha256:31a0a066c03a8b51eef6f9f98b9f1332eed8f963d86f3261b528586efa9d3dcc",
+  "healthy": true,
+  "ok": true,
+  "phase": "BASELINE",
+  "post_sample_graph_revision": "sha256:9f39f55b95b17359cf0ba2a702618f328d1f1c0646a56dbb8a4e16f19731686c",
+  "pre_sample_graph_revision": "sha256:b3b12ee88539d3cb8049098687dca74557f7c5f36e88c496e3e2941303d77639",
+  "sample_window_s": 3.00026338,
+  "schema_version": "rolo-n7-fresh-sensor-health/v1",
+  "stage_root": "/dev/shm/rolo-n7-physical-a1fb65659c7a06ef5349",
+  "topics": [
+    {
+      "arrival_digest": "sha256:7f34f4da52c804b597406ce23f668fb61716d3eb9c2b38509dd0afbbb3d2f383",
+      "first_sample_at": "2026-09-09T08:51:57.661756Z",
+      "interface": "sensor_msgs/msg/Imu",
+      "last_sample_age_s": 0.017226989,
+      "last_sample_at": "2026-09-09T08:52:00.644103Z",
+      "max_gap_s": 0.028536408,
+      "publisher_gids": [
+        "010f961657cc3f8d01000000000011030000000000000000"
+      ],
+      "publisher_identities": [
+        "/ros_robot_controller"
+      ],
+      "route": "/ros_robot_controller/imu_raw",
+      "sample_count": 146,
+      "sample_rate_hz": 48.619418956653845
+    },
+    {
+      "arrival_digest": "sha256:06ae60c7754d23822975a124512f6f56654a426d18aae680c082e09a96aab6e1",
+      "first_sample_at": "2026-09-09T08:51:57.661941Z",
+      "interface": "sensor_msgs/msg/Imu",
+      "last_sample_age_s": 0.016507934,
+      "last_sample_at": "2026-09-09T08:52:00.644822Z",
+      "max_gap_s": 0.02850239,
+      "publisher_gids": [
+        "010f961682cd8add01000000000013030000000000000000"
+      ],
+      "publisher_identities": [
+        "/imu_filter"
+      ],
+      "route": "/imu",
+      "sample_count": 146,
+      "sample_rate_hz": 48.61072710964795
+    },
+    {
+      "arrival_digest": "sha256:14db28f0a4f3948c6689e8d8aed10e92bb07acfd75f8a7450544f286f11c0e53",
+      "first_sample_at": "2026-09-09T08:51:57.668952Z",
+      "interface": "nav_msgs/msg/Odometry",
+      "last_sample_age_s": 0.007767699,
+      "last_sample_at": "2026-09-09T08:52:00.653562Z",
+      "max_gap_s": 0.023067986,
+      "publisher_gids": [
+        "010f961659cca50801000000000011030000000000000000"
+      ],
+      "publisher_identities": [
+        "/odom_publisher"
+      ],
+      "route": "/odom_raw",
+      "sample_count": 146,
+      "sample_rate_hz": 48.582561566479825
+    },
+    {
+      "arrival_digest": "sha256:176ec054d8ad6712615e3e5a6c4af4ae801f4cc2080ca9707aa6f974e175145e",
+      "first_sample_at": "2026-09-09T08:51:57.688051Z",
+      "interface": "nav_msgs/msg/Odometry",
+      "last_sample_age_s": 0.005656256,
+      "last_sample_at": "2026-09-09T08:52:00.655674Z",
+      "max_gap_s": 0.034557424,
+      "publisher_gids": [
+        "010f96165bcc9bd801000000000020030000000000000000"
+      ],
+      "publisher_identities": [
+        "/ekf_filter_node"
+      ],
+      "route": "/odom",
+      "sample_count": 90,
+      "sample_rate_hz": 29.990329409360555
+    }
+  ],
+  "window_ended_at": "2026-09-09T08:52:00.661330Z",
+  "window_started_at": "2026-09-09T08:51:57.661067Z"
+}

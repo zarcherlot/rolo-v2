@@ -23,7 +23,7 @@ from rolo.dsl.contracts import RELEASE_BINDING_SCHEMA_VERSION
 
 from .artifacts import build_artifact_index, write_artifact_index
 from .catalog import load_target_catalog
-from .certify import CertificationRunner, load_suite, write_report
+from .certify import CertificationRunner, load_suite, write_new_artifact, write_report
 from .contracts import (
     CertificationReport,
     CertificationSuite,
@@ -255,7 +255,14 @@ def _write_trace_request(
     return path
 
 
-def _reindex(directory: Path, *, run_id: str, target_id: str, files: Sequence[Path]) -> Path:
+def _reindex(
+    directory: Path,
+    *,
+    run_id: str,
+    target_id: str,
+    files: Sequence[Path],
+    exclusive: bool = False,
+) -> Path:
     index_path = directory / "artifact-index.json"
     if index_path.is_symlink():
         raise ValueError(f"artifact index must not be a symlink: {index_path}")
@@ -269,7 +276,11 @@ def _reindex(directory: Path, *, run_id: str, target_id: str, files: Sequence[Pa
             continue
         seen.add(resolved)
         unique.append(path)
-    write_artifact_index(index_path, build_artifact_index(run_id=run_id, target_id=target_id, files=unique, root=directory))
+    index = build_artifact_index(run_id=run_id, target_id=target_id, files=unique, root=directory)
+    if exclusive:
+        write_new_artifact(index_path, index.model_dump_json(indent=2) + "\n")
+    else:
+        write_artifact_index(index_path, index)
     return index_path
 
 
@@ -400,9 +411,25 @@ def run_certify(
 
     suite = load_suite(suite_path, target_id=target_id, require_ten_cases=require_ten_cases)
     binding = _load_release_binding(release_binding_path)
+    release_digests = binding.get("release_digests")
+    if release_digests is None and binding.get("release_digest") is not None:
+        release_digests = {suite.cases[0].tool_id: binding["release_digest"]}
+    if not isinstance(release_digests, Mapping) or set(release_digests) != {suite.cases[0].tool_id}:
+        raise ValueError("CERTIFY_BLOCKED: release binding must contain exactly the suite tool")
+    release_digest = release_digests[suite.cases[0].tool_id]
+    if not isinstance(release_digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", release_digest):
+        raise ValueError("CERTIFY_BLOCKED: release digest is invalid")
+    compile_context_digest = binding.get("compile_context_digest")
+    if not isinstance(compile_context_digest, str) or not re.fullmatch(
+        r"sha256:[0-9a-f]{64}", compile_context_digest
+    ):
+        raise ValueError("CERTIFY_BLOCKED: compile context digest is required")
+    bound_fingerprint = binding.get("target_fingerprint")
+    if not isinstance(bound_fingerprint, str) or not re.fullmatch(r"[0-9a-f]{64}", bound_fingerprint):
+        raise ValueError("CERTIFY_BLOCKED: target fingerprint is required")
     catalog = load_target_catalog(catalog_path) if catalog_path is not None else None
     effective_snapshot = snapshot_digest
-    effective_target_fingerprint = binding.get("target_fingerprint")
+    effective_target_fingerprint = bound_fingerprint
     if not _is_digest(snapshot_digest):
         raise ValueError("CERTIFY_BLOCKED: snapshot digest is invalid")
     if effective_target_fingerprint not in (None, "UNKNOWN") and not _is_digest(str(effective_target_fingerprint)):
@@ -437,21 +464,32 @@ def run_certify(
     ordered, keyed = _normalise_result_fixture(fixture_raw)
     invoker = _CaseFixtureInvoker(suite, ordered, keyed)
     runner = CertificationRunner(invoker, target_id=suite.target_id)
+    effective_run_id = run_id or f"certify-{secrets.token_urlsafe(10)}"
     report: CertificationReport = runner.run(
         suite,
         snapshot_digest=effective_snapshot,
-        run_id=run_id or f"certify-{secrets.token_urlsafe(10)}",
-        session_id=run_id,
-        compile_context_digest=binding.get("compile_context_digest"),
+        run_id=effective_run_id,
+        session_id=effective_run_id,
+        compile_context_digest=compile_context_digest,
         target_fingerprint=effective_target_fingerprint or (catalog.target_fingerprint if catalog else None),
-        release_digests=binding.get("release_digests"),
+        release_digests=dict(release_digests),
         fail_fast=fail_fast,
     )
+    replay_conclusion = report.conclusion
+    report_payload = report.model_dump(mode="json")
+    report_payload["limitations"] = list(dict.fromkeys([*report.limitations, "FIXTURE_ONLY_SIMULATION"]))
+    # A caller-supplied result fixture can demonstrate deterministic replay,
+    # but it cannot prove that a current PUBLISHED Release ran on a target.
+    # Keep every per-case outcome while preventing the persisted report from
+    # being consumed as a formal PASS.
+    if replay_conclusion == "PASS":
+        report_payload["conclusion"] = "CONDITIONAL"
+    report = CertificationReport.model_validate(report_payload)
     json_output = output if output.suffix == ".json" else output.with_suffix(".json")
     if json_output.exists() and json_output.is_symlink():
         raise ValueError(f"report path must not be a symlink: {json_output}")
     _safe_output_root(json_output.parent)
-    json_path, md_path = write_report(report, json_output)
+    json_path, md_path = write_report(report, json_output, write_index=False)
     requested_name = json_output.name
     suffix_name = json_path.name != requested_name
     request_name = "certify-request.json" if not suffix_name else f"{json_path.stem}.certify-request.json"
@@ -463,15 +501,16 @@ def run_certify(
     for artifact_path in (request_path, suite_artifact, event_path):
         if artifact_path.is_symlink():
             raise ValueError(f"certification artifact path must not be a symlink: {artifact_path}")
-    suite_artifact.write_text(
+    write_new_artifact(
+        suite_artifact,
         json.dumps(suite.model_dump(mode="json"), ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
     )
-    event_path.write_text(
+    write_new_artifact(
+        event_path,
         "".join(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n" for item in runner.events),
-        encoding="utf-8",
     )
-    request_path.write_text(
+    write_new_artifact(
+        request_path,
         json.dumps(
             {
                 "schema_version": "rolo-mvp-certify-request-record/v1",
@@ -491,21 +530,31 @@ def run_certify(
             indent=2,
         )
         + "\n",
-        encoding="utf-8",
     )
-    # The historical variable-suite helper keeps its original three-file
-    # index for compatibility.  A fixed ten-case run is the formal P6 path and
-    # indexes the suite, event stream and derived HTML view as replay evidence.
-    indexed_files: list[Path] = [json_path, md_path, request_path]
-    if require_ten_cases:
-        indexed_files.extend([suite_artifact, event_path, json_path.with_suffix(".html")])
-    index_path = _reindex(json_path.parent, run_id=report.run_id, target_id=report.target_id, files=indexed_files)
+    indexed_files: list[Path] = [
+        json_path,
+        md_path,
+        request_path,
+        suite_artifact,
+        event_path,
+        json_path.with_suffix(".html"),
+    ]
+    index_path = _reindex(
+        json_path.parent,
+        run_id=report.run_id,
+        target_id=report.target_id,
+        files=indexed_files,
+        exclusive=True,
+    )
     return {
         "schema_version": "rolo-mvp-certify-run/v1",
-        "status": report.conclusion,
+        "status": "SIMULATED_PASS" if replay_conclusion == "PASS" else report.conclusion,
+        "execution_mode": "OFFLINE_FIXTURE",
         "run_id": report.run_id,
         "target_id": report.target_id,
         "suite_digest": report.suite_digest,
+        "tool_id": report.tool_id,
+        "release_digest": report.release_digest,
         "fixture_only": True,
         "compile_context_digest": report.compile_context_digest,
         "target_fingerprint": report.target_fingerprint,

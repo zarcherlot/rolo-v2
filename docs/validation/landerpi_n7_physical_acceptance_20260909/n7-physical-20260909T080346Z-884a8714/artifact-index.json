@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "path": "user-attestation.json",
+      "sha256": "927ab95ddf82d86f163f157d49e35cb5a2468028550bb5591895650325902a01"
+    },
+    {
+      "path": "stage.json",
+      "sha256": "9315fe483234cbbe9ddbe5f49150fbdb1dcd2341497174224c5e119604527f5d"
+    },
+    {
+      "path": "baseline.json",
+      "sha256": "6aa3a71851d434b438841e074e0b41c60d83817c31ac24eba91ec1dfbc20698b"
+    },
+    {
+      "path": "baseline-liveness.json",
+      "sha256": "6879326d119168e91974e409921f7b66ca457e3e487e010e56e67ca96b67003e"
+    },
+    {
+      "path": "isolation.json",
+      "sha256": "a361a56c1e7acf7700f97ab8a2c34f17acc2fcc4442c67cec1b703b87428284b"
+    },
+    {
+      "path": "outcome.json",
+      "sha256": "98ebdb6152a822cec01709b6572f3c4945f938cfe76e8d718f8e4a85b2455be7"
+    }
+  ],
+  "manifest_sha256": "862305a24faae6ca04c0b9328c9745ed7ffdf6bb5991953542e79f95c24ca59b",
+  "previous_index": null,
+  "run_id": "n7-physical-20260909T080346Z-884a8714",
+  "schema_version": "rolo-mvp-artifact-index/v2",
+  "signature_hmac_sha256": "58db4cf1f1394a7dd1ba498a94010690411d8d19d31e087634a264bae7973002",
+  "target_id": "mentorpi"
+}

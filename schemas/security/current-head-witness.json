@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-current-head-witness/v1",
+  "title": "Rolo challenged current artifact head witness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "resolver_id", "namespace", "artifact_kind", "artifact_ref",
+    "current_artifact_digest", "target_id", "target_fingerprint", "sequence",
+    "previous_head_digest", "head_digest", "challenge_digest", "witnessed_at", "expires_at",
+    "issuer_id", "key_id", "algorithm", "payload_digest", "signature"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-current-head-witness/v1"},
+    "resolver_id": {"$ref": "#/$defs/identifier"},
+    "namespace": {"$ref": "#/$defs/identifier"},
+    "artifact_kind": {"$ref": "#/$defs/kind"},
+    "artifact_ref": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "current_artifact_digest": {"$ref": "#/$defs/digest"},
+    "target_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_fingerprint": {"type": "string", "minLength": 1, "maxLength": 256},
+    "sequence": {"type": "integer", "minimum": 1},
+    "previous_head_digest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "head_digest": {"$ref": "#/$defs/digest"},
+    "challenge_digest": {"$ref": "#/$defs/digest"},
+    "witnessed_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "issuer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "key_id": {"$ref": "#/$defs/identifier"},
+    "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+    "payload_digest": {"$ref": "#/$defs/digest"},
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "kind": {"enum": ["PROPOSAL", "CONTEXT", "CANDIDATE_INDEX", "CANDIDATE", "DSL", "EVIDENCE", "TOOL_CATALOG"]},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{32,2048}$"}
+  }
+}

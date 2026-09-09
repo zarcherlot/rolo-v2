@@ -1,0 +1,26 @@
+{
+  "access": "read",
+  "authority_partial": true,
+  "cleanup": {
+    "cleanup_fallback_connection": false,
+    "residual_count": 0,
+    "stage_root": "/dev/shm/rolo-n7-r0-74d28d501bebbc179c4e"
+  },
+  "code": "N7_R0_TARGET_CONFORMANCE_BLOCKED",
+  "container": "MentorPi",
+  "evidence_mode": "LIVE",
+  "limits": {
+    "expanded_bytes": 134217728,
+    "package_bytes": 33554432,
+    "result_bytes": 65536
+  },
+  "message": "T1-T4 did not pass",
+  "operation_kind": "OBSERVE",
+  "operator_auth": "FIXTURE",
+  "risk": "R0",
+  "schema_version": "rolo-landerpi-n7-r0-canary/v1",
+  "session_id": "n7-r0-20260908T132417Z-48f70ce4",
+  "status": "BLOCKED",
+  "target_id": "mentorpi",
+  "topic": "/odom"
+}

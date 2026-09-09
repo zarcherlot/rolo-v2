@@ -1,0 +1,11 @@
+{
+  "compile_context_digest": "sha256:4f087c2527967c2b1128473133adcd3b58e1903e1795db4f27cf6ed18e85a8bb",
+  "evidence_digest": "sha256:5c95da842ffe8c2e0d22f8482d7600dd78bae892b4eeba45d9e781750b6570f1",
+  "mhs_manifest_digests": [],
+  "release_digests": {
+    "app.navigation.odom.observe": "sha256:835dd954cfeb3ca311dfa23c2ea18c4472067c640374daf3d5b9d7539d62f554"
+  },
+  "route_digest": null,
+  "schema_version": "rolo-release-binding/v1",
+  "target_fingerprint": "9e3c4f42fc9898356d89350b985119b840a31ce72803a6033e0f2dcd654eafa4"
+}

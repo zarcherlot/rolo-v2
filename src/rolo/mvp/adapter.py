@@ -225,8 +225,19 @@ class RoloHttpAgentAdapter:
         return response
 
     def start_certify(self, suite_ref: str, target_id: str, **kwargs: Any) -> dict[str, Any]:
-        payload: dict[str, Any] = {"target_id": target_id, "suite_ref": suite_ref}
-        for key in ("snapshot_digest", "compile_context_digest", "target_fingerprint", "failure_policy", "session_id"):
+        payload: dict[str, Any] = {
+            "schema_version": "rolo-certify-request/v1",
+            "target_id": target_id,
+            "suite_ref": suite_ref,
+        }
+        for key in (
+            "snapshot_digest",
+            "release_digest",
+            "compile_context_digest",
+            "target_fingerprint",
+            "failure_policy",
+            "session_id",
+        ):
             if key in kwargs and kwargs[key] is not None:
                 payload[key] = kwargs[key]
         return self._request("POST", "/v1/certify/runs", json=payload)

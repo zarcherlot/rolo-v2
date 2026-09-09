@@ -1,0 +1,16 @@
+{
+  "attestation_digest": "sha256:950cbe99714648fa0caba06873fb9573f64d2ae5acccd890c99c508df766e6f5",
+  "authority_class": "DEBUG_ONLY_USER_ATTESTED",
+  "call_id": "n7-call-20260909T080346Z-884a8714",
+  "motion": {
+    "angle_degrees": 1.0,
+    "max_speed_rad_s": 0.03
+  },
+  "onsite_safety_drill_performed": false,
+  "production_authority": false,
+  "recorded_at": "2026-09-09T08:04:18.553130Z",
+  "schema_version": "rolo-n7-debug-user-attestation/v1",
+  "session_id": "n7-session-20260909T080346Z-884a8714",
+  "statement": "不用演练现场急停、人员、安全区，现场已经妥善安排，仅剩完成实现上真机调试；",
+  "target_id": "mentorpi"
+}

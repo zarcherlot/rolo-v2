@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from .api import DslCheckRequest, DslCompileRequest, DslCompileResult
+from .api import DslCheckRequest, DslCompileResult
 from .candidates import CapabilityCandidateIndex, build_candidate_index, query_candidates
 from .canonical import context_digest
 from .context import ProbeContext
@@ -101,7 +101,13 @@ class DslRepairLoop:
         context: Mapping[str, Any],
         output_dir: str | None = None,
     ) -> MappingLoopResult:
-        """Generate and repair DSL until PASS or a bounded BLOCKED result."""
+        """Generate and check DSL until PASS or a bounded BLOCKED result.
+
+        Compilation is deliberately outside this pre-confirmation loop.  A
+        legacy caller that supplies ``output_dir`` is stopped before any
+        bundle artifact can be created and must first persist and confirm a
+        Mapping Proposal.
+        """
 
         try:
             context_model = ProbeContext.model_validate(context)
@@ -140,32 +146,15 @@ class DslRepairLoop:
             generated += 1
             checked = self.compiler.check(DslCheckRequest(dsl=candidate, context=normalized_context))
             if checked.status == "PASS":
-                compile_result: DslCompileResult | None = None
                 if output_dir is not None:
-                    compile_result = self.compiler.compile(
-                        DslCompileRequest(
-                            dsl=candidate,
-                            context=normalized_context,
-                            dsl_digest=checked.dsl_digest,
-                            context_digest=request.context_digest,
-                            target_fingerprint=context_model.target_fingerprint,
-                        ),
-                        output_dir,
+                    return MappingLoopResult(
+                        "BLOCKED",
+                        candidate,
+                        None,
+                        attempt,
+                        ("MAPPING_CONFIRMATION_REQUIRED",),
                     )
-                    if compile_result.status != "PASS":
-                        diagnostics = tuple(dict.fromkeys(compile_result.diagnostics))
-                        gap = next((code for code in diagnostics if code in _CONTEXT_GAP_CODES), None)
-                        if gap is not None:
-                            return MappingLoopResult(
-                                "BLOCKED",
-                                candidate,
-                                compile_result,
-                                attempt,
-                                diagnostics,
-                                self._follow_up(request, gap, candidate),
-                            )
-                        continue
-                return MappingLoopResult("PASS", candidate, compile_result, attempt, diagnostics)
+                return MappingLoopResult("PASS", candidate, None, attempt, diagnostics)
             diagnostics = tuple(dict.fromkeys((*diagnostics, *checked.diagnostics)))
             gap = next((code for code in diagnostics if code in _CONTEXT_GAP_CODES), None)
             if gap is not None:

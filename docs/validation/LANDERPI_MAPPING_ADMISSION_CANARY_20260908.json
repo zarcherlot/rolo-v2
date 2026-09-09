@@ -1,0 +1,139 @@
+{
+  "schema_version": "rolo-landerpi-mapping-admission-canary/v2",
+  "result": "PASS",
+  "observed_at": "2026-09-08T09:19:31.624397+00:00",
+  "receipt_cancelled_at": "2026-09-08T09:22:44.030119+00:00",
+  "completed_at": "2026-09-08T09:25:17.2988376+00:00",
+  "environment": {
+    "host": "landerpi",
+    "container": "MentorPi",
+    "container_user": "ubuntu",
+    "python_version": "3.10.12",
+    "ros_distro": "humble",
+    "host_key_pinned_and_verified": true,
+    "target_fingerprint_bound": true
+  },
+  "authentication": {
+    "mechanism": "dedicated SSH key with pinned known_hosts",
+    "password_used": false,
+    "credentials_in_artifact": false,
+    "credentials_persisted_by_canary": false
+  },
+  "source_under_test": {
+    "python_file_count": 163,
+    "source_digest": "sha256:e6dcfa6da1e5b978359dedc44a5aee7053a691562f35199c2873934e82aaa758",
+    "local_and_deployed_source_digest_matched": true,
+    "host_and_container_file_count": 333,
+    "host_and_container_script_hash_matched": true,
+    "core_source_modified_for_canary": false
+  },
+  "safety": {
+    "read_only": true,
+    "motion_actions_invoked": false,
+    "publish_service_action_invoke_execute_calls": 0,
+    "cumulative_live_odom_reads": 1,
+    "raw_odom_payload_persisted": false,
+    "allowed_ros_commands": [
+      "ros2 topic list -t",
+      "ros2 node list",
+      "ros2 topic echo --no-daemon --once /odom"
+    ]
+  },
+  "live_observation": {
+    "topic_count": 60,
+    "node_count": 32,
+    "odom_observed": true,
+    "odom_interface_type": "nav_msgs/msg/Odometry",
+    "odom_read_status": "SUCCEEDED",
+    "odom_read_count": 1,
+    "runtime_digest": "sha256:4182e8ab39e25298cbef24dce631e07074f9b5c176410deb199c2ac080aadd7a",
+    "evidence_digest": "sha256:89ad9e92e323bdc2fb682ae7b57a36e03f2a890ec0ce1fe464a5507221e40f86"
+  },
+  "mapping_admission": {
+    "proposal_schema_version": "rolo-mapping-proposal/v2",
+    "proposal_status": "PROPOSED",
+    "proposal_digest": "sha256:1617d12acbbe152293289458ba7728b3544d9a3f2e78b972931f332ae72c4acf",
+    "confirmation_schema_version": "rolo-mapping-confirmation-receipt/v1",
+    "live_confirmation_receipt_digest": "sha256:f84e75a080f488eff7465305bef7efc926f9ae953abf471749d2095519094777",
+    "live_cancellation_receipt_digest": "sha256:ea4ae3b0fe14457d7c0037bbc29937bfeb7493db414fd21d85ee8b267fa53e0f",
+    "dsl_digest": "sha256:06ce72ddf14608f80a7b18f2a62df1975e490b0a2a1e4a577afd3d9c4d0e818b",
+    "context_digest": "sha256:e2d6f2af298dcb9f15b63f0254677e6ca5b1afd8af5cb54b4653c6df95956570"
+  },
+  "pipeline": {
+    "dsl_put": "PUT",
+    "dsl_check": "PASS",
+    "plan_resolve": "PASS",
+    "targetd_compile_schema_version": "rolo-targetd-dsl-compile/v2",
+    "target_compile": "PASS",
+    "target_conformance": "PASS",
+    "actual_ros_provider_used": true
+  },
+  "compiler_boundary": {
+    "status": "PASS",
+    "public_compiler_pre_gate_calls": 2,
+    "compiler_service_pre_gate_calls": 1,
+    "targetd_pre_post_gate_calls_during_compile": 3,
+    "commit_if_active_calls": 1,
+    "commit_callbacks": 1,
+    "ledger_lock_held_in_callback": true,
+    "staged_bundle_seen_before_commit": true,
+    "final_bundle_absent_before_commit": true,
+    "final_bundle_present_after_commit": true,
+    "atomic_replace_callable": true,
+    "staging_leftovers": 0,
+    "event_order": [
+      "require_active:rolo.targetd.dsl_service:_require_active_confirmation",
+      "require_active:rolo.targetd.dsl_service:_require_active_confirmation",
+      "require_active:rolo.dsl.service:_require_mapping_admission",
+      "require_active:rolo.dsl.compiler:_require_compile_admission",
+      "require_active:rolo.dsl.compiler:_require_compile_admission",
+      "commit_if_active:enter:rolo.dsl.compiler:_require_compile_admission",
+      "compiler_atomic_promote:callback",
+      "commit_if_active:complete",
+      "require_active:rolo.targetd.dsl_service:_require_active_confirmation"
+    ]
+  },
+  "cancelled_retry": {
+    "stable_code": "MAPPING_CONFIRMATION_CANCELLED",
+    "same_live_confirmation_receipt_cancelled": true,
+    "existing_target_compile_cache_hit_before_cancel": true,
+    "target_compile_status": "BLOCKED",
+    "target_conformance_status": "BLOCKED",
+    "continuation_provider_calls_before": 0,
+    "continuation_provider_calls_after": 0,
+    "zero_new_provider_calls": true,
+    "boundary_compiler_commit_calls_before": 1,
+    "boundary_compiler_commit_calls_after": 1,
+    "zero_new_compiler_commits": true
+  },
+  "execution_notes": {
+    "process_invocations": 3,
+    "live_phase": "completed Proposal, confirmation, compile, target conformance, and one successful /odom OBSERVE read",
+    "boundary_phase": "recompiled without runtime execution to measure public pre-gates, staging, post-gate, and admission-locked atomic promotion",
+    "cancellation_phase": "reopened the original live cache and receipt, cancelled that exact receipt, then verified compile and conformance were blocked before the provider",
+    "temporary_harness_adjustment": "the first process reached the boundary assertion after all live checks passed; its final-path probe initially counted the staging manifest as a final manifest, so the temporary harness excluded staging paths and reran only the non-runtime boundary measurement",
+    "product_source_changed_between_phases": false
+  },
+  "cleanup": {
+    "temporary_path": "/tmp/rolo-admission-canary-final-20260908-7b2d90c4",
+    "host_temporary_path_removed": true,
+    "container_temporary_path_removed": true,
+    "exact_rolo_rkb_name_boundary_matches": 0,
+    "host_roots_checked": [
+      "/root",
+      "/home",
+      "/tmp",
+      "/var/tmp",
+      "/opt"
+    ],
+    "container_roots_checked": [
+      "/tmp",
+      "/var/tmp",
+      "/home/ubuntu",
+      "/root"
+    ],
+    "docker_overlay_checked": true,
+    "robot_pi_or_ros_installation_modified": false,
+    "non_rolo_data_removed": false
+  }
+}

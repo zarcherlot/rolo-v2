@@ -1,0 +1,116 @@
+{
+  "schema_version": "rolo-landerpi-n7-motion-gate-recheck/v1",
+  "observed_at_utc": "2026-09-08T14:31:00Z",
+  "target": {
+    "ssh_host": "192.168.10.167",
+    "ssh_user": "pi",
+    "authentication": "key-only with pinned known_hosts",
+    "container": "MentorPi",
+    "container_user": "ubuntu"
+  },
+  "inspection_mode": "READ_ONLY",
+  "disk": {
+    "status": "PASS_PERSISTENT_CAPACITY_RECHECK",
+    "filesystem": "/dev/mmcblk0p2",
+    "size_kib": 59275300,
+    "used_kib": 43002852,
+    "available_kib": 13709736,
+    "used_percent": 76,
+    "previous_used_percent": 97,
+    "previous_available_gib_approx": 1.9,
+    "current_available_gib_approx": 13.1,
+    "threshold_used_percent_max": 90,
+    "threshold_available_gib_min": 5.7
+  },
+  "container": {
+    "running": true,
+    "paused": false,
+    "restarting": false,
+    "oom_killed": false,
+    "started_at_utc": "2026-09-08T10:49:37.41856032Z",
+    "root_available_kib": 13709728,
+    "dev_shm_available_kib": 4106288
+  },
+  "control_endpoints": {
+    "/controller/cmd_vel": {
+      "type": "geometry_msgs/msg/Twist",
+      "publisher_count": 6,
+      "publishers": [
+        "/robot_api",
+        "/lidar_app",
+        "/line_following",
+        "/object_tracking",
+        "/hand_gesture",
+        "/joystick_control"
+      ],
+      "subscriber_count": 1,
+      "subscribers": [
+        "/odom_publisher"
+      ],
+      "exclusive_route_verified": false
+    },
+    "/ros_robot_controller/set_motor": {
+      "type": "ros_robot_controller_msgs/msg/MotorsState",
+      "publisher_count": 2,
+      "publishers": [
+        "/odom_publisher",
+        "/hand_gesture"
+      ],
+      "subscriber_count": 1,
+      "subscribers": [
+        "/ros_robot_controller"
+      ],
+      "direct_motor_fence_verified": false
+    }
+  },
+  "emergency_stop": {
+    "status": "UNVERIFIED",
+    "independent_hardware_estop_identified": false,
+    "operator_accessible_estop_confirmed": false,
+    "stop_acknowledgement_bound_to_call": false,
+    "observations": {
+      "/ros_robot_controller/button": {
+        "type": "ros_robot_controller_msgs/msg/ButtonState",
+        "fields": [
+          "uint8 id",
+          "uint8 state"
+        ],
+        "publisher": "/ros_robot_controller",
+        "sample_received_within_20s": false,
+        "independent_estop_semantics_proven": false
+      },
+      "/enable": {
+        "type": "std_srvs/srv/Empty",
+        "independent_estop_semantics_proven": false
+      },
+      "/toggle": {
+        "type": "robot_localization/srv/ToggleFilterProcessing",
+        "independent_estop_semantics_proven": false
+      },
+      "software_zero_publisher": {
+        "path": "/home/ubuntu/ros2_ws/src/robot_incident_client/robot_incident_client/safety_probe_node.py",
+        "independent_hardware_estop": false,
+        "note": "The inspected code cooperatively writes a cancel file and publishes zero velocity; it is not an independent E-stop or a target-owned stop acknowledgement."
+      }
+    }
+  },
+  "decision": "BLOCKED",
+  "closed_gates": [
+    "root filesystem capacity threshold"
+  ],
+  "remaining_blockers": [
+    "six existing publishers on /controller/cmd_vel are not isolated from a target-owned route",
+    "two existing publishers on /ros_robot_controller/set_motor are not fenced",
+    "no independent operator-accessible E-stop has been identified and verified",
+    "no onsite operator presence or safe-area confirmation is available",
+    "no stop acknowledgement bound to the exact targetd call key has been demonstrated"
+  ],
+  "read_only_attestation": {
+    "published_topics": false,
+    "called_services": false,
+    "sent_actions": false,
+    "changed_remote_files": false,
+    "deleted_remote_files": false,
+    "physical_motion_requested": false
+  }
+}

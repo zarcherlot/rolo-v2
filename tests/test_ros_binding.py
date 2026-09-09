@@ -7,13 +7,28 @@ from types import SimpleNamespace
 import pytest
 
 from rolo.mvp import ExecutionBinding, RosBindingExecutor
-from rolo.mvp.bounded_twist import execute_bounded_twist, motion_observation_duration_s
+from rolo.mvp.bounded_twist import (
+    _exact_landerpi_publisher_topology,
+    _run_zero_motion_start_gate,
+    execute_bounded_twist,
+    motion_observation_duration_s,
+    run_ros_entrypoint,
+)
 
 
 class VirtualIO:
     cancelled = False
 
-    def __init__(self, *, responsive=True, subscribers=True, exclusive=True, fail_motion=False, fail_stop=False):
+    def __init__(
+        self,
+        *,
+        responsive=True,
+        subscribers=True,
+        exclusive=True,
+        graph_isolated=True,
+        fail_motion=False,
+        fail_stop=False,
+    ):
         self.t = 0.0
         self.yaw = 0.0
         self.velocity = 0.0
@@ -21,6 +36,7 @@ class VirtualIO:
         self.responsive = responsive
         self.subscribers = subscribers
         self.exclusive = exclusive
+        self.graph_isolated = graph_isolated
         self.fail_motion = fail_motion
         self.fail_stop = fail_stop
 
@@ -35,6 +51,13 @@ class VirtualIO:
 
     def command_exclusive(self):
         return self.exclusive
+
+    def control_graph_isolated(self):
+        if isinstance(self.graph_isolated, list):
+            if len(self.graph_isolated) > 1:
+                return self.graph_isolated.pop(0)
+            return self.graph_isolated[0]
+        return self.graph_isolated
 
     def independent_ready(self):
         return True
@@ -143,6 +166,123 @@ def test_confirmed_autonomous_source_allows_known_background_publishers():
     result = execute_bounded_twist(io, {**request(), 'autonomous_source_confirmed': True})
     assert result['status'] == 'SUCCEEDED'
     assert result['stopped_observed']
+
+
+def test_unsafe_control_graph_blocks_without_motion():
+    io = VirtualIO(graph_isolated=False)
+    result = execute_bounded_twist(io, request())
+    assert result == {
+        'status': 'BLOCKED',
+        'error': 'CONTROL_GRAPH_NOT_ISOLATED',
+        'motion_started': False,
+        'control_graph_isolated': False,
+    }
+    assert io.calls == []
+
+
+def test_landerpi_topology_does_not_collapse_duplicate_node_identities():
+    assert _exact_landerpi_publisher_topology(
+        ["/rolo_bounded_twist"],
+        [],
+        ["/odom_publisher"],
+    )
+    assert not _exact_landerpi_publisher_topology(
+        ["/rolo_bounded_twist", "/rolo_bounded_twist"],
+        [],
+        ["/odom_publisher"],
+    )
+    assert not _exact_landerpi_publisher_topology(
+        ["/rolo_bounded_twist"],
+        [],
+        ["/odom_publisher", "/odom_publisher"],
+    )
+
+
+def test_physical_start_gate_observes_five_zeroes_before_authorizing_motion():
+    io = VirtualIO()
+    observed = []
+
+    def gate(bound_io, node, publisher):
+        observed.append((bound_io is io, node, publisher, tuple(io.calls)))
+        return None
+
+    assert _run_zero_motion_start_gate(io, "node", "publisher", gate) is None
+    assert observed == [
+        (
+            True,
+            "node",
+            "publisher",
+            (
+                (0.0, 0.0),
+                (0.02, 0.0),
+                (0.04, 0.0),
+                (0.06, 0.0),
+                (0.08, 0.0),
+            ),
+        )
+    ]
+
+
+def test_physical_start_gate_cancel_never_enters_callback():
+    io = VirtualIO()
+    io.cancelled = True
+
+    def unexpected(*_args):
+        raise AssertionError("start gate callback must not run after cancellation")
+
+    assert _run_zero_motion_start_gate(io, None, None, unexpected) == {
+        "status": "CANCELLED",
+        "motion_started": False,
+        "stop_published": True,
+    }
+    assert io.calls == []
+
+
+def test_ros_entrypoint_rejects_non_callable_result_sink_before_ros_setup():
+    with pytest.raises(TypeError, match="result sink must be callable"):
+        run_ros_entrypoint({}, result_sink="stdout")
+
+
+def test_control_graph_change_before_first_nonzero_publish_stops_fail_closed():
+    io = VirtualIO(graph_isolated=[True, False, False])
+    result = execute_bounded_twist(io, request())
+    assert result['status'] == 'UNKNOWN'
+    assert result['error'] == 'CONTROL_GRAPH_CHANGED'
+    assert result['motion_started'] is False
+    assert result['control_graph_isolated'] is False
+    assert io.calls
+    assert all(speed == 0 for _, speed in io.calls)
+
+
+def test_motion_between_gate_and_first_nonzero_publish_stops_fail_closed():
+    class StartWindowBumpIO(VirtualIO):
+        def __init__(self):
+            super().__init__()
+            self.stationary_checks = 0
+
+        def independent_stationary(self):
+            self.stationary_checks += 1
+            return self.stationary_checks == 1
+
+    io = StartWindowBumpIO()
+    result = execute_bounded_twist(io, request())
+
+    assert result['status'] == 'UNKNOWN'
+    assert result['error'] == 'START_NOT_STATIONARY'
+    assert result['motion_started'] is False
+    assert io.stationary_checks == 2
+    assert io.calls
+    assert all(speed == 0 for _, speed in io.calls)
+
+
+def test_control_graph_change_after_first_nonzero_publish_stops_without_republish():
+    io = VirtualIO(graph_isolated=[True, True, False, False])
+    result = execute_bounded_twist(io, request())
+    assert result['status'] == 'UNKNOWN'
+    assert result['error'] == 'CONTROL_GRAPH_CHANGED'
+    assert result['control_graph_isolated'] is False
+    assert sum(speed != 0 for _, speed in io.calls) == 1
+    assert io.calls[-1][1] == 0
 
 
 @pytest.mark.parametrize('failure', ['fail_motion', 'fail_stop'])

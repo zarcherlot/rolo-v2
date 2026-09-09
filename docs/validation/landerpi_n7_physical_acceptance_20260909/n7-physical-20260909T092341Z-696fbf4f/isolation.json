@@ -1,0 +1,112 @@
+{
+  "ok": true,
+  "schema_version": "rolo-n7-isolation-receipt/v1",
+  "snapshot": {
+    "command_interface": "geometry_msgs/msg/Twist",
+    "command_publisher_gids": [],
+    "command_publishers": [],
+    "command_route": "/cmd_vel",
+    "command_subscriber_gids": [
+      "010f9616bfe29a4701000000000017040000000000000000"
+    ],
+    "command_subscribers": [
+      "/odom_publisher"
+    ],
+    "competing_command_route": "/controller/cmd_vel",
+    "competing_publisher_gids": [],
+    "competing_publishers": [],
+    "competing_subscriber_gids": [
+      "010f9616bfe29a4701000000000016040000000000000000"
+    ],
+    "competing_subscribers": [
+      "/odom_publisher"
+    ],
+    "direct_motor_publisher_gids": [
+      "010f9616bfe29a4701000000000012030000000000000000"
+    ],
+    "direct_motor_publishers": [
+      "/odom_publisher"
+    ],
+    "direct_motor_route": "/ros_robot_controller/set_motor",
+    "direct_motor_subscriber_gids": [
+      "010f9616bde2c6e101000000000019040000000000000000"
+    ],
+    "direct_motor_subscribers": [
+      "/ros_robot_controller"
+    ],
+    "graph_revision": "sha256:a288377d31eddf636a0d0d3160abd63fd3d653b33ac67b6e8e789348f2f2deee",
+    "observed_at": "2026-09-09T09:24:21.142006Z",
+    "phase": "ISOLATED",
+    "processes": [],
+    "schema_version": "rolo-n7-control-graph/v1"
+  },
+  "stage_root": "/dev/shm/rolo-n7-physical-bc888d858967db66f23e",
+  "terminated_processes": [
+    {
+      "argv_sha256": "sha256:1696847e66075695bb6fd7c85ae7e26c2ae0612324d7f9f70898a5ea8e644d6d",
+      "executable": "/home/ubuntu/ros2_ws/install/app/lib/app/hand_gesture",
+      "launch_argv_prefix": [
+        "/usr/bin/python3",
+        "/home/ubuntu/ros2_ws/install/app/lib/app/hand_gesture"
+      ],
+      "node_id": "/hand_gesture",
+      "pid": 58118,
+      "start_ticks": 3202410
+    },
+    {
+      "argv_sha256": "sha256:eff88037abba57b28a951b1d94787b6f3373f1eddb7eee1e67064f5bde58dd8d",
+      "executable": "/home/ubuntu/ros2_ws/install/peripherals/lib/peripherals/joystick_control",
+      "launch_argv_prefix": [
+        "/usr/bin/python3",
+        "/home/ubuntu/ros2_ws/install/peripherals/lib/peripherals/joystick_control"
+      ],
+      "node_id": "/joystick_control",
+      "pid": 58125,
+      "start_ticks": 3202414
+    },
+    {
+      "argv_sha256": "sha256:ce192e7dc2cbdd383af7f18ad59cc0c1c6478af2f532d6e22b4b1bba60124b96",
+      "executable": "/home/ubuntu/ros2_ws/install/app/lib/app/lidar_controller",
+      "launch_argv_prefix": [
+        "/usr/bin/python3",
+        "/home/ubuntu/ros2_ws/install/app/lib/app/lidar_controller"
+      ],
+      "node_id": "/lidar_app",
+      "pid": 58084,
+      "start_ticks": 3202399
+    },
+    {
+      "argv_sha256": "sha256:99bf31360b9c03b2f9898c8cbd0ce74682837edffa4df3b20f1a0e3962876f6e",
+      "executable": "/home/ubuntu/ros2_ws/install/app/lib/app/line_following",
+      "launch_argv_prefix": [
+        "/usr/bin/python3",
+        "/home/ubuntu/ros2_ws/install/app/lib/app/line_following"
+      ],
+      "node_id": "/line_following",
+      "pid": 58086,
+      "start_ticks": 3202402
+    },
+    {
+      "argv_sha256": "sha256:4641b786de5b3e919dc06d463e0d0ca2b8cd882457dc3fd5fe4225c2323345ca",
+      "executable": "/home/ubuntu/ros2_ws/install/app/lib/app/object_tracking",
+      "launch_argv_prefix": [
+        "/usr/bin/python3",
+        "/home/ubuntu/ros2_ws/install/app/lib/app/object_tracking"
+      ],
+      "node_id": "/object_tracking",
+      "pid": 58094,
+      "start_ticks": 3202403
+    },
+    {
+      "argv_sha256": "sha256:37ec4bbcdcc92cc03d68a28d39ee0a1993d07601b7b875cec4bac33d70c83568",
+      "executable": "/home/ubuntu/ros2_ws/install/robot_api/lib/robot_api/robot_api",
+      "launch_argv_prefix": [
+        "/usr/bin/python3",
+        "/home/ubuntu/ros2_ws/install/robot_api/lib/robot_api/robot_api"
+      ],
+      "node_id": "/robot_api",
+      "pid": 58080,
+      "start_ticks": 3202398
+    }
+  ]
+}

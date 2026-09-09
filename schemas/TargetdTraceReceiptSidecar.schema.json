@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-targetd-trace-receipt-sidecar-v1.json",
+  "title": "Rolo targetd Trace receipt sidecar",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plan_digest", "call_digest", "session_id", "target_id", "idempotency_key", "receipt", "sidecar_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-targetd-trace-receipt-sidecar/v1"},
+    "plan_digest": {"$ref": "#/$defs/digest"},
+    "call_digest": {"$ref": "#/$defs/digest"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "target_id": {"$ref": "#/$defs/id"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "receipt": {"$ref": "https://rolo.dev/schemas/rolo-targetd-call-receipt-v2.json"},
+    "sidecar_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

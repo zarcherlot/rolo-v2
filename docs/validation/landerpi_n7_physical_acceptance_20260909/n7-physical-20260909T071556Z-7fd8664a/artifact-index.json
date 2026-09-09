@@ -1,0 +1,18 @@
+{
+  "artifacts": [
+    {
+      "path": "user-attestation.json",
+      "sha256": "26d6eb1574af393ab9883a491809c6b31952dea9e140e00a407cc79fdddc0435"
+    },
+    {
+      "path": "outcome.json",
+      "sha256": "721b8f6f152fe936b2a29739120906a1eda6219a16da9ae5a0e0b3136d9c04f0"
+    }
+  ],
+  "manifest_sha256": "8dcd5bf2340a29c443b148df7ac63c23d3e62d24d6f860711e87468f7ae503af",
+  "previous_index": null,
+  "run_id": "n7-physical-20260909T071556Z-7fd8664a",
+  "schema_version": "rolo-mvp-artifact-index/v2",
+  "signature_hmac_sha256": "d8fdcbc7789f99c4f444d701ef9bf6fa20864e9a9ff84b5071faaf1ec9fafaee",
+  "target_id": "mentorpi"
+}

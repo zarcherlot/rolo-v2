@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-trusted-time-witness/v1",
+  "title": "Rolo challenged trusted time witness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "provider_id", "clock_id", "sequence", "utc_time",
+    "uncertainty_ms", "challenge_digest", "issuer_id", "key_id", "algorithm",
+    "payload_digest", "signature"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-trusted-time-witness/v1"},
+    "provider_id": {"$ref": "#/$defs/identifier"},
+    "clock_id": {"$ref": "#/$defs/identifier"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "utc_time": {"type": "string", "format": "date-time"},
+    "uncertainty_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+    "challenge_digest": {"$ref": "#/$defs/digest"},
+    "issuer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "key_id": {"$ref": "#/$defs/identifier"},
+    "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+    "payload_digest": {"$ref": "#/$defs/digest"},
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{32,2048}$"}
+  }
+}

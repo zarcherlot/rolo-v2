@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mapping-authority-receipt/v1",
+  "title": "Rolo Mapping production authority receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sequence",
+    "mapping_receipt_digest",
+    "previous_authority_receipt_digest",
+    "command",
+    "operator_assertion",
+    "acl_decision",
+    "operator_verification",
+    "acl_verification",
+    "anchor_provider_id",
+    "previous_anchor_epoch",
+    "previous_anchor_digest",
+    "authority_receipt_digest"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-mapping-authority-receipt/v1"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "mapping_receipt_digest": {"$ref": "#/$defs/digest"},
+    "previous_authority_receipt_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "command": {"$ref": "mapping-authority-command.json"},
+    "operator_assertion": {"$ref": "../../security/operator-assertion.json"},
+    "acl_decision": {"$ref": "../../security/acl-decision.json"},
+    "operator_verification": {"$ref": "#/$defs/verification"},
+    "acl_verification": {"$ref": "#/$defs/verification"},
+    "anchor_provider_id": {"$ref": "#/$defs/identifier"},
+    "previous_anchor_epoch": {"type": "integer", "minimum": 1},
+    "previous_anchor_digest": {"$ref": "#/$defs/digest"},
+    "authority_receipt_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "authority_class",
+        "purpose",
+        "issuer_id",
+        "key_id",
+        "algorithm",
+        "payload_digest",
+        "trust_root_digest",
+        "key_status",
+        "status",
+        "verified_at"
+      ],
+      "properties": {
+        "provider_id": {"$ref": "#/$defs/identifier"},
+        "authority_class": {"const": "PRODUCTION_EXTERNAL"},
+        "purpose": {"enum": ["OPERATOR_ASSERTION", "ACL_DECISION", "LEDGER_HEAD"]},
+        "issuer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "key_id": {"$ref": "#/$defs/identifier"},
+        "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+        "payload_digest": {"$ref": "#/$defs/digest"},
+        "trust_root_digest": {"$ref": "#/$defs/digest"},
+        "key_status": {"const": "ACTIVE"},
+        "status": {"const": "VERIFIED"},
+        "verified_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

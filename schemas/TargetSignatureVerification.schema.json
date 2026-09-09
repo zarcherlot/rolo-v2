@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.local/schemas/TargetSignatureVerification.schema.json",
+  "title": "Target Signature Verification Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "provider_id", "authority_class", "target_id", "key_id",
+    "algorithm", "signed_digest", "message_digest", "trust_root_digest",
+    "key_status", "status"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-target-signature-verification/v1"},
+    "provider_id": {"$ref": "#/$defs/identifier"},
+    "authority_class": {"const": "PRODUCTION_EXTERNAL"},
+    "target_id": {"$ref": "#/$defs/identifier"},
+    "key_id": {"$ref": "#/$defs/identifier"},
+    "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+    "signed_digest": {"$ref": "#/$defs/digest"},
+    "message_digest": {"$ref": "#/$defs/digest"},
+    "trust_root_digest": {"$ref": "#/$defs/digest"},
+    "key_status": {"enum": ["ACTIVE", "REVOKED", "UNKNOWN"]},
+    "status": {"enum": ["VERIFIED", "REJECTED"]}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "container": "MentorPi",
+  "host_targetd": {
+    "bootstrap_payload_sha256": "sha256:75ed87e9aad2106d828ab7fb0f00051febfe01efa2c295c76bcc833fe24a241a",
+    "descriptor_sha256": "sha256:35491f708b1e86102478f3d46c394e799c44e8b164546de97b304c9ddf59e433",
+    "lifecycle": {
+      "BOOTSTRAP": {
+        "request_kind": "BOOTSTRAP",
+        "response_frame_digest": "47b48a69fb62cba59bd6d7055c61d3894f8990214989072db0e7f7106c1499bb",
+        "run_id": null
+      },
+      "HANDOFF": {
+        "request_kind": "HANDOFF",
+        "response_frame_digest": "2a8b69727eaa9374e8f527abd8ee3fe560716b6b19c0134656a9fad26a567408",
+        "run_id": null
+      },
+      "OPEN_JOURNEY": {
+        "request_kind": "OPEN_JOURNEY",
+        "response_frame_digest": "89b49517c0977f7462b560fa1691c6c440f2688bd69fb326e4b3332313f4b15d",
+        "run_id": null
+      },
+      "PHASE_CHANGE": {
+        "request_kind": "PHASE_CHANGE",
+        "response_frame_digest": "e21d82f508760357347d3722a2102f75c7c4b1ccdd01ecee0d50780d2d144e1a",
+        "run_id": null
+      },
+      "PUT": {
+        "request_kind": "PUT",
+        "response_frame_digest": "5f294a5ea57880991deec772c1cd847def430afd4fca7dabc8b2dabf1b0bf7cf",
+        "run_id": null
+      }
+    },
+    "ready": {
+      "bootstrap_payload_sha256": "sha256:75ed87e9aad2106d828ab7fb0f00051febfe01efa2c295c76bcc833fe24a241a",
+      "call_id": "n7-call-20260909T083132Z-33da0a67",
+      "initial_isolation": "PENDING_PREPARE_AFTER_RUNNER_ISOLATION",
+      "ok": true,
+      "peer_bootstrap_receipt_digest": "sha256:fc4ac4f8f3613cbe84110acef6fb46db4567ee91ce5df19fc2da83c854471ea0",
+      "protocol": "rolo-targetd/v1",
+      "provider_invocation_count": 0,
+      "provider_runtime_sha256": "9d32f1fa62f68edfbca443090bc462f078f83293a24b57b6a97eb4c1a64fe2b8",
+      "run_id": "n7-physical-20260909T083132Z-33da0a67",
+      "schema_version": "rolo-n7-targetd-host-ready/v1",
+      "session_id": "n7-session-20260909T083132Z-33da0a67",
+      "stage_root": "/dev/shm/rolo-n7-targetd-d8373cc6fa9a030c2fd2",
+      "status": "READY",
+      "target_id": "mentorpi"
+    },
+    "session": {
+      "closed": false,
+      "created_at": "2026-09-09T08:31:53.145055Z",
+      "expires_at": "2026-09-09T09:31:53.145055Z",
+      "profile_id": "landerpi-n7-debug",
+      "session_id": "n7-session-20260909T083132Z-33da0a67",
+      "surface_digest": "429c3917ea46e248c3d4278b09d3741bf4fcf25ef3ece69c78ffcfaf1dc69729",
+      "target_id": "mentorpi"
+    },
+    "ssh_binding": {
+      "client_public_key_sha256": "sha256:7f7ce001cc85f96212b0da322dbbabe4d2eb149c7033e8dabf4cd0f71a14ce52",
+      "known_hosts_sha256": "sha256:5b167392ef3be1d938c4eeeb165d7a6fa881cc24d1639ba8e6aaeb7475dad299",
+      "pinned_host_key_sha256": "sha256:6851db1f4928f59ce86c96447dea002b25a36d87cfff3aa682f4f05cc30a3274",
+      "ssh_host": "192.168.10.167",
+      "ssh_port": 22,
+      "ssh_username": "pi"
+    },
+    "stage": {
+      "archive_bytes": 3225600,
+      "archive_member_count": 187,
+      "archive_sha256": "sha256:27a77a835fa3ce3691a2896722eaa1916f64a2fa1d94ca190f9046c453bd8dbf",
+      "expanded_bytes": 3060913,
+      "launcher": "repo/scripts/landerpi_n7_targetd_host.py",
+      "ok": true,
+      "run_id": "n7-physical-20260909T083132Z-33da0a67",
+      "schema_version": "rolo-n7-targetd-host-stage-receipt/v1",
+      "stage_nonce_sha256": "sha256:2141a7791e32da5fb2b76ae7022397d7f3c74cb4ad4bcc80ef36ff935acbd6eb",
+      "stage_root": "/dev/shm/rolo-n7-targetd-d8373cc6fa9a030c2fd2",
+      "status": "STAGED"
+    }
+  },
+  "ok": true,
+  "run_id": "n7-physical-20260909T083132Z-33da0a67",
+  "schema_version": "rolo-n7-stage-receipt/v1",
+  "stage_nonce_digest": "sha256:88081372f9ba3ce311000a0ebee565926b7b53f5ba2c5879bedcd6519ea17ee1",
+  "stage_root": "/dev/shm/rolo-n7-physical-548837334053d1256982"
+}

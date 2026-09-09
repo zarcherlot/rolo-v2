@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -143,6 +143,12 @@ class TraceSessionRequest(MvpModel):
     compile_context_digest: str | None = Field(default=None, max_length=256)
     target_fingerprint: str | None = Field(default=None, max_length=256, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     scope: tuple[str, ...] = Field(default=(), max_length=32)
+    # A formal targetd Trace must reuse the already-open journey identity.
+    # Ordinary in-process callers may omit it and retain the generated id.
+    session_id: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+    )
 
     @model_validator(mode="after")
     def mode_requirements(self) -> TraceSessionRequest:
@@ -246,10 +252,10 @@ class CertificationCase(MvpModel):
 
 
 class CertificationSuite(MvpModel):
-    schema_version: Literal["rolo-mvp-certification-suite/v1"] = "rolo-mvp-certification-suite/v1"
+    schema_version: Literal["rolo-mvp-certification-suite/v1"]
     suite_id: str = Field(min_length=1, max_length=128)
-    target_id: str
-    cases: list[CertificationCase] = Field(min_length=1, max_length=100)
+    target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    cases: list[CertificationCase] = Field(min_length=10, max_length=10)
     digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
     def payload(self) -> dict[str, Any]:
@@ -265,17 +271,22 @@ class CertificationSuite(MvpModel):
     def validate_suite(self) -> CertificationSuite:
         if self.digest is not None and self.digest != self.computed_digest():
             raise ValueError("certification suite digest does not match content")
+        if len({case.case_id for case in self.cases}) != len(self.cases):
+            raise ValueError("certification suite contains duplicate case_id values")
+        if len({case.tool_id for case in self.cases}) != 1:
+            raise ValueError("certification suite must bind all 10 cases to one tool")
         return self
 
 
 class CertificationCaseResult(MvpModel):
-    case_id: str
+    case_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")
+    tool_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     expected: Any = None
     actual: Any = None
     status: CaseStatus
     operation_ids: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
-    artifact_digests: list[str] = Field(default_factory=list)
+    artifact_digests: list[Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]] = Field(default_factory=list)
     started_at: datetime
     finished_at: datetime
     elapsed_ms: int = Field(ge=0)
@@ -283,27 +294,61 @@ class CertificationCaseResult(MvpModel):
     operator_notes: str | None = None
     # Release/context identity is repeated per case so a report remains
     # auditable even when a suite contains multiple tools.
-    release_digest: str | None = None
-    compile_context_digest: str | None = None
-    target_fingerprint: str | None = None
+    release_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    compile_context_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    target_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     idempotency_key: str | None = None
 
 
 class CertificationReport(MvpModel):
     schema_version: Literal["rolo-mvp-certification-report/v1"] = "rolo-mvp-certification-report/v1"
-    run_id: str
-    target_id: str
-    snapshot_digest: str
-    suite_digest: str
-    results: list[CertificationCaseResult]
+    run_id: str = Field(min_length=1, max_length=128)
+    target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    snapshot_digest: str = Field(pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
+    suite_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    tool_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    release_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    results: list[CertificationCaseResult] = Field(min_length=10, max_length=10)
     conclusion: Literal["PASS", "CONDITIONAL", "BLOCKED"]
-    artifact_digests: list[str] = Field(default_factory=list)
+    artifact_digests: list[Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     limitations: list[str] = Field(default_factory=list)
-    compile_context_digest: str | None = None
-    target_fingerprint: str | None = None
+    compile_context_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    target_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
     failure_policy: Literal["continue", "fail_fast"] = "continue"
     event_count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_release_binding(self) -> CertificationReport:
+        """Keep every case on one report-owned Release/Context/target identity."""
+
+        if len({item.case_id for item in self.results}) != len(self.results):
+            raise ValueError("certification report contains duplicate case_id values")
+        if any(item.tool_id != self.tool_id for item in self.results):
+            raise ValueError("certification report mixes tool identities")
+        for field_name in ("release_digest", "compile_context_digest", "target_fingerprint"):
+            report_value = getattr(self, field_name)
+            if any(getattr(item, field_name) != report_value for item in self.results):
+                raise ValueError(f"certification report mixes {field_name} values")
+        if self.conclusion != "BLOCKED" and (
+            self.release_digest is None
+            or self.compile_context_digest is None
+            or self.target_fingerprint in (None, "UNKNOWN")
+        ):
+            raise ValueError("non-blocked certification report requires complete release identity")
+        if any(
+            item.status == CaseStatus.PASS
+            and (
+                item.release_digest is None
+                or item.compile_context_digest is None
+                or item.target_fingerprint in (None, "UNKNOWN")
+            )
+            for item in self.results
+        ):
+            raise ValueError("PASS certification case requires complete release identity")
+        if self.conclusion == "PASS" and any(item.status != CaseStatus.PASS for item in self.results):
+            raise ValueError("PASS certification report requires every case to PASS")
+        return self
 
 
 class CertifyRequest(MvpModel):
@@ -314,12 +359,13 @@ class CertifyRequest(MvpModel):
     process and must point at a regular, non-symlink file.
     """
 
-    schema_version: Literal["rolo-certify-request/v1"] = "rolo-certify-request/v1"
+    schema_version: Literal["rolo-certify-request/v1"]
     target_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
     suite_ref: str = Field(min_length=1, max_length=1024)
-    snapshot_digest: str = Field(default="UNKNOWN", max_length=256)
-    compile_context_digest: str | None = Field(default=None, max_length=256)
-    target_fingerprint: str | None = Field(default=None, max_length=256, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
+    snapshot_digest: str = Field(default="UNKNOWN", max_length=256, pattern=r"^[0-9a-f]{64}$|^UNKNOWN$")
+    release_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    compile_context_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    target_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     failure_policy: Literal["continue", "fail_fast"] = "continue"
     session_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 

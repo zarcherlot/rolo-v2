@@ -1,0 +1,71 @@
+{
+  "authenticated_stop": {
+    "call_id": "n7-call-20260909T085135Z-f332ea22",
+    "control_auth_verified": true,
+    "final_zero_verified": false,
+    "provider_terminated": false,
+    "receipt": {
+      "stop_query_count": 3,
+      "targetd_receipt": {
+        "artifact_refs": [],
+        "authority_head_digest": "7dc9ab54d678220fae5ad067bab7d04d99bd3bb95a838415fca0e6eb0f2e38de",
+        "bundle_digest": "5b6e85aa223b39dcecfc19ec46bb8211bd8c8b4f7123109a9633699a87801fe2",
+        "context_digest": "sha256:4ef3b171e394c9f20eb48d030a84e979d27a83c13f6ff42f572fdabe7c54d165",
+        "evidence_refs": [],
+        "fence_epoch": 1,
+        "idempotency_key": "n7-call-20260909T085135Z-f332ea22",
+        "mapping_confirmation_receipt_digest": "sha256:da9c42b15be543269e6adfb9ab5241cf719c7b68633a0d0eca48116ae814a664",
+        "provider_fence_digest": "923417d87b8865c49972be2ffd18582d32d44c98d57e703bf6d9dc49751c32b2",
+        "provider_id": "ros-container",
+        "provider_operation": "base.rotate",
+        "provider_started_at": null,
+        "release_digest": "sha256:4ca647e92830f8eafc255b218d0c11d4e4c7f3af94da7fc984283a82f31586e3",
+        "request_digest": "4c7f678fd698cc2f2e9db0d3da5d6382ff0f0ab96ce23c20ceb37a1818593b73",
+        "result": null,
+        "schema_version": "rolo-targetd-call-receipt/v2",
+        "session_id": "n7-session-20260909T085135Z-f332ea22",
+        "status": "ACCEPTED",
+        "target_id": "mentorpi",
+        "updated_at": "2026-09-09T08:52:09.316339Z"
+      }
+    },
+    "receipt_digest": "sha256:419e6e99eb5197ec779b780c8fa07e468002dfb202c74d8d1214259b0269ec41",
+    "schema_version": "rolo-n7-authenticated-stop-receipt/v1",
+    "session_id": "n7-session-20260909T085135Z-f332ea22",
+    "status": "UNKNOWN",
+    "stop_request_count": 1,
+    "target_stop_acknowledged": false
+  },
+  "authority_class": "DEBUG_ONLY_USER_ATTESTED",
+  "blockers": [
+    "N7_PHYSICAL_STOP_NOT_VERIFIED"
+  ],
+  "call_attempt_count": 0,
+  "call_id": "n7-call-20260909T085135Z-f332ea22",
+  "channel_id": "sha256:a4c33296e556b1be2320a5f1a382a0f9f2b3315673011391e78a0de5f9efba0c",
+  "completed_at": "2026-09-09T08:52:38.038328Z",
+  "control_publishers_left_isolated": true,
+  "fresh_estop_challenge_verified": false,
+  "manual_intervention_required": true,
+  "message": "authenticated STOP did not prove final zero, target acknowledgement, and provider exit",
+  "motion": {
+    "angle_degrees": 1.0,
+    "max_speed_rad_s": 0.03
+  },
+  "onsite_safety_drill_performed": false,
+  "prior_blocker": "N7_PHYSICAL_GRAPH_DISCOVERY_TIMEOUT",
+  "production_authority": false,
+  "provider_invocation_count": 0,
+  "query_attempt_count": 0,
+  "restore_verified": false,
+  "run_id": "n7-physical-20260909T085135Z-f332ea22",
+  "schema_version": "rolo-landerpi-n7-physical-trace/v1",
+  "session_id": "n7-session-20260909T085135Z-f332ea22",
+  "stage_cleanup_verified": false,
+  "stage_preserved_for_recovery": true,
+  "stage_root": "/dev/shm/rolo-n7-physical-a1fb65659c7a06ef5349",
+  "started_at": "2026-09-09T08:51:47.850838Z",
+  "status": "UNKNOWN",
+  "target_id": "mentorpi",
+  "user_attestation_digest": "sha256:603416e6e6ff609ae0ec7aaa69d0ae7d4dd2213931b2c645b36b7c8d586e6c32"
+}

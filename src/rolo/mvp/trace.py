@@ -52,6 +52,8 @@ class TraceService:
         autonomous_source_confirmed: bool = False,
         max_diagnosis_attempts: int = 2,
         max_recovery_attempts: int = 2,
+        checkpoint_sink: Callable[[TraceSession], Any] | None = None,
+        stream_event_artifacts: bool = True,
     ) -> None:
         self.catalog = catalog
         self.invoker = invoker
@@ -64,6 +66,8 @@ class TraceService:
         self.autonomous_source_confirmed = bool(autonomous_source_confirmed)
         self.max_diagnosis_attempts = max(0, min(int(max_diagnosis_attempts), 8))
         self.max_recovery_attempts = max(0, min(int(max_recovery_attempts), 8))
+        self.checkpoint_sink = checkpoint_sink
+        self.stream_event_artifacts = bool(stream_event_artifacts)
         self.sessions: dict[str, TraceSession] = {}
         # Results are keyed by caller-visible idempotency key.  This map is
         # deliberately scoped to the service instance; a durable targetd
@@ -204,8 +208,11 @@ class TraceService:
         if self.catalog.target_fingerprint != "UNKNOWN" and effective_fingerprint != self.catalog.target_fingerprint:
             raise ValueError("TRACE_BLOCKED: target fingerprint does not match Probe catalog")
         now = self.clock()
+        session_id = request.session_id or f"trace-{secrets.token_urlsafe(12)}"
+        if session_id in self.sessions:
+            raise ValueError("TRACE_BLOCKED: session id already exists")
         session = TraceSession(
-            session_id=f"trace-{secrets.token_urlsafe(12)}",
+            session_id=session_id,
             target_id=request.target_id,
             catalog_digest=request.catalog_digest,
             task=request.task,
@@ -439,6 +446,151 @@ class TraceService:
     def get(self, session_id: str) -> TraceSession:
         return self._get(session_id)
 
+    def restore_session(self, value: TraceSession) -> TraceSession:
+        """Restore one journal-verified session without replaying a call.
+
+        The durable store is responsible for verifying its hash chain before
+        calling this method.  Trace still independently checks the bound
+        Catalog/Release/Context/target identity and reconstructs only results
+        that have a matching call/result event pair.
+        """
+
+        session = TraceSession.model_validate(value.model_dump(mode="python"))
+        if session.target_id != self.catalog.target_id or session.catalog_digest != self.catalog.digest:
+            raise ValueError("TRACE_RESTORE_IDENTITY_MISMATCH")
+        for label, actual, expected in (
+            ("release", session.release_digest, self.release_digest),
+            ("context", session.compile_context_digest, self.compile_context_digest),
+            ("target", session.target_fingerprint, self.target_fingerprint),
+        ):
+            if expected is not None and actual != expected:
+                raise ValueError(f"TRACE_RESTORE_{label.upper()}_MISMATCH")
+        if any(event.sequence != index for index, event in enumerate(session.events, 1)):
+            raise ValueError("TRACE_RESTORE_EVENT_SEQUENCE_INVALID")
+        if any(
+            event.session_id != session.session_id
+            or event.run_id != session.session_id
+            or event.target_id != session.target_id
+            for event in session.events
+        ):
+            raise ValueError("TRACE_RESTORE_EVENT_IDENTITY_MISMATCH")
+
+        pending: dict[str, TraceEvent] = {}
+        restored: dict[tuple[str, str], tuple[str, str, Any, str]] = {}
+        for event in session.events:
+            key = event.idempotency_key
+            if not key:
+                continue
+            if event.event == "TOOL_CALL" and event.tool_id is not None and event.arguments is not None:
+                pending[key] = event
+                continue
+            if event.event not in {"TOOL_RESULT", "TOOL_RESULT_RECONCILED", "TOOL_RESULT_REUSED"}:
+                continue
+            call = pending.get(key)
+            if call is None or call.tool_id is None or call.arguments is None:
+                raise ValueError("TRACE_RESTORE_RESULT_WITHOUT_CALL")
+            encoded = json.dumps(call.arguments, ensure_ascii=False, separators=(",", ":"), sort_keys=True, allow_nan=False)
+            evidence_id = event.evidence_ids[0] if event.evidence_ids else f"trace:{session.session_id}:reconciled:{key}"
+            restored[(session.session_id, key)] = (
+                call.tool_id,
+                hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
+                event.result,
+                evidence_id,
+            )
+
+        self.sessions[session.session_id] = session
+        self._idempotent_results.update(restored)
+        self._next_call_sequence[session.session_id] = max(session.calls, len(pending))
+        if session.state == SessionState.CALLING:
+            session.state = SessionState.UNKNOWN
+            if "process restart requires target receipt reconciliation" not in session.limitations:
+                session.limitations.append("process restart requires target receipt reconciliation")
+            self._event(
+                session,
+                SessionState.UNKNOWN,
+                "PROCESS_RESTART_RECONCILE_REQUIRED",
+                error_code="TRACE_RECONCILE_REQUIRED",
+            )
+        return session
+
+    def reconcile_call(
+        self,
+        session_id: str,
+        *,
+        idempotency_key: str,
+        tool_id: str,
+        arguments: Mapping[str, Any],
+        result: Any,
+        terminal_status: str,
+        evidence_id: str,
+    ) -> TraceSession:
+        """Commit one independently queried target receipt into a restored run."""
+
+        session = self._get(session_id)
+        if session.state not in {SessionState.CALLING, SessionState.UNKNOWN}:
+            raise ValueError("TRACE_RECONCILE_STATE_INVALID")
+        calls = [
+            event
+            for event in session.events
+            if event.event == "TOOL_CALL" and event.idempotency_key == idempotency_key
+        ]
+        if len(calls) != 1:
+            raise ValueError("TRACE_RECONCILE_CALL_IDENTITY_INVALID")
+        call = calls[0]
+        if call.tool_id != tool_id or call.arguments != dict(arguments):
+            raise ValueError("TRACE_RECONCILE_CALL_IDENTITY_MISMATCH")
+        prior_results = [
+            event
+            for event in session.events
+            if event.event in {"TOOL_RESULT", "TOOL_RESULT_RECONCILED"}
+            and event.idempotency_key == idempotency_key
+        ]
+        if any(
+            event.event == "TOOL_RESULT_RECONCILED"
+            or any(item.startswith("targetd-trace-receipt:") for item in event.evidence_ids)
+            or not (
+                isinstance(event.result, Mapping)
+                and str(event.result.get("status", "")).upper() == "UNKNOWN"
+            )
+            for event in prior_results
+        ):
+            raise ValueError("TRACE_RECONCILE_ALREADY_COMMITTED")
+        encoded = json.dumps(arguments, ensure_ascii=False, separators=(",", ":"), sort_keys=True, allow_nan=False)
+        self._idempotent_results[(session_id, idempotency_key)] = (
+            tool_id,
+            hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
+            result,
+            evidence_id,
+        )
+        if evidence_id not in session.evidence_ids:
+            session.evidence_ids.append(evidence_id)
+        if idempotency_key not in session.operation_ids:
+            session.operation_ids.append(idempotency_key)
+        normalized_status = terminal_status.upper()
+        if normalized_status == "SUCCEEDED":
+            state = SessionState.OBSERVED
+        elif normalized_status == "STOPPED":
+            state = SessionState.STOPPED
+        elif normalized_status == "CANCELLED":
+            state = SessionState.CANCELLED
+        elif normalized_status == "UNKNOWN":
+            state = SessionState.UNKNOWN
+        else:
+            state = SessionState.BLOCKED
+        session.state = state
+        self._event(
+            session,
+            state,
+            "TOOL_RESULT_RECONCILED",
+            tool_id=tool_id,
+            result=result,
+            evidence_ids=[evidence_id],
+            operation_id=idempotency_key,
+            idempotency_key=idempotency_key,
+            error_code=None if state == SessionState.OBSERVED else f"TARGETD_{normalized_status}",
+        )
+        return session
+
     def persist_session(
         self,
         session_id: str,
@@ -593,6 +745,7 @@ class TraceService:
         cache_key = (session.session_id, idempotency_key)
         operation_id = idempotency_key
         session.state = SessionState.CALLING
+        session.calls += 1
         self._event(
             session,
             SessionState.CALLING,
@@ -605,7 +758,6 @@ class TraceService:
             compile_context_digest=session.compile_context_digest,
             target_fingerprint=session.target_fingerprint,
         )
-        session.calls += 1
         try:
             result = self._call_invoker(call.tool_id, call.arguments, session.session_id, idempotency_key)
         except PermissionError as exc:
@@ -621,7 +773,14 @@ class TraceService:
         if result_size > 512 * 1024:
             result = {"status": "FAILED", "error": "RESULT_TOO_LARGE"}
         session.state = SessionState.OBSERVED
-        evidence = [f"trace:{session.session_id}:call:{session.calls}"]
+        receipt_evidence = getattr(self.invoker, "trace_receipt_evidence", None)
+        evidence = (
+            list(receipt_evidence(session.session_id, idempotency_key))
+            if callable(receipt_evidence)
+            else []
+        )
+        if not evidence:
+            evidence = [f"trace:{session.session_id}:call:{session.calls}"]
         session.evidence_ids.extend(evidence)
         session.operation_ids.append(operation_id)
         self._idempotent_results[cache_key] = (call.tool_id, arguments_digest, result, evidence[0])
@@ -801,7 +960,7 @@ class TraceService:
             **safe_kwargs,
         )
         session.events.append(item)
-        if self.artifact_root is not None:
+        if self.artifact_root is not None and self.stream_event_artifacts:
             if self.artifact_root.exists() and self.artifact_root.is_symlink():
                 raise ValueError("trace artifact root must not be a symlink")
             path = self.artifact_root / session.target_id / session.session_id / "trace-events.jsonl"
@@ -812,6 +971,8 @@ class TraceService:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as stream:
                 stream.write(json.dumps(item.model_dump(mode="json"), ensure_ascii=False, separators=(",", ":")) + "\n")
+        if self.checkpoint_sink is not None:
+            self.checkpoint_sink(session)
 
     @classmethod
     def _safe_value(cls, value: Any, *, key: str = "") -> Any:

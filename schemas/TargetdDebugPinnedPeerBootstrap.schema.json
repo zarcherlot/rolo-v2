@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.local/schemas/TargetdDebugPinnedPeerBootstrap.schema.json",
+  "title": "Debug-only pinned targetd peer bootstrap receipt",
+  "description": "A short-lived, one-shot handoff from an already pinned SSH stdio channel. This shape is explicitly not production peer authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "capability_id",
+    "bootstrap_authority_id",
+    "target_id",
+    "target_identity",
+    "call_id",
+    "session_id",
+    "execution_subject_digest",
+    "ssh_host",
+    "ssh_port",
+    "ssh_username",
+    "pinned_host_key_sha256",
+    "observed_host_key_sha256",
+    "client_public_key_sha256",
+    "known_hosts_sha256",
+    "channel_binding_sha256",
+    "bootstrap_nonce_sha256",
+    "public_key_auth_verified",
+    "host_key_verified",
+    "password_used",
+    "keyboard_interactive_used",
+    "batch_mode",
+    "strict_host_key_checking",
+    "local_subprocess_shell_used",
+    "remote_login_shell_used",
+    "production_peer_verified",
+    "one_shot",
+    "issued_at",
+    "expires_at",
+    "payload_sha256",
+    "signature_hmac_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "rolo-debug-pinned-targetd-peer-bootstrap/v1" },
+    "status": { "const": "DEBUG_ONLY_FIXED_PINNED_SSH_PEER" },
+    "capability_id": { "$ref": "#/$defs/identifier" },
+    "bootstrap_authority_id": { "$ref": "#/$defs/identity" },
+    "target_id": { "$ref": "#/$defs/identifier" },
+    "target_identity": { "$ref": "#/$defs/identity" },
+    "call_id": { "$ref": "#/$defs/identifier" },
+    "session_id": { "$ref": "#/$defs/identifier" },
+    "execution_subject_digest": { "$ref": "#/$defs/digest" },
+    "ssh_host": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^(?:[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?|\\[[0-9A-Fa-f:]+\\])$"
+    },
+    "ssh_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "ssh_username": { "const": "pi" },
+    "pinned_host_key_sha256": { "$ref": "#/$defs/digest" },
+    "observed_host_key_sha256": { "$ref": "#/$defs/digest" },
+    "client_public_key_sha256": { "$ref": "#/$defs/digest" },
+    "known_hosts_sha256": { "$ref": "#/$defs/digest" },
+    "channel_binding_sha256": { "$ref": "#/$defs/digest" },
+    "bootstrap_nonce_sha256": { "$ref": "#/$defs/digest" },
+    "public_key_auth_verified": { "const": true },
+    "host_key_verified": { "const": true },
+    "password_used": { "const": false },
+    "keyboard_interactive_used": { "const": false },
+    "batch_mode": { "const": true },
+    "strict_host_key_checking": { "const": true },
+    "local_subprocess_shell_used": { "const": false },
+    "remote_login_shell_used": { "const": true },
+    "production_peer_verified": { "const": false },
+    "one_shot": { "const": true },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "payload_sha256": { "$ref": "#/$defs/digest" },
+    "signature_hmac_sha256": {
+      "type": "string",
+      "pattern": "^hmac-sha256:[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^/?[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,254}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

@@ -26,14 +26,28 @@ def test_stdio_argv_reuses_pinned_ssh_options_without_command_marker(tmp_path: P
 def test_targetd_controller_persists_call_artifact(tmp_path: Path):
     target = parse_target_ref("ssh://pi@example.test/home/pi")
     executor = SshTargetExecutor(target, known_hosts=tmp_path / "known_hosts")
-    session = JourneySession.create(
-        session_id="artifact-session", target_id="mentorpi", profile_id="landerpi"
-    )
+    session = JourneySession.create(session_id="artifact-session", target_id="mentorpi", profile_id="landerpi")
     controller = TargetdJourneyController(
-        executor, session, remote_root="/opt/rolo", state_root="/var/lib/rolo-targetd",
-        signing_key="secret", artifact_root=tmp_path / "artifacts"
+        executor,
+        session,
+        remote_root="/opt/rolo",
+        state_root="/var/lib/rolo-targetd",
+        signing_key="secret",
+        admission_store="/var/lib/rolo-authority/admission",
+        execution_authority_root="/var/lib/rolo-authority/execution",
+        release_catalog_root="/var/lib/rolo-authority/catalog",
+        provider="ros2-readonly",
+        ros2_snapshot="/dev/shm/rolo/runtime.json",
+        execute_readonly=True,
+        artifact_root=tmp_path / "artifacts",
     )
     assert controller.last_receipt_ref is None
+    assert "--admission-store" in controller.remote
+    assert "--execution-authority-root" in controller.remote
+    assert controller.remote[controller.remote.index("--release-catalog-root") + 1] == "/var/lib/rolo-authority/catalog"
+    assert controller.remote[controller.remote.index("--ros2-snapshot") + 1] == "/dev/shm/rolo/runtime.json"
+    assert "--execute-readonly" in controller.remote
+    assert controller.remote[controller.remote.index("--provider") + 1] == "ros2-readonly"
 
 
 def test_targetd_installer_archive_contains_rolo_package(tmp_path: Path):
@@ -41,12 +55,11 @@ def test_targetd_installer_archive_contains_rolo_package(tmp_path: Path):
     (package / "targetd").mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "targetd" / "daemon.py").write_text("print('ok')\n", encoding="utf-8")
-    executor = SshTargetExecutor(
-        parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts"
-    )
+    executor = SshTargetExecutor(parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts")
     archive = TargetdInstaller(executor, package_root=tmp_path / "src").build_archive()
     import io
     import tarfile
+
     with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as tar:
         assert sorted(tar.getnames()) == [
             "rolo/INSTALL-MANIFEST.json",
@@ -63,9 +76,7 @@ def test_targetd_installer_bundles_mapping_runtime_next_to_worker(tmp_path: Path
     runtime = tmp_path / "scripts" / "landerpi_autonomous_mapping_runtime.py"
     runtime.parent.mkdir(parents=True)
     runtime.write_text("# reviewed mapping runtime\n", encoding="utf-8")
-    executor = SshTargetExecutor(
-        parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts"
-    )
+    executor = SshTargetExecutor(parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts")
     installer = TargetdInstaller(executor, package_root=tmp_path / "src")
     archive = installer.build_archive()
     import io
@@ -85,9 +96,7 @@ def test_targetd_installer_manifest_is_stable_and_uninstall_requires_confirmatio
     package = tmp_path / "src" / "rolo"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("VERSION = '1'\n", encoding="utf-8")
-    executor = SshTargetExecutor(
-        parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts"
-    )
+    executor = SshTargetExecutor(parse_target_ref("ssh://pi@example.test/home/pi"), known_hosts=tmp_path / "known_hosts")
     installer = TargetdInstaller(executor, package_root=tmp_path / "src")
     assert installer.build_archive() == installer.build_archive()
     manifest = installer.manifest()

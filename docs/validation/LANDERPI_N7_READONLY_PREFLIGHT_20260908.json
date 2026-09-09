@@ -1,0 +1,316 @@
+{
+  "schema_version": "rolo.landerpi-n7-readonly-preflight.v1",
+  "observed_at_utc": "2026-09-08T09:39:23Z",
+  "target": {
+    "ssh_host": "192.168.10.167",
+    "ssh_user": "pi",
+    "authentication": "key-only with pinned known_hosts",
+    "host_name": "device-hostname-redacted",
+    "container_name": "MentorPi"
+  },
+  "host_health": {
+    "status": "HEALTHY",
+    "model": "Raspberry Pi 5 Model B Rev 1.0",
+    "architecture": "aarch64",
+    "kernel": "Linux 6.6.20+rpt-rpi-2712",
+    "online_cpu_count": 4,
+    "uptime_observed": "9 hours 35 minutes",
+    "memory": {
+      "total_gib": 7.9,
+      "available_gib": 6.1,
+      "swap_total_gib": 6.1,
+      "swap_used_gib": 0.0
+    },
+    "cpu_temperature_c": 56.75,
+    "failed_systemd_unit_count": 0,
+    "docker_service": "active",
+    "python_version": "3.11.2"
+  },
+  "container_health": {
+    "status": "HEALTHY_WITHOUT_HEALTHCHECK",
+    "image": "ros:humble",
+    "operating_system": "Ubuntu 22.04.4 LTS",
+    "architecture": "aarch64",
+    "python_version": "3.10.12",
+    "running": true,
+    "paused": false,
+    "restarting": false,
+    "oom_killed": false,
+    "exit_code": 0,
+    "started_at_utc": "2026-09-08T00:05:22.372337572Z",
+    "healthcheck": null
+  },
+  "disk": {
+    "status": "BLOCKED_FOR_PERSISTENT_N7_DEPLOY_OR_CAPTURE",
+    "root_filesystem": {
+      "device": "/dev/mmcblk0p2",
+      "filesystem": "ext4",
+      "size_gib_displayed": 57,
+      "used_gib_displayed": 53,
+      "available_gib_displayed": 1.9,
+      "use_percent": 97,
+      "inode_use_percent": 33
+    },
+    "docker": {
+      "image_size_gb": 11.61,
+      "image_reclaimable_gb": 0.0,
+      "mentorpi_writable_layer_size_gb": 15.53,
+      "mentorpi_writable_layer_reclaimable_gb": 0.0,
+      "build_cache_bytes": 365,
+      "build_cache_reclaimable_bytes": 365
+    },
+    "mentorpi_writable_layer_kib": {
+      "total": 16278520,
+      "home": 9398376,
+      "root": 5175740,
+      "tmp": 786312
+    },
+    "large_non_rolo_candidates_kib": {
+      "/root/.vscode-server": 4220600,
+      "/root/.cursor-server": 838284,
+      "/home/ubuntu/.ros": 1558604,
+      "/home/ubuntu/.ros/log": 1540288,
+      "/home/ubuntu/.local": 1974120
+    },
+    "host_journal_usage": "833.3 MiB",
+    "recommended_gate": {
+      "minimum_root_free_percent": 10,
+      "minimum_root_free_gib_approx": 5.7,
+      "additional_space_to_free_gib_approx": 4.0,
+      "candidate_cleanup_authorized_or_performed": false
+    }
+  },
+  "ros_graph": {
+    "status": "DISCOVERABLE",
+    "distribution": "humble",
+    "domain_id": 0,
+    "domain_id_source": "default",
+    "rmw_implementation": "default",
+    "topic_count": 60,
+    "node_count": 32,
+    "topics": [
+      "/ar_app/image_result",
+      "/ascamera/camera_publisher/depth0/camera_info",
+      "/ascamera/camera_publisher/depth0/image_raw",
+      "/ascamera/camera_publisher/depth0/points",
+      "/ascamera/camera_publisher/ir0/image",
+      "/ascamera/camera_publisher/rgb0/camera_info",
+      "/ascamera/camera_publisher/rgb0/image",
+      "/client_count",
+      "/cmd_vel",
+      "/connected_clients",
+      "/controller/cmd_vel",
+      "/controller_manager/joint_states",
+      "/controller_manager/servo_states",
+      "/diagnostics",
+      "/hand_trajectory/image_result",
+      "/hand_trajectory/points",
+      "/imu",
+      "/imu/rpy/filtered",
+      "/imu/steady_state",
+      "/imu_corrected",
+      "/initialpose",
+      "/joint_controller",
+      "/joint_states",
+      "/joy",
+      "/joy/set_feedback",
+      "/line_following/image_result",
+      "/map",
+      "/map_metadata",
+      "/object_tracking/image_result",
+      "/odom",
+      "/odom_raw",
+      "/parameter_events",
+      "/pose",
+      "/robot_description",
+      "/ros_robot_controller/battery",
+      "/ros_robot_controller/bus_servo/set_position",
+      "/ros_robot_controller/bus_servo/set_state",
+      "/ros_robot_controller/button",
+      "/ros_robot_controller/enable_reception",
+      "/ros_robot_controller/imu_raw",
+      "/ros_robot_controller/joy",
+      "/ros_robot_controller/pwm_servo/set_state",
+      "/ros_robot_controller/sbus",
+      "/ros_robot_controller/set_buzzer",
+      "/ros_robot_controller/set_led",
+      "/ros_robot_controller/set_motor",
+      "/ros_robot_controller/set_oled",
+      "/ros_robot_controller/set_rgb",
+      "/rosout",
+      "/scan",
+      "/scan_raw",
+      "/servo_controller",
+      "/set_odom",
+      "/set_pose",
+      "/slam_toolbox/feedback",
+      "/slam_toolbox/graph_visualization",
+      "/slam_toolbox/scan_visualization",
+      "/slam_toolbox/update",
+      "/tf",
+      "/tf_static"
+    ],
+    "nodes": [
+      "/LD19",
+      "/ar_app",
+      "/arm_controller",
+      "/aurora/aurora",
+      "/controller_manager",
+      "/ekf_filter_node",
+      "/gripper_controller",
+      "/hand_gesture",
+      "/hand_trajectory",
+      "/imu_calib",
+      "/imu_filter",
+      "/init_pose",
+      "/joint_state_publisher",
+      "/joy_node",
+      "/joystick_control",
+      "/lidar_app",
+      "/line_following",
+      "/object_tracking",
+      "/odom_publisher",
+      "/robot_api",
+      "/robot_state_publisher",
+      "/ros_robot_controller",
+      "/rosapi",
+      "/rosapi_params",
+      "/rosbridge_websocket",
+      "/scan_to_scan_filter_chain",
+      "/servo_manager",
+      "/slam_toolbox",
+      "/static_transform_publisher_0yb5cj0KWTYFxiF1",
+      "/transform_listener_impl_5555bd485da0",
+      "/transform_listener_impl_7fff34029420",
+      "/web_video_server"
+    ],
+    "key_topic_types": {
+      "/controller/cmd_vel": "geometry_msgs/msg/Twist",
+      "/map": "nav_msgs/msg/OccupancyGrid",
+      "/odom": "nav_msgs/msg/Odometry",
+      "/odom_raw": "nav_msgs/msg/Odometry",
+      "/ros_robot_controller/set_motor": "ros_robot_controller_msgs/msg/MotorsState",
+      "/scan": "sensor_msgs/msg/LaserScan",
+      "/tf": "tf2_msgs/msg/TFMessage"
+    },
+    "control_endpoints": {
+      "/controller/cmd_vel": {
+        "publisher_count": 6,
+        "publishers": [
+          "/robot_api",
+          "/lidar_app",
+          "/line_following",
+          "/object_tracking",
+          "/hand_gesture",
+          "/joystick_control"
+        ],
+        "subscription_count": 1,
+        "subscribers": [
+          "/odom_publisher"
+        ]
+      },
+      "/ros_robot_controller/set_motor": {
+        "publisher_count": 2,
+        "publishers": [
+          "/odom_publisher",
+          "/hand_gesture"
+        ],
+        "subscription_count": 1,
+        "subscribers": [
+          "/ros_robot_controller"
+        ]
+      }
+    }
+  },
+  "targetd": {
+    "status": "NOT_DEPLOYED",
+    "host_process_count": 0,
+    "container_process_count": 0,
+    "host_command_count": 0,
+    "container_command_count": 0,
+    "container_python_distribution_count": 0,
+    "matching_docker_object_count": 0
+  },
+  "runtime_dependencies": {
+    "deployment_user": "ubuntu",
+    "python_requirement_satisfied": true,
+    "uv": {
+      "available": true,
+      "version": "0.12.5",
+      "architecture": "aarch64-unknown-linux-gnu"
+    },
+    "venv_module_available": true,
+    "pip_version": "24.2",
+    "detected": {
+      "httpx": "0.28.1",
+      "openai": "1.90.0",
+      "packaging": "21.3",
+      "pydantic": "2.12.4",
+      "PyYAML": "5.4.1"
+    },
+    "not_detected_by_pip_show": [
+      "fastapi",
+      "pydantic-settings",
+      "tomli",
+      "typer",
+      "uvicorn",
+      "hatchling"
+    ],
+    "constraint_gaps": [
+      "openai 1.90.0 is below the project minimum 1.99",
+      "packaging 21.3 is below the project minimum 24",
+      "PyYAML 5.4.1 is below the project minimum 6.0",
+      "required runtime packages were not all detected"
+    ],
+    "decision": "DEPLOY_IN_A_DEDICATED_VENV; DO_NOT_REUSE_SYSTEM_SITE_PACKAGES"
+  },
+  "residual_audit": {
+    "status": "ZERO_EXACT_ROLO_RKB_TARGETD_RESIDUALS",
+    "host_exact_boundary_match_count": 0,
+    "container_exact_boundary_match_count": 0,
+    "host_scopes": [
+      "/root",
+      "/home",
+      "/tmp",
+      "/var/tmp",
+      "/opt",
+      "/var/lib"
+    ],
+    "container_scopes": [
+      "/tmp",
+      "/var/tmp",
+      "/home/ubuntu",
+      "/root",
+      "/opt",
+      "/usr/local/bin",
+      "/usr/local/lib"
+    ],
+    "match_rule": "case-insensitive rolo/rkb/targetd basename or dot/dash/underscore-prefixed derivative"
+  },
+  "safety_conclusion": {
+    "n7_read_only_sensor_and_context_debug": "READY",
+    "n7_targetd_chain_debug": "BLOCKED_UNTIL_DEDICATED_VENV_DEPLOYMENT_AND_DISK_GATE",
+    "n7_persistent_build_or_capture": "BLOCKED_UNTIL_ROOT_FREE_SPACE_GATE",
+    "n7_physical_motion": "BLOCKED_UNTIL_CONTROL_PUBLISHER_ISOLATION_AND_VERIFIED_STOP_ESTOP",
+    "required_before_motion": [
+      "isolate or disable the six existing /controller/cmd_vel publishers",
+      "isolate or fence the two existing direct motor publishers",
+      "verify stop acknowledgement and an operator-accessible E-stop",
+      "complete target-owned execution fencing and admission checks"
+    ]
+  },
+  "read_only_declaration": {
+    "source_or_artifact_uploads": 0,
+    "intentional_target_filesystem_mutations": 0,
+    "persistent_target_files_created": 0,
+    "ros_messages_published": 0,
+    "ros_services_called": 0,
+    "ros_actions_called": 0,
+    "rolo_invoke_requests": 0,
+    "rolo_execute_requests": 0,
+    "motion_commands_sent": 0,
+    "physical_motion_performed_by_this_preflight": false,
+    "raw_topic_samples_persisted": 0,
+    "note": "The preflight used key-only SSH, read-only host/container inspection, ROS graph discovery, and endpoint metadata queries only. No later SSH session was opened while writing this report."
+  }
+}

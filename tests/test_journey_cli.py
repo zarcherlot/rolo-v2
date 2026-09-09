@@ -87,11 +87,12 @@ def test_run_certify_records_each_case_and_report_artifacts(tmp_path: Path) -> N
                 "target_id": "robot-1",
                 "cases": [
                     {
-                        "case_id": "case-01",
+                        "case_id": f"case-{index:02d}",
                         "description": "inspect",
                         "tool_id": "native.os.host.inspect",
                         "expected": {"status": "SUCCEEDED"},
                     }
+                    for index in range(1, 11)
                 ],
             }
         ),
@@ -102,7 +103,10 @@ def test_run_certify_records_each_case_and_report_artifacts(tmp_path: Path) -> N
         json.dumps(
             {
                 "schema_version": "rolo-mvp-invocation-fixture/v1",
-                "results": {"case-01": {"status": "SUCCEEDED"}},
+                "results": {
+                    f"case-{index:02d}": {"status": "SUCCEEDED"}
+                    for index in range(1, 11)
+                },
             }
         ),
         encoding="utf-8",
@@ -114,7 +118,7 @@ def test_run_certify_records_each_case_and_report_artifacts(tmp_path: Path) -> N
                 "schema_version": "rolo-release-binding/v1",
                 "release_digests": {"native.os.host.inspect": "sha256:" + "a" * 64},
                 "compile_context_digest": "sha256:" + "b" * 64,
-                "target_fingerprint": "UNKNOWN",
+                "target_fingerprint": "c" * 64,
             }
         ),
         encoding="utf-8",
@@ -124,18 +128,23 @@ def test_run_certify_records_each_case_and_report_artifacts(tmp_path: Path) -> N
         suite_path=suite_path,
         result_fixture=fixture_path,
         output=tmp_path / "certify-report.json",
-        require_ten_cases=False,
         release_binding_path=binding_path,
     )
 
-    assert result["status"] == "PASS"
-    assert result["case_count"] == 1
+    assert result["status"] == "SIMULATED_PASS"
+    assert result["execution_mode"] == "OFFLINE_FIXTURE"
+    assert result["case_count"] == 10
     assert result["fixture_only"] is True
+    assert result["report"]["conclusion"] == "CONDITIONAL"
+    assert "FIXTURE_ONLY_SIMULATION" in result["report"]["limitations"]
     assert result["compile_context_digest"] == "sha256:" + "b" * 64
     index = Path(result["artifact_index"])
     indexed = json.loads(index.read_text(encoding="utf-8"))
     assert {item["path"] for item in indexed["artifacts"]} == {
         "certify-report.json",
         "certify-report.md",
+        "certify-report.html",
         "certify-request.json",
+        "certify-test-suite.json",
+        "certify-events.jsonl",
     }

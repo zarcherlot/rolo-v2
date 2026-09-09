@@ -103,7 +103,16 @@ class Ros2ReadOnlyExecutor:
             }
         try:
             completed = self.runner(
-                [self.ros2_path, "topic", "echo", "--no-daemon", "--once", topic],
+                [
+                    self.ros2_path,
+                    "topic",
+                    "echo",
+                    "--no-daemon",
+                    "--spin-time",
+                    "5",
+                    "--once",
+                    topic,
+                ],
                 capture_output=True,
                 check=False,
                 text=True,

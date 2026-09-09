@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mapping-authority-command/v1",
+  "title": "Rolo Mapping production authority command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ledger_id",
+    "decision_id",
+    "action",
+    "identity_digest",
+    "proposal_digest",
+    "scope_digest",
+    "confirmation_receipt_digest",
+    "requested_ttl_s",
+    "command_digest"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-mapping-authority-command/v1"},
+    "ledger_id": {"$ref": "#/$defs/identifier"},
+    "decision_id": {"$ref": "#/$defs/identifier"},
+    "action": {"enum": ["mapping.confirm", "mapping.reject", "mapping.cancel"]},
+    "identity_digest": {"$ref": "#/$defs/digest"},
+    "proposal_digest": {"$ref": "#/$defs/digest"},
+    "scope_digest": {"$ref": "#/$defs/digest"},
+    "confirmation_receipt_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "requested_ttl_s": {"type": ["integer", "null"], "minimum": 1, "maximum": 86400},
+    "command_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"const": "mapping.confirm"}}},
+      "then": {
+        "properties": {
+          "confirmation_receipt_digest": {"type": "null"},
+          "requested_ttl_s": {"type": "integer", "minimum": 1, "maximum": 86400}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"action": {"const": "mapping.cancel"}}},
+      "then": {
+        "properties": {
+          "confirmation_receipt_digest": {"$ref": "#/$defs/digest"},
+          "requested_ttl_s": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"action": {"const": "mapping.reject"}}},
+      "then": {
+        "properties": {
+          "confirmation_receipt_digest": {"type": "null"},
+          "requested_ttl_s": {"type": "null"}
+        }
+      }
+    }
+  ]
+}

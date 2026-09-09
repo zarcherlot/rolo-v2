@@ -1,0 +1,63 @@
+{
+  "call_id": "n7-call-20260909T085135Z-f332ea22",
+  "motion_command_emitted": false,
+  "motion_enabled": false,
+  "provider_invocation_count": 0,
+  "publisher_identities": [
+    "/rolo_bounded_twist"
+  ],
+  "receipt": {
+    "arm_receipt_digest": "a7e9288a3b0656b14ef8fc83343018e42d8d95e9fedd27da53d01ee0d0789145",
+    "call_id": "n7-call-20260909T085135Z-f332ea22",
+    "call_key_digest": "1f3c6df742db9ee9d22c719873458dbdc3cb906b27e3bc7488cab63a53f3d549",
+    "command_endpoint": "/cmd_vel",
+    "competing_publisher_count": 0,
+    "direct_motor_publisher_identities": [
+      "/odom_publisher"
+    ],
+    "execution_subject_digest": "sha256:620e1aac11af069c197220a396d74cfb9fc4a2e3775158c30e364918dad0c622",
+    "independent_stationary_last_sample_age_s": {
+      "/ros_robot_controller/imu_raw": 0.03140492500097025
+    },
+    "independent_stationary_max_abs_rad_s": {
+      "/ros_robot_controller/imu_raw": 0.005522330836388308
+    },
+    "independent_stationary_sample_counts": {
+      "/ros_robot_controller/imu_raw": 8
+    },
+    "independent_stationary_sources": [
+      "/ros_robot_controller/imu_raw"
+    ],
+    "independent_stationary_window_s": 0.2,
+    "inner_process_identity": {
+      "cmdline_sha256": "9fb0b9a9c94d2ffd1fd6ce1c00884311773ff1e75efac5c29182a7c664d53d22",
+      "pid": 56288,
+      "schema_version": "rolo-targetd-inner-process-identity/v1",
+      "start_ticks": 3166245
+    },
+    "motion_command_emitted": false,
+    "motion_enabled": false,
+    "provider_cmdline_sha256": "sha256:9fb0b9a9c94d2ffd1fd6ce1c00884311773ff1e75efac5c29182a7c664d53d22",
+    "provider_runtime_identity_digest": "sha256:aba949ab88aa414fe959d24f8046e2d03c7d4f3f8d3bf7c1472491c00c632be2",
+    "provider_runtime_sha256": "sha256:9d32f1fa62f68edfbca443090bc462f078f83293a24b57b6a97eb4c1a64fe2b8",
+    "publisher_endpoint_count": 1,
+    "publisher_endpoint_gids": [
+      "010f9616e0db0b9a01000000000011030000000000000000"
+    ],
+    "publisher_identity": "/rolo_bounded_twist",
+    "registry_binding_digest": "sha256:0cb2a04a20fc578ba9282919b1cfc3ddaad95b91de35b35cdc51ed7ed393bc8e",
+    "registry_expires_at_epoch_s": 1788943998.138797,
+    "registry_issued_at_epoch_s": 1788943938.138797,
+    "request_digest": "4c7f678fd698cc2f2e9db0d3da5d6382ff0f0ab96ce23c20ceb37a1818593b73",
+    "runtime_sha256": "9d32f1fa62f68edfbca443090bc462f078f83293a24b57b6a97eb4c1a64fe2b8",
+    "schema_version": "rolo-targetd-physical-worker-arm-receipt/v1",
+    "session_id": "n7-session-20260909T085135Z-f332ea22",
+    "target_id": "mentorpi",
+    "target_monotonic_s": 31663.794228617,
+    "zeros_published": 51
+  },
+  "receipt_digest": "sha256:a7e9288a3b0656b14ef8fc83343018e42d8d95e9fedd27da53d01ee0d0789145",
+  "schema_version": "rolo-n7-prearmed-provider-receipt/v1",
+  "session_id": "n7-session-20260909T085135Z-f332ea22",
+  "worker_lease_digest": "sha256:1f3c6df742db9ee9d22c719873458dbdc3cb906b27e3bc7488cab63a53f3d549"
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": "rolo-canonical-golden/v1",
+  "contract": "rolo-bundle-plan/v2",
+  "value": {
+    "schema_version": "rolo-bundle-plan/v2",
+    "tool_id": "app.state",
+    "kind": "OBSERVE",
+    "target_fingerprint": "target-1",
+    "dsl_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "context_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "ir_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "compiler_version": "rolo-compiler/0.1",
+    "backend_id": "fake_runtime",
+    "backend_version": "rolo-backend-spi/v2",
+    "negotiated_capabilities": ["operation:OBSERVE"],
+    "entrypoint_contract": "rolo.tool.invoke/v1",
+    "bindings": [{"resource_id": "route:/state", "protocol": "ros_topic"}],
+    "runtime_requirements": ["ros2"],
+    "runtime_context": {},
+    "source_bundle_ref": null,
+    "artifacts": [
+      {
+        "path": "bundle-payload.json",
+        "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "size": 42,
+        "role": "bundle_payload"
+      }
+    ]
+  },
+  "canonical_utf8": "{\"artifacts\":[{\"path\":\"bundle-payload.json\",\"role\":\"bundle_payload\",\"sha256\":\"sha256:4444444444444444444444444444444444444444444444444444444444444444\",\"size\":42}],\"backend_id\":\"fake_runtime\",\"backend_version\":\"rolo-backend-spi/v2\",\"bindings\":[{\"protocol\":\"ros_topic\",\"resource_id\":\"route:/state\"}],\"compiler_version\":\"rolo-compiler/0.1\",\"context_digest\":\"sha256:3333333333333333333333333333333333333333333333333333333333333333\",\"dsl_digest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"entrypoint_contract\":\"rolo.tool.invoke/v1\",\"ir_digest\":\"sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"kind\":\"OBSERVE\",\"negotiated_capabilities\":[\"operation:OBSERVE\"],\"runtime_context\":{},\"runtime_requirements\":[\"ros2\"],\"schema_version\":\"rolo-bundle-plan/v2\",\"source_bundle_ref\":null,\"target_fingerprint\":\"target-1\",\"tool_id\":\"app.state\"}",
+  "sha256": "sha256:8f2167bffdc972ff719459219bf4bbabe701726ab3c886ccde099163349f8a37"
+}

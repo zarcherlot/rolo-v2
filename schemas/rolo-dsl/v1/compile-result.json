@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "rolo-dsl-compile-result/v1",
+  "$id": "rolo-dsl-compile-result/v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "status", "dsl_digest", "diagnostics"],
   "properties": {
-    "schema_version": {"const": "rolo-dsl-compile-result/v1"},
+    "schema_version": {"const": "rolo-dsl-compile-result/v2"},
     "status": {"type": "string", "minLength": 1},
     "dsl_digest": {"type": "string"},
     "context_digest": {"type": ["string", "null"]},
@@ -14,6 +14,7 @@
     "ir_digest": {"type": ["string", "null"]},
     "bundle_digest": {"type": ["string", "null"]},
     "backend_id": {"type": ["string", "null"]},
+    "confirmation_receipt_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
     "artifacts": {"type": "object", "additionalProperties": {"type": "string"}},
     "diagnostics": {"type": "array", "items": {"type": "string"}},
     "conformance": {

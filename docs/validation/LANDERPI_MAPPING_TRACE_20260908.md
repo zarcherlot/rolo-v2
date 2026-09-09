@@ -1,6 +1,13 @@
+<!-- status: active; authority: reference; owner: field validation; last_reviewed: 2026-09-08 -->
+
 # LanderPi 自主建图 Trace 现场记录（2026-09-08）
 
 本记录对应 `codex/landerpi-autonomous-mapping` 分支的受监督现场调试。目标侧基础能力仅用于本次 Rolo DSL/targetd 调试，不宣称为生产级导航栈。
+
+> 2026-09-08 清理说明：经用户明确授权，本文所述远端 Rolo/RKB 工程、运行状态、地图、旧
+> trace/canary/probe 脚本、ROS `.bak-rolo` 备份及 Rolo uv editable cache 后续已从 LanderPi host
+> 和 `MentorPi` 容器不可恢复地删除。本文仅保留历史现场摘要与 digest，不表示这些远端路径或
+> artifact 仍可访问或回放；`/home/pi/robot_pi` 与 ROS 当前文件未被修改。
 
 ## 现场基础能力
 
@@ -34,6 +41,15 @@
 
 ## 现场收尾与限制
 
-最终复核确认 `/tmp/rolo-mapping-status.json` 为 `STOPPED`，`motion_started=false`，ROS graph 中无 `rolo_mapping_debug` 节点；`slam_toolbox` 仍保持运行以提供 `/map`。
+当次运行结束时，复核确认 `/tmp/rolo-mapping-status.json` 为 `STOPPED`，
+`motion_started=false`，ROS graph 中无 `rolo_mapping_debug` 节点；`slam_toolbox` 当时仍保持运行以
+提供 `/map`。
+
+随后经授权完成清理：host 与 `MentorPi` 容器内所有经精确枚举、解析并确认属于 Rolo/RKB 的工程/
+部署目录、中间产物、旧 trace/canary/probe 脚本和结果、ROS `.bak-rolo` 备份以及 Rolo uv editable
+cache 均已删除。清理后在 host 的 `/root`、`/home`、`/tmp`、`/var/tmp`、`/opt`、`/var/lib` 和
+容器的 `/tmp`、`/var/tmp`、`/home/ubuntu`、`/root` 复核，无明确 Rolo/RKB 残留；相关进程和 Docker
+命名资源也无残留。清理不可恢复，调试用 key-only SSH 公钥授权暂时保留。根分区约 1.9 GiB 可用、
+97% 使用率，后续上传 bundle、保存地图或升级前仍需磁盘余量门禁。
 
 该探索器不是 Nav2/生产 planner；vendor odom/EKF 可能为 open-loop，里程仅作诊断参考；多 publisher command route 仍由 interference gate 保护。任何再次运行都必须有现场操作员和独立物理急停。

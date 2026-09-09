@@ -13,7 +13,11 @@
     "release_digest": {"type": ["string", "null"]},
     "compile_context_digest": {"type": ["string", "null"]},
     "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
-    "scope": {"type": "array", "items": {"type": "string"}, "maxItems": 32}
+    "scope": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
+    "session_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    }
   },
   "additionalProperties": false
 }

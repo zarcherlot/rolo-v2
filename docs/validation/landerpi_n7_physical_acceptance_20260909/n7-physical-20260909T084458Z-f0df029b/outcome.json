@@ -1,0 +1,34 @@
+{
+  "authority_class": "DEBUG_ONLY_USER_ATTESTED",
+  "blockers": [
+    "PROCESS_WORKER_CALL_NOT_LOCAL"
+  ],
+  "call_attempt_count": 0,
+  "call_id": "n7-call-20260909T084458Z-f0df029b",
+  "channel_id": "sha256:61e62d7d78d75fba2cd2663640df0ab446770ecd309e9107b110751c399d36de",
+  "completed_at": "2026-09-09T08:45:42.206728Z",
+  "control_publishers_left_isolated": true,
+  "fresh_estop_challenge_verified": false,
+  "manual_intervention_required": true,
+  "message": "targetd rejected STOP: PROCESS_WORKER_CALL_NOT_LOCAL",
+  "motion": {
+    "angle_degrees": 1.0,
+    "max_speed_rad_s": 0.03
+  },
+  "onsite_safety_drill_performed": false,
+  "prior_blocker": "PHYSICAL_WORKER_INNER_PREPARE_FAILED",
+  "production_authority": false,
+  "provider_invocation_count": 0,
+  "query_attempt_count": 0,
+  "restore_verified": false,
+  "run_id": "n7-physical-20260909T084458Z-f0df029b",
+  "schema_version": "rolo-landerpi-n7-physical-trace/v1",
+  "session_id": "n7-session-20260909T084458Z-f0df029b",
+  "stage_cleanup_verified": false,
+  "stage_preserved_for_recovery": true,
+  "stage_root": "/dev/shm/rolo-n7-physical-974cc598478e20d8d8ee",
+  "started_at": "2026-09-09T08:45:10.343308Z",
+  "status": "UNKNOWN",
+  "target_id": "mentorpi",
+  "user_attestation_digest": "sha256:fb355c01048193b2725acb371efce77d09228947bf92ac2af5cb1da23dcddb1d"
+}

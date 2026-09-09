@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from rolo._compat import StrEnum
-from rolo.dsl.contracts import TARGETD_COMPILE_SCHEMA_VERSION, TARGETD_FRAME_SCHEMA_VERSION, TARGETD_PUT_SCHEMA_VERSION
+from rolo.dsl.contracts import TARGETD_FRAME_SCHEMA_VERSION, TARGETD_PUT_SCHEMA_VERSION
 from rolo.dsl.models import StrictModel
 
 
@@ -29,6 +29,11 @@ class DslFrame(StrictModel):
 
 class DslPutPayload(StrictModel):
     schema_version: Literal["rolo-targetd-dsl-put/v1"] = TARGETD_PUT_SCHEMA_VERSION
+    journey_session_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+    )
     dsl: dict[str, Any]
     context: dict[str, Any]
     compiler_version: str = Field(min_length=1, max_length=128)
@@ -40,12 +45,20 @@ class DslPutPayload(StrictModel):
 
 
 class DslCompilePayload(StrictModel):
-    schema_version: Literal["rolo-targetd-dsl-compile/v1"] = TARGETD_COMPILE_SCHEMA_VERSION
+    schema_version: Literal["rolo-targetd-dsl-compile/v2"]
+    journey_session_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+    )
+    confirmation_receipt_digest: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     dsl_digest: str
     context_digest: str
     target_fingerprint: str
     backend_hint: str | None = None
+    runtime_backend_hint: str | None = None
     required_capabilities: tuple[str, ...] = Field(default=(), max_length=32)
+    required_runtime_capabilities: tuple[str, ...] = Field(default=(), max_length=32)
     source_bundle_digest: str | None = None
     source_bundle_manifest: dict[str, Any] | None = Field(default=None, max_length=32)
     source_bundle_source: str | None = Field(default=None, max_length=1_000_000)

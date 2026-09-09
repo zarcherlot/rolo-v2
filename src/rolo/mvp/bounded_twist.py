@@ -27,6 +27,21 @@ DEFAULT_INDEPENDENT_IMU_ENDPOINTS = (
     '/imu_corrected',
     '/ros_robot_controller/imu_raw',
 )
+LANDERPI_CONTROLLED_COMMAND_ENDPOINT = '/cmd_vel'
+LANDERPI_COMPETING_COMMAND_ENDPOINT = '/controller/cmd_vel'
+LANDERPI_DIRECT_MOTOR_ENDPOINT = '/ros_robot_controller/set_motor'
+LANDERPI_ROLO_PUBLISHER = '/rolo_bounded_twist'
+LANDERPI_ALLOWED_DIRECT_MOTOR_PUBLISHERS = frozenset({'/odom_publisher'})
+
+
+def _exact_landerpi_publisher_topology(controlled, competing, direct_motor):
+    """Check endpoint cardinality as well as ROS node identities."""
+
+    return (
+        controlled == [LANDERPI_ROLO_PUBLISHER]
+        and competing == []
+        and direct_motor == sorted(LANDERPI_ALLOWED_DIRECT_MOTOR_PUBLISHERS)
+    )
 
 
 def goal_tolerance_rad(goal_rad):
@@ -163,6 +178,29 @@ def execute_bounded_twist(io, request):
     feedback_tolerance = goal_tolerance_rad(goal)
     minimum_motion_observation_s = motion_observation_duration_s(goal, speed)
 
+    def stationary_at_start(observation):
+        """Require fresh zero odometry and, when available, independent IMU stillness.
+
+        The target-owned provider gate can only describe the instant at which
+        it was evaluated.  Recheck immediately before the first non-zero
+        publish so a bump or moving chassis in the START IPC window cannot
+        inherit that earlier authorization.
+        """
+
+        if (
+            not observation
+            or io.now() - observation['at'] > 0.5
+            or abs(float(observation['angular_speed'])) > 0.03
+        ):
+            return False
+        reader = getattr(io, 'independent_stationary', None)
+        if not callable(reader):
+            return True
+        try:
+            return reader() is True
+        except (Exception, KeyboardInterrupt):
+            return False
+
     ready_deadline = io.now() + 5
     while io.now() < ready_deadline:
         io.spin(0.02)
@@ -170,25 +208,33 @@ def execute_bounded_twist(io, request):
         if io.cancelled:
             return {'status': 'CANCELLED', 'motion_started': False}
         exclusive = getattr(io, 'command_exclusive', lambda: True)()
+        control_graph_isolated = getattr(io, 'control_graph_isolated', lambda: True)()
         source_confirmed = bool(request.get('autonomous_source_confirmed', False))
         independent_ready = getattr(io, 'independent_ready', lambda: True)()
         if (
             io.ready()
             and independent_ready
             and (exclusive or source_confirmed)
+            and control_graph_isolated
             and state
             and io.now() - state['at'] <= 0.5
+            and stationary_at_start(state)
         ):
             break
         if io.ready() and not exclusive and not source_confirmed:
             return {'status': 'BLOCKED', 'error': 'COMMAND_MULTIPLE_PUBLISHERS', 'motion_started': False}
     else:
         error = (
-            'NO_LIVE_INDEPENDENT_IMU'
+            'CONTROL_GRAPH_NOT_ISOLATED'
+            if io.ready() and state and independent_ready and not control_graph_isolated
+            else 'NO_LIVE_INDEPENDENT_IMU'
             if io.ready() and state and not getattr(io, 'independent_ready', lambda: True)()
             else 'NO_LIVE_SUBSCRIBER_OR_ODOMETRY'
         )
-        return {'status': 'BLOCKED', 'error': error, 'motion_started': False}
+        result = {'status': 'BLOCKED', 'error': error, 'motion_started': False}
+        if error == 'CONTROL_GRAPH_NOT_ISOLATED':
+            result['control_graph_isolated'] = False
+        return result
 
     previous_yaw = state['yaw']
     travelled = 0.0
@@ -198,6 +244,7 @@ def execute_bounded_twist(io, request):
     stop_sent = False
     failure = None
     motion_started = False
+    execution_armed = True
 
     def observe():
         nonlocal previous_yaw, travelled
@@ -257,6 +304,12 @@ def execute_bounded_twist(io, request):
             ):
                 break
             if io.now() >= next_publish:
+                if not getattr(io, 'control_graph_isolated', lambda: True)():
+                    failure = 'CONTROL_GRAPH_CHANGED'
+                    break
+                if not motion_started and not stationary_at_start(io.latest()):
+                    failure = 'START_NOT_STATIONARY'
+                    break
                 motion_started = True
                 io.publish(speed)
                 next_publish = io.now() + 0.05
@@ -265,7 +318,7 @@ def execute_bounded_twist(io, request):
         failure = type(exc).__name__
     finally:
         motion_elapsed = io.now() - started
-        if motion_started:
+        if execution_armed:
             try:
                 for _ in range(5):
                     io.publish(0.0)
@@ -280,6 +333,11 @@ def execute_bounded_twist(io, request):
                 failure = 'STOP_UNCONFIRMED'
 
     state = observe()
+    control_graph_isolated = bool(
+        getattr(io, 'control_graph_isolated', lambda: True)()
+    )
+    if not control_graph_isolated and failure is None:
+        failure = 'CONTROL_GRAPH_CHANGED'
     fresh = state is not None and io.now() - state['at'] <= 0.5
     stopped = bool(fresh and abs(state['angular_speed']) <= 0.03)
     error_degrees = math.degrees(travelled - goal)
@@ -345,6 +403,7 @@ def execute_bounded_twist(io, request):
         # moved by the requested angle.  Keep exact-angle verification as a
         # separate success gate.
         and angle_accuracy_verified
+        and control_graph_isolated
     )
     result_error = failure
     if result_error is None and not succeeded:
@@ -367,19 +426,47 @@ def execute_bounded_twist(io, request):
         'stopped_observed': stopped,
         'physical_stop_verified': physical_stop_verified,
         'angle_accuracy_verified': angle_accuracy_verified,
+        'control_graph_isolated': control_graph_isolated,
         'final_speed_rad_s': round(state['angular_speed'], 5) if fresh else None,
         'independent_motion_evidence': independent_motion_evidence,
     }
 
 
-def main():
+def _run_zero_motion_start_gate(io, node, publisher, start_gate):
+    """Hold an initialized ROS publisher at zero until targetd permits START.
+
+    The hook is used only by the supervised physical worker.  Constructing the
+    node and publishing zeros is not a provider invocation; returning ``None``
+    is the only way to enter the bounded non-zero control loop.
+    """
+
+    for _ in range(5):
+        if io.cancelled:
+            return {
+                'status': 'CANCELLED',
+                'motion_started': False,
+                'stop_published': True,
+            }
+        io.publish(0.0)
+        io.spin(0.02)
+    result = start_gate(io, node, publisher)
+    if result is not None and not isinstance(result, dict):
+        raise ValueError('zero-motion start gate must return a result object or None')
+    return result
+
+
+def run_ros_entrypoint(request, *, start_gate=None, result_sink=None):
+    """Run the ROS primitive with optional zero-motion and result boundaries."""
+
+    if result_sink is not None and not callable(result_sink):
+        raise TypeError('result sink must be callable')
+
     import rclpy
     from geometry_msgs.msg import Twist
     from nav_msgs.msg import Odometry
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from sensor_msgs.msg import Imu
 
-    request = json.loads(sys.argv[1])
     rclpy.init(args=[])
     node = rclpy.create_node('rolo_bounded_twist')
     publisher = node.create_publisher(Twist, request['command_endpoint'], 10)
@@ -403,6 +490,41 @@ def main():
             # prevents joystick/app traffic from invalidating feedback bounds.
             return len(node.get_publishers_info_by_topic(request['command_endpoint'])) <= 1
 
+        @staticmethod
+        def _publisher_names(topic):
+            # Preserve one entry per ROS endpoint.  A set would collapse two
+            # live publishers that reuse the same node name and could make a
+            # duplicate command source look exclusive during bringup races.
+            names = []
+            for info in node.get_publishers_info_by_topic(topic):
+                namespace = str(getattr(info, 'node_namespace', '') or '/').strip()
+                name = str(getattr(info, 'node_name', '') or '').strip('/')
+                if not name:
+                    return None
+                namespace = '/' + namespace.strip('/') if namespace.strip('/') else ''
+                names.append(f'{namespace}/{name}')
+            return names
+
+        def control_graph_isolated(self):
+            """Require the fixed LanderPi command topology on every publish.
+
+            The Rolo primitive owns ``/cmd_vel``; vendor/app controllers must
+            not publish on the competing command topic, and only the vendor
+            odometry bridge may translate velocity commands to direct motors.
+            An unknown graph identity is unsafe and therefore fails closed.
+            """
+
+            if request['command_endpoint'] != LANDERPI_CONTROLLED_COMMAND_ENDPOINT:
+                return False
+            controlled = self._publisher_names(LANDERPI_CONTROLLED_COMMAND_ENDPOINT)
+            competing = self._publisher_names(LANDERPI_COMPETING_COMMAND_ENDPOINT)
+            direct_motor = self._publisher_names(LANDERPI_DIRECT_MOTOR_ENDPOINT)
+            return _exact_landerpi_publisher_topology(
+                controlled,
+                competing,
+                direct_motor,
+            )
+
         def spin(self, seconds):
             rclpy.spin_once(node, timeout_sec=seconds)
 
@@ -414,6 +536,24 @@ def main():
             return any(
                 len(samples) >= 2 and now - samples[-1][0] <= 0.5
                 for samples in self.imu_samples.values()
+            )
+
+        def independent_stationary(self):
+            """Use every fresh allowed IMU stream for the final START check."""
+
+            now = self.now()
+            fresh_streams = []
+            for samples in self.imu_samples.values():
+                tail = [
+                    float(value)
+                    for timestamp, value in samples
+                    if now - 0.20 <= timestamp <= now
+                ]
+                if len(tail) >= 2:
+                    fresh_streams.append(tail)
+            return bool(fresh_streams) and all(
+                max(abs(value) for value in samples) <= 0.03
+                for samples in fresh_streams
             )
 
         def publish(self, speed):
@@ -543,14 +683,32 @@ def main():
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(sig, lambda *_: setattr(io, 'cancelled', True))
     try:
-        result = execute_bounded_twist(io, request)
+        gated_result = (
+            _run_zero_motion_start_gate(io, node, publisher, start_gate)
+            if start_gate is not None
+            else None
+        )
+        result = (
+            execute_bounded_twist(io, request)
+            if gated_result is None
+            else gated_result
+        )
         result['feedback_topic'] = io.feedback_topic
-        print(json.dumps(result), flush=True)
+        if result_sink is None:
+            print(json.dumps(result), flush=True)
+        else:
+            result_sink(result)
+        return result
     finally:
         for subscription in subscriptions:
             node.destroy_subscription(subscription)
         node.destroy_node()
         rclpy.shutdown()
+
+
+def main():
+    request = json.loads(sys.argv[1])
+    run_ros_entrypoint(request)
 
 
 if __name__ == '__main__':

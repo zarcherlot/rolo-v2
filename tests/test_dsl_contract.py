@@ -63,4 +63,6 @@ def test_contract_manifest_covers_cross_component_handoff_versions():
         "target_conformance",
         "release_binding",
         "journey_result",
+        "mapping_proposal",
+        "mapping_confirmation_receipt",
     } <= set(manifest["versions"])

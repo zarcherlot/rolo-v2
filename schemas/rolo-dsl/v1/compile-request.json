@@ -1,12 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "rolo-dsl-compile-request/v1",
+  "$id": "rolo-dsl-compile-request/v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "dsl", "context", "dsl_digest", "context_digest", "target_fingerprint"],
+  "required": ["schema_version", "journey_session_id", "confirmation_receipt_digest", "dsl", "context", "dsl_digest", "context_digest", "target_fingerprint"],
   "properties": {
-    "schema_version": {"const": "rolo-dsl-compile-request/v1"},
+    "schema_version": {"const": "rolo-dsl-compile-request/v2"},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "journey_session_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "confirmation_receipt_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "dsl": {"type": "object"},
     "context": {"type": "object"},
     "compiler_version": {"type": "string", "minLength": 1},

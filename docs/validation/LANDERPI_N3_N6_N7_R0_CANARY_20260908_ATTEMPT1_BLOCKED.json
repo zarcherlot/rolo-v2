@@ -1,0 +1,26 @@
+{
+  "access": "read",
+  "authority_partial": true,
+  "cleanup": {
+    "cleanup_fallback_connection": true,
+    "residual_count": 0,
+    "stage_root": "/dev/shm/rolo-n7-r0-64d4a9da0fda1d7b0b75"
+  },
+  "code": "N7_R0_PROTOCOL_INVALID",
+  "container": "MentorPi",
+  "evidence_mode": "LIVE",
+  "limits": {
+    "expanded_bytes": 134217728,
+    "package_bytes": 33554432,
+    "result_bytes": 65536
+  },
+  "message": "targetd response frame is invalid",
+  "operation_kind": "OBSERVE",
+  "operator_auth": "FIXTURE",
+  "risk": "R0",
+  "schema_version": "rolo-landerpi-n7-r0-canary/v1",
+  "session_id": "n7-r0-20260908T131018Z-b3aa1e26",
+  "status": "BLOCKED",
+  "target_id": "mentorpi",
+  "topic": "/odom"
+}

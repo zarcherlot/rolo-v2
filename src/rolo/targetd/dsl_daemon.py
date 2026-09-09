@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from rolo.dsl.admission import MappingConfirmationStore
 from rolo.dsl.parser import loads_unique_json
 
 from .dsl_service import TargetdDslService
@@ -20,6 +21,7 @@ def run(
     *,
     ros2_snapshot: Path | None = None,
     execute_readonly: bool = False,
+    admission_store: str | Path | None = None,
 ) -> int:
     resolver = None
     registry = None
@@ -32,7 +34,13 @@ def run(
         resolver = Ros2RuntimeResolver(Ros2RuntimeSnapshot.from_dict(raw))
         executor = Ros2ReadOnlyExecutor(resolver) if execute_readonly else None
         registry = ros2_registry(resolver, executor)
-    service = TargetdDslService(cache_dir, runtime_resolver=resolver, backend_registry=registry)
+    confirmation_store = MappingConfirmationStore(admission_store) if admission_store is not None else None
+    service = TargetdDslService(
+        cache_dir,
+        runtime_resolver=resolver,
+        backend_registry=registry,
+        confirmation_store=confirmation_store,
+    )
     for line in stdin:
         if not line.strip():
             continue
@@ -40,11 +48,14 @@ def run(
             response = service.handle(FrameCodec.decode(line))
             stdout.buffer.write(FrameCodec.encode(response))
             stdout.flush()
-        except Exception as exc:  # protocol boundary must remain alive
+        except Exception:  # protocol boundary must remain alive
             error_payload = {
                 "frame_type": "DSL_EVENT",
                 "request_id": "unknown",
-                "payload": {"code": "FRAME_INVALID", "message": str(exc)},
+                "payload": {
+                    "code": "FRAME_INVALID",
+                    "message": "invalid DSL frame",
+                },
             }
             stdout.write(json.dumps(error_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
             stdout.flush()
@@ -56,6 +67,12 @@ def main() -> int:
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--ros2-snapshot", type=Path, default=None, help="verified read-only ROS2 snapshot artifact")
     parser.add_argument("--execute-readonly", action="store_true", help="allow bounded ros2 topic echo for OBSERVE")
+    parser.add_argument(
+        "--admission-store",
+        type=Path,
+        required=True,
+        help="trusted Mapping confirmation ledger root",
+    )
     args = parser.parse_args()
     return run(
         sys.stdin,
@@ -63,6 +80,7 @@ def main() -> int:
         args.cache_dir,
         ros2_snapshot=args.ros2_snapshot,
         execute_readonly=args.execute_readonly,
+        admission_store=args.admission_store,
     )
 
 

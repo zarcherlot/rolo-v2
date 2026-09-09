@@ -1,0 +1,557 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.rolo.dev/TargetdMotionSafetyAdmission.schema.json",
+  "title": "TargetdMotionSafetyAdmissionRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "intent", "evidence"],
+  "properties": {
+    "schema_version": {
+      "const": "rolo-targetd-motion-safety-admission/v1"
+    },
+    "intent": {
+      "$ref": "#/$defs/intent"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidenceBundle"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^/?[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,254}$"
+    },
+    "publisherIdentity": {
+      "type": "string",
+      "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,255}|/[A-Za-z0-9_./-]{1,254})$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^hmac-sha256:[0-9a-f]{64}$"
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "requested_at",
+        "ros_graph_digest",
+        "command_route",
+        "command_interface",
+        "publisher_identity",
+        "direct_motor_route",
+        "direct_motor_interface",
+        "direct_motor_publisher_identity",
+        "direct_motor_fence_digest",
+        "stop_action_digest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rolo-targetd-motion-intent/v1"
+        },
+        "call_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "session_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "operator_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "execution_subject_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "requested_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ros_graph_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "command_route": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_./-]{1,126}$"
+        },
+        "command_interface": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "publisher_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "direct_motor_route": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_./-]{1,126}$"
+        },
+        "direct_motor_interface": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "direct_motor_publisher_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "direct_motor_fence_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "stop_action_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "operatorClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorization_id", "authorized", "motion_scope", "operator_id"],
+      "properties": {
+        "authorization_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "authorized": {
+          "const": true
+        },
+        "motion_scope": {
+          "const": "PHYSICAL_MOTION"
+        },
+        "operator_id": {
+          "$ref": "#/$defs/identity"
+        }
+      }
+    },
+    "presenceClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operator_id", "presence_method", "present", "site_id"],
+      "properties": {
+        "operator_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "presence_method": {
+          "const": "ON_SITE_CHALLENGE"
+        },
+        "present": {
+          "const": true
+        },
+        "site_id": {
+          "$ref": "#/$defs/identity"
+        }
+      }
+    },
+    "safeZoneClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confirmed_clear", "safe_zone_id", "site_id"],
+      "properties": {
+        "confirmed_clear": {
+          "const": true
+        },
+        "safe_zone_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "site_id": {
+          "$ref": "#/$defs/identity"
+        }
+      }
+    },
+    "estopClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available",
+        "challenge_digest",
+        "engage_verified",
+        "release_verified",
+        "response_digest",
+        "verification_method"
+      ],
+      "properties": {
+        "available": {
+          "const": true
+        },
+        "challenge_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "engage_verified": {
+          "const": true
+        },
+        "release_verified": {
+          "const": true
+        },
+        "response_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "verification_method": {
+          "const": "TARGET_CHALLENGE_RESPONSE"
+        }
+      }
+    },
+    "graphClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_interface",
+        "command_route",
+        "direct_motor_interface",
+        "direct_motor_publisher_identities",
+        "direct_motor_route",
+        "publisher_identities"
+      ],
+      "properties": {
+        "command_interface": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "command_route": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_./-]{1,126}$"
+        },
+        "direct_motor_interface": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "direct_motor_publisher_identities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/publisherIdentity"
+          }
+        },
+        "direct_motor_route": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_./-]{1,126}$"
+        },
+        "publisher_identities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/publisherIdentity"
+          }
+        }
+      }
+    },
+    "fenceClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "direct_access_blocked",
+        "direct_motor_interface",
+        "direct_motor_route",
+        "fence_digest",
+        "fence_epoch",
+        "owner_identity",
+        "publisher_identity"
+      ],
+      "properties": {
+        "active": {
+          "const": true
+        },
+        "direct_access_blocked": {
+          "const": true
+        },
+        "direct_motor_interface": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "direct_motor_route": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_./-]{1,126}$"
+        },
+        "fence_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "fence_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "owner_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "publisher_identity": {
+          "$ref": "#/$defs/identity"
+        }
+      }
+    },
+    "stopClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acknowledged", "owner_identity", "stop_action_digest", "target_owned"],
+      "properties": {
+        "acknowledged": {
+          "const": true
+        },
+        "owner_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "stop_action_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "target_owned": {
+          "const": true
+        }
+      }
+    },
+    "signedEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evidence_id",
+        "kind",
+        "issuer_id",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "ros_graph_digest",
+        "issued_at",
+        "expires_at",
+        "claims",
+        "payload_sha256",
+        "signature_hmac_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rolo-targetd-motion-evidence/v1"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "kind": {
+          "enum": [
+            "OPERATOR_AUTHORIZATION",
+            "ONSITE_PRESENCE",
+            "SAFE_ZONE_CONFIRMATION",
+            "ESTOP_VERIFICATION",
+            "ROS_GRAPH_SNAPSHOT",
+            "DIRECT_MOTOR_FENCE",
+            "TARGET_STOP_ACKNOWLEDGEMENT"
+          ]
+        },
+        "issuer_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "call_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "session_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "operator_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "execution_subject_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "ros_graph_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "claims": {
+          "type": "object",
+          "maxProperties": 16
+        },
+        "payload_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "signature_hmac_sha256": {
+          "$ref": "#/$defs/signature"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "OPERATOR_AUTHORIZATION"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/operatorClaims"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ONSITE_PRESENCE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/presenceClaims"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "SAFE_ZONE_CONFIRMATION"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/safeZoneClaims"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ESTOP_VERIFICATION"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/estopClaims"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ROS_GRAPH_SNAPSHOT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/graphClaims"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "DIRECT_MOTOR_FENCE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/fenceClaims"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "TARGET_STOP_ACKNOWLEDGEMENT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims": {
+                "$ref": "#/$defs/stopClaims"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nullableEvidence": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/signedEvidence"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidenceBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version"],
+      "properties": {
+        "schema_version": {
+          "const": "rolo-targetd-motion-evidence-bundle/v1"
+        },
+        "operator_authorization": {
+          "$ref": "#/$defs/nullableEvidence"
+        },
+        "onsite_presence": {
+          "$ref": "#/$defs/nullableEvidence"
+        },
+        "safe_zone_confirmation": {
+          "$ref": "#/$defs/nullableEvidence"
+        },
+        "estop_verification": {
+          "$ref": "#/$defs/nullableEvidence"
+        },
+        "ros_graph_snapshot": {
+          "$ref": "#/$defs/nullableEvidence"
+        },
+        "direct_motor_fence": {
+          "$ref": "#/$defs/nullableEvidence"
+        },
+        "target_stop_acknowledgement": {
+          "$ref": "#/$defs/nullableEvidence"
+        }
+      }
+    }
+  }
+}

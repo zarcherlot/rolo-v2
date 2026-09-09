@@ -1,0 +1,18 @@
+{
+  "schema_version": "rolo-mvp-artifact-index/v2",
+  "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+  "target_id": "mentorpi",
+  "artifacts": [
+    {
+      "path": "landerpi-formal-r0-canary.json",
+      "sha256": "c880afa6c3285ab8beb8a790c47922b3e5a97dba4dcb51355f942fd7092c3ff1"
+    },
+    {
+      "path": "artifact-index.json",
+      "sha256": "265eb20f861f2e32505fd56622d8af296e26eec20adcc9f68083a72d4f29f3c7"
+    }
+  ],
+  "manifest_sha256": "2d7d7546bf0b28a51d758a24410a29d5c5883a659d9bad3375b5c606e78163db",
+  "signature_hmac_sha256": null,
+  "previous_index": null
+}

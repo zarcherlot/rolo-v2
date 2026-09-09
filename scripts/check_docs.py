@@ -48,6 +48,20 @@ def is_stub(path: Path) -> bool:
     return bool(STUB_HEADING_RE.match(first_heading(read(path))))
 
 
+def is_generated_artifact_markdown(path: Path) -> bool:
+    """Recognize immutable Markdown that is covered by an adjacent artifact index."""
+
+    try:
+        relative = path.relative_to(DOCS / "validation")
+    except ValueError:
+        return False
+    return (
+        len(relative.parts) >= 2
+        and path.name == "certification-report.md"
+        and (path.parent / "artifact-index.json").is_file()
+    )
+
+
 def content_lines(text: str):
     """Yield lines outside fenced code blocks for Markdown link checks."""
 
@@ -161,7 +175,7 @@ def main() -> int:
         text = read(path)
         in_archive = "archive" in path.relative_to(DOCS).parts
 
-        if path in GENERATED:
+        if path in GENERATED or is_generated_artifact_markdown(path):
             # OPERATION_CONTRACTS carries the generator declaration in its body.
             # CANONICAL_OPERATIONS is validated by tests against the canonical export
             # and intentionally has no hand-authored header.

@@ -1,7 +1,9 @@
 from .fake import (
+    BackendSpiVersionError,
     FakeBackend,
     GeneratedBundle,
     GeneratedRuntimeBackend,
+    LegacyRoloDslBackend,
     MhsOperationBackend,
     RoloDslBackend,
     Ros2InvokeBackend,
@@ -13,9 +15,11 @@ from .fake import (
 )
 
 __all__ = [
+    "BackendSpiVersionError",
     "FakeBackend",
     "GeneratedBundle",
     "GeneratedRuntimeBackend",
+    "LegacyRoloDslBackend",
     "MhsOperationBackend",
     "RoloDslBackend",
     "Ros2InvokeBackend",

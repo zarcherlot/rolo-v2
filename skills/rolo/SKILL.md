@@ -11,14 +11,22 @@ model is only an interface and planner.
 
 - Inspect, bootstrap-plan, Probe and target-evidence collection are read-only and
   may run without confirmation. v2 has no host-mutating bootstrap command.
-- When a requested capability is absent, use the Probe construction loop:
+- When a requested mapping capability is absent, use the Probe construction loop:
   run `rolo probe-analysis-input --evidence <bundle>`; keep the resulting JSON in
   the active harness conversation; load `rolo-harness-codegen` to prepare the
   typed arguments and derived target request once; let the harness iteratively
-  write and test the generic adapter with the user; then submit its typed `ToolRegistrationProposal` with
-  `rolo register-tool --proposal <proposal> --evidence <bundle>`. Registration
-  is the harness interaction boundary in the MVP, so there is no second GUI
-  approval step.
+  write and test the generic adapter with the user; then persist a
+  `rolo-mapping-proposal/v2` bound to the exact candidate, DSL, Context,
+  evidence, target, catalog and scope digests. A proposal is review material,
+  not registration or execution authority.
+- Before compilation, an authorized actor must explicitly append a `CONFIRMED`
+  decision for that exact proposal to the Mapping confirmation ledger. Preserve
+  its `confirmation_receipt_digest`. Chat agreement, harness feedback,
+  `--safety-confirmed`, and proposal status fields do not create confirmation.
+- The compiler, registrar, Release publisher, and Release consumer must each
+  resolve the committed receipt from the trusted ledger and revalidate its
+  exact identity and active state. Missing, rejected, cancelled, expired,
+  tampered, or cross-target receipts fail closed before writes or target access.
 - A registered application tool may be exposed with
   `rolo target tool-surface --profile <id> --include-registered` and executed
   through a digest-bound plan using `--allow-mutating`. The target executor
@@ -45,13 +53,18 @@ use the bounded `rolo.dsl.DslRepairLoop`. Feed compiler diagnostics back to the
 generator; a missing route, schema, target or evidence reference becomes a
 structured `rolo-probe-follow-up-request/v1`. The loop cannot publish a Tool or
 open a target connection, and its attempt, artifact and wall-clock limits must
-remain enabled.
+remain enabled. Its successful candidate still stops at MappingProposal v2;
+continue only through the explicit ledger-confirmed
+`proposal → compile → register → release → consume` path.
 
-The skill is the harness playbook, not the registration authority. For every
-tool, preserve the Probe evidence reference, proposal digest and registration
-artifact. The harness may ask the user for corrections in its live coding
-window; Rolo only accepts the resulting typed proposal, validates its target,
-evidence and descriptor, and then makes the registered tool available to Trace.
+The skill is the harness playbook, not the confirmation or registration
+authority. For every tool, preserve the Probe evidence reference, proposal
+digest, confirmation receipt digest, registration artifact and Release
+lineage. The harness may ask the user for corrections in its live coding
+window, but that conversation cannot change the ledger. Rolo makes a tool
+available to Trace only after every admitted boundary has revalidated the same
+active receipt; cancelling the receipt or letting it expire invalidates later
+use.
 The skill does not construct shell text or call `scp`/`rsync`. It invokes the
 typed Rolo targetd/session API, which owns fixed SSH argv, bundle signatures,
 provider bindings, deadlines, cancellation, receipts and evidence artifacts.

@@ -24,6 +24,8 @@ BP/
 /.validation-*/
 /.pytest-*/
 /.codex-pytest-*/
+/.codex-finalizer/
+.n7-live-controller/
 /.worktrees/
 /.tmp/
 /.ci/

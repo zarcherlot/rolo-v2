@@ -2,18 +2,138 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "rolo-mvp-certification-report/v1",
   "type": "object",
-  "required": ["run_id", "target_id", "snapshot_digest", "suite_digest", "results", "conclusion"],
+  "required": [
+    "schema_version",
+    "run_id",
+    "target_id",
+    "snapshot_digest",
+    "suite_digest",
+    "tool_id",
+    "release_digest",
+    "results",
+    "conclusion",
+    "artifact_digests",
+    "generated_at",
+    "limitations",
+    "compile_context_digest",
+    "target_fingerprint",
+    "failure_policy",
+    "event_count"
+  ],
   "properties": {
-    "run_id": {"type": "string"},
-    "target_id": {"type": "string"},
-    "snapshot_digest": {"type": "string"},
-    "suite_digest": {"type": "string"},
-    "results": {"type": "array"},
+    "schema_version": {"const": "rolo-mvp-certification-report/v1"},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "snapshot_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "suite_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "tool_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "release_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+    "results": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "tool_id",
+          "expected",
+          "actual",
+          "status",
+          "operation_ids",
+          "evidence_ids",
+          "artifact_digests",
+          "started_at",
+          "finished_at",
+          "elapsed_ms",
+          "failure_class",
+          "operator_notes",
+          "release_digest",
+          "compile_context_digest",
+          "target_fingerprint",
+          "idempotency_key"
+        ],
+        "properties": {
+          "case_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$"},
+          "tool_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+          "expected": {},
+          "actual": {},
+          "status": {"enum": ["PASS", "FAIL", "BLOCKED", "UNKNOWN", "NOT_RUN"]},
+          "operation_ids": {"type": "array", "items": {"type": "string"}},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "artifact_digests": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+          "started_at": {"type": "string", "format": "date-time"},
+          "finished_at": {"type": "string", "format": "date-time"},
+          "elapsed_ms": {"type": "integer", "minimum": 0},
+          "failure_class": {"type": ["string", "null"]},
+          "operator_notes": {"type": ["string", "null"]},
+          "release_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+          "compile_context_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+          "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+          "idempotency_key": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
     "conclusion": {"enum": ["PASS", "CONDITIONAL", "BLOCKED"]},
-    "compile_context_digest": {"type": ["string", "null"]},
-    "target_fingerprint": {"type": ["string", "null"]},
+    "artifact_digests": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "compile_context_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
     "failure_policy": {"enum": ["continue", "fail_fast"]},
     "event_count": {"type": "integer", "minimum": 0}
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"conclusion": {"enum": ["PASS", "CONDITIONAL"]}},
+        "required": ["conclusion"]
+      },
+      "then": {
+        "properties": {
+          "release_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "compile_context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"conclusion": {"const": "PASS"}},
+        "required": ["conclusion"]
+      },
+      "then": {
+        "properties": {
+          "results": {
+            "items": {
+              "properties": {"status": {"const": "PASS"}},
+              "required": ["status"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "results": {
+          "items": {
+            "if": {
+              "properties": {"status": {"const": "PASS"}},
+              "required": ["status"]
+            },
+            "then": {
+              "properties": {
+                "release_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+                "compile_context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+                "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "additionalProperties": false
 }

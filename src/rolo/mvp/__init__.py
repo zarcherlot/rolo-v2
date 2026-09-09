@@ -10,7 +10,22 @@ from .adapter import AgentAdapter, InMemoryAgentAdapter, RoloHttpAgentAdapter
 from .artifacts import ArtifactIndex, build_artifact_index, rollback_artifact_index, write_artifact_index
 from .binding_dispatch import ApplicationBindingDispatcher, BindingHandler
 from .catalog import build_target_catalog, load_target_catalog, save_target_catalog
-from .certify import CertificationRunner, load_suite, write_report
+from .certify import (
+    ArtifactPlanReservation,
+    CertificationInvocationContext,
+    CertificationInvocationOutcome,
+    CertificationReceiptSidecar,
+    CertificationRunner,
+    certification_idempotency_key,
+    certification_receipt_sidecar_text,
+    load_suite,
+    preflight_new_artifact_paths,
+    reserve_new_artifact_paths,
+    select_certification_report_path,
+    validate_certification_run_inputs,
+    verify_targetd_certification_evidence,
+    write_report,
+)
 from .context import AgentContext, build_agent_context
 from .contracts import (
     CaseStatus,
@@ -32,6 +47,8 @@ from .contracts import (
     TraceSessionRequest,
     TraceStartRequest,
 )
+from .durable_requests import DurableCertifyRequestStore, DurableTraceRequestStore
+from .episodes import EpisodeArtifact, EpisodeRevision, EpisodeStore
 from .harness_codegen import build_codegen_artifact, generate_contract_source
 from .harness_execution import HarnessCodeBundle, HarnessCodeExecutor, build_python_launcher, make_code_bundle
 from .journey_cli import run_certify, run_trace
@@ -60,6 +77,16 @@ from .trace_diagnostics import (
     diagnose_trace_payload,
     observation_from_trace_payload,
 )
+from .trace_plan import (
+    DurableTraceStore,
+    TargetdTraceAdapter,
+    TargetdTraceReceiptSidecar,
+    TargetdTraceRequestRecord,
+    TargetdTraceResponse,
+    TraceJournalRecord,
+    TracePlan,
+    TracePlanCall,
+)
 
 __all__ = [
     "AgentAdapter",
@@ -73,11 +100,35 @@ __all__ = [
     "load_target_catalog",
     "save_target_catalog",
     "CertificationRunner",
+    "CertificationInvocationContext",
+    "CertificationInvocationOutcome",
+    "CertificationReceiptSidecar",
+    "ArtifactPlanReservation",
+    "certification_idempotency_key",
+    "certification_receipt_sidecar_text",
+    "preflight_new_artifact_paths",
+    "reserve_new_artifact_paths",
+    "select_certification_report_path",
+    "validate_certification_run_inputs",
+    "verify_targetd_certification_evidence",
     "load_suite",
     "write_report",
     "AgentContext",
     "build_agent_context",
     "TraceService",
+    "TracePlan",
+    "TracePlanCall",
+    "TraceJournalRecord",
+    "DurableTraceStore",
+    "TargetdTraceAdapter",
+    "TargetdTraceResponse",
+    "TargetdTraceRequestRecord",
+    "TargetdTraceReceiptSidecar",
+    "DurableTraceRequestStore",
+    "DurableCertifyRequestStore",
+    "EpisodeArtifact",
+    "EpisodeRevision",
+    "EpisodeStore",
     "run_trace",
     "run_certify",
     "CaseStatus",

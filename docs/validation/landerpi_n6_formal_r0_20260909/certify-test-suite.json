@@ -1,0 +1,128 @@
+{
+  "schema_version": "rolo-mvp-certification-suite/v1",
+  "suite_id": "landerpi-odom-formal-r0-10",
+  "target_id": "mentorpi",
+  "cases": [
+    {
+      "case_id": "case-01",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-02",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-03",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-04",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-05",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-06",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-07",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-08",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-09",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    },
+    {
+      "case_id": "case-10",
+      "description": "Observe one fresh bounded /odom sample through targetd CALL v2",
+      "tool_id": "app.navigation.odom.observe",
+      "arguments": {},
+      "expected": {
+        "status": "SUCCEEDED"
+      },
+      "timeout_s": 60.0,
+      "risk": "R0",
+      "stop_condition": "abort this run on any non-SUCCEEDED receipt; no ROS publish, service, action, or motion"
+    }
+  ],
+  "digest": "6835c1603dd1397f779916b97c5cb8e3389c7f3f92adbd5422b7b553f0e8da24"
+}

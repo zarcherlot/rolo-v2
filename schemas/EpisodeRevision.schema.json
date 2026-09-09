@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-episode-revision-v1.json",
+  "title": "Rolo Trace or Certify episode revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "episode_id", "run_id", "target_id", "kind", "status", "revision", "recorded_at", "release_digest", "compile_context_digest", "target_fingerprint", "mapping_confirmation_receipt_digest", "plan_digest", "artifact_index_manifest", "artifacts", "artifact_manifest_digest", "previous_episode_revision_digest", "previous_ledger_digest", "revision_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-episode-revision/v1"},
+    "episode_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "target_id": {"$ref": "#/$defs/id"},
+    "kind": {"enum": ["TRACE", "CERTIFY"]},
+    "status": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "release_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "compile_context_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "mapping_confirmation_receipt_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "plan_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "artifact_index_manifest": {"$ref": "#/$defs/hex"},
+    "artifacts": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/artifact"}},
+    "artifact_manifest_digest": {"$ref": "#/$defs/digest"},
+    "previous_episode_revision_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "previous_ledger_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "revision_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "hex": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256", "byte_count", "media_type"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 512},
+        "sha256": {"$ref": "#/$defs/hex"},
+        "byte_count": {"type": "integer", "minimum": 0, "maximum": 33554432},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    }
+  }
+}

@@ -2,14 +2,22 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "rolo-certify-request/v1",
   "type": "object",
-  "required": ["schema_version", "target_id", "suite_ref"],
+  "required": [
+    "schema_version",
+    "target_id",
+    "suite_ref",
+    "release_digest",
+    "compile_context_digest",
+    "target_fingerprint"
+  ],
   "properties": {
     "schema_version": {"const": "rolo-certify-request/v1"},
     "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
-    "suite_ref": {"type": "string", "minLength": 1},
-    "snapshot_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
-    "compile_context_digest": {"type": ["string", "null"]},
-    "target_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "suite_ref": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "snapshot_digest": {"type": "string", "maxLength": 256, "pattern": "^[0-9a-f]{64}$|^UNKNOWN$"},
+    "release_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "compile_context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "target_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "failure_policy": {"enum": ["continue", "fail_fast"]},
     "session_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}
   },

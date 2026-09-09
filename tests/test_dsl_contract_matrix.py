@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
+from rolo.dsl.admission import MappingAdmissionIdentity, MappingAdmissionScope, MappingConfirmationReceipt
 from rolo.dsl.api import DslCompileRequest, DslCompileResult
 from rolo.dsl.backends import negotiate_backend
 from rolo.dsl.context import ProbeContext
@@ -20,6 +22,31 @@ from rolo.targetd.dsl_protocol import DslCompilePayload, DslFrame, DslPutPayload
 
 
 def _sample_payloads() -> tuple[tuple[type, dict], ...]:
+    identity = MappingAdmissionIdentity.build(
+        journey_session_id="journey-1",
+        target_id="r",
+        target_fingerprint="fp",
+        candidate_index_digest="sha256:" + "1" * 64,
+        candidate_digest="sha256:" + "2" * 64,
+        proposal_digest="sha256:" + "3" * 64,
+        dsl_digest="sha256:" + "4" * 64,
+        context_digest="sha256:" + "5" * 64,
+        evidence_digest="sha256:" + "6" * 64,
+        available_tool_catalog_digest="sha256:" + "7" * 64,
+        scope=MappingAdmissionScope(tool_id="app.state", operation_kind="OBSERVE", operations=("app.state",), access="read", risk="R0"),
+    )
+    decided_at = datetime(2026, 9, 8, tzinfo=timezone.utc)
+    receipt = MappingConfirmationReceipt.build(
+        identity,
+        sequence=1,
+        decision_id="decision-1",
+        actor_id="operator",
+        decision="CONFIRMED",
+        decided_at=decided_at,
+        expires_at=decided_at + timedelta(minutes=15),
+        supersedes_receipt_digest=None,
+        previous_receipt_digest=None,
+    )
     return (
         (
             DslDocument,
@@ -40,6 +67,9 @@ def _sample_payloads() -> tuple[tuple[type, dict], ...]:
         (
             DslCompileRequest,
             {
+                "schema_version": "rolo-dsl-compile-request/v2",
+                "journey_session_id": "journey-1",
+                "confirmation_receipt_digest": receipt.receipt_digest,
                 "dsl": {},
                 "context": {},
                 "dsl_digest": "sha256:dsl",
@@ -86,8 +116,16 @@ def _sample_payloads() -> tuple[tuple[type, dict], ...]:
         ),
         (
             DslCompilePayload,
-            {"dsl_digest": "sha256:dsl", "context_digest": "sha256:context", "target_fingerprint": "fp"},
+            {
+                "schema_version": "rolo-targetd-dsl-compile/v2",
+                "journey_session_id": "journey-1",
+                "confirmation_receipt_digest": receipt.receipt_digest,
+                "dsl_digest": "sha256:dsl",
+                "context_digest": "sha256:context",
+                "target_fingerprint": "fp",
+            },
         ),
+        (MappingConfirmationReceipt, receipt.model_dump(mode="json")),
         (
             TargetConformanceReport,
             {
@@ -125,6 +163,14 @@ def test_cross_component_models_reject_unknown_schema_versions(model: type, payl
     invalid = {**payload, "schema_version": "rolo-unsupported/v9"}
     with pytest.raises(ValidationError):
         model.model_validate(invalid)
+
+
+@pytest.mark.parametrize("model", (DslCompilePayload, TargetConformanceReport))
+def test_target_boundary_models_reject_missing_schema_versions(model: type) -> None:
+    payload = next(payload for candidate, payload in _sample_payloads() if candidate is model)
+    payload_without_version = {key: value for key, value in payload.items() if key != "schema_version"}
+    with pytest.raises(ValidationError):
+        model.model_validate(payload_without_version)
 
 
 def test_backend_capability_matrix_fails_closed() -> None:

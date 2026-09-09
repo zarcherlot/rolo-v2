@@ -49,7 +49,7 @@ def main() -> None:
         deadline=datetime.now(timezone.utc) + timedelta(seconds=30),
     )
     accepted = service.accept_call(request, manifest)
-    cancelled = service.cancel_call(request.idempotency_key)
+    cancelled = service.cancel_call(request.session_id, request.idempotency_key)
     print(
         json.dumps(
             {

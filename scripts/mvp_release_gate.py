@@ -140,6 +140,9 @@ def run_release_gate(suite_path: Path, output_dir: Path | None = None) -> dict[s
         snapshot_digest="0" * 64,
         run_id="offline-replay",
         session_id="offline-replay",
+        release_digests={suite.cases[0].tool_id: "sha256:" + "1" * 64},
+        compile_context_digest="sha256:" + "2" * 64,
+        target_fingerprint="3" * 64,
     )
     if report.conclusion != "PASS" or len(report.results) != 10:
         raise ReleaseGateError("offline certification replay did not pass all 10 cases")

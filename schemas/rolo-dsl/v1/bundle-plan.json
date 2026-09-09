@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-dsl/v2/bundle-plan.json",
+  "title": "Rolo Bundle Plan v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool_id",
+    "kind",
+    "target_fingerprint",
+    "dsl_digest",
+    "context_digest",
+    "ir_digest",
+    "compiler_version",
+    "backend_id",
+    "backend_version",
+    "negotiated_capabilities",
+    "entrypoint_contract",
+    "bindings",
+    "runtime_requirements",
+    "runtime_context",
+    "source_bundle_ref",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-bundle-plan/v2"},
+    "tool_id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["OBSERVE", "COMPOSE", "INVOKE", "EXECUTE"]},
+    "target_fingerprint": {"type": "string", "minLength": 1},
+    "dsl_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "ir_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "compiler_version": {"type": "string", "minLength": 1},
+    "backend_id": {"type": "string", "minLength": 1},
+    "backend_version": {"type": "string", "minLength": 1},
+    "negotiated_capabilities": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "entrypoint_contract": {"const": "rolo.tool.invoke/v1"},
+    "bindings": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "runtime_requirements": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "runtime_context": {"type": "object"},
+    "source_bundle_ref": {"type": ["string", "null"], "minLength": 1},
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/artifact"}
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size", "role"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "size": {"type": "integer", "minimum": 0},
+        "role": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-certify-targetd-call-receipt-sidecar-v1.json",
+  "title": "Rolo formal Certify targetd v2 receipt sidecar",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "session_id",
+    "suite_id",
+    "suite_digest",
+    "case_id",
+    "operation_id",
+    "idempotency_key",
+    "receipt"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "rolo-certify-targetd-call-receipt-sidecar/v1"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "suite_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "suite_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "receipt": {
+      "allOf": [
+        {
+          "$ref": "https://rolo.dev/schemas/rolo-targetd-call-receipt-v2.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "SUCCEEDED",
+                "FAILED",
+                "STOPPED",
+                "CANCELLED",
+                "UNKNOWN",
+                "NOT_ACCEPTED"
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "required": ["status"],
+                "properties": {
+                  "status": {"const": "SUCCEEDED"}
+                }
+              },
+              "then": {
+                "required": ["result", "provider_started_at"],
+                "properties": {
+                  "provider_started_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "result": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["status", "sha256", "byte_count"],
+                    "properties": {
+                      "status": {"const": "SUCCEEDED"},
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^sha256:[0-9a-f]{64}$"
+                      },
+                      "byte_count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 65536
+                      }
+                    }
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "result": {
+                    "oneOf": [
+                      {"type": "null"},
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "status": {
+                            "enum": [
+                              "FAILED",
+                              "STOPPED",
+                              "CANCELLED",
+                              "UNKNOWN",
+                              "NOT_ACCEPTED"
+                            ]
+                          },
+                          "error": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+                          },
+                          "code": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -2,13 +2,25 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from argparse import Namespace
 from pathlib import Path
+
+import pytest
 
 
 def _runtime_module():
     path = Path(__file__).parents[1] / "scripts" / "landerpi_autonomous_mapping_runtime.py"
     spec = importlib.util.spec_from_file_location("rolo_mapping_runtime_test", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _legacy_trace_module():
+    path = Path(__file__).parents[1] / "scripts" / "targetd_mapping_trace.py"
+    spec = importlib.util.spec_from_file_location("rolo_legacy_mapping_trace_test", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -69,3 +81,58 @@ def test_stop_immediate_returns_fresh_stop_elapsed_and_prior_state(tmp_path, mon
     assert result["stop_elapsed_s"] >= 0
     persisted = json.loads(status_file.read_text(encoding="utf-8"))
     assert persisted["stop_reason"] == "EXPLICIT_STOP"
+
+
+@pytest.mark.parametrize(
+    "legacy_flags",
+    [
+        ("--status-only", "--safety-confirmed"),
+        ("--safety-confirmed", "--autonomous-source-confirmed"),
+    ],
+)
+def test_legacy_mapping_trace_blocks_before_installer_executor_or_artifacts(
+    tmp_path,
+    monkeypatch,
+    legacy_flags,
+):
+    artifact_root = tmp_path / "artifacts"
+    touched: list[str] = []
+
+    def forbidden(*_args, **_kwargs):
+        touched.append("side-effect")
+        raise AssertionError("legacy mapping trace crossed a side-effect boundary")
+
+    # The disabled entry point no longer imports either execution dependency.
+    # Patching their constructors protects the assertion if one is reintroduced.
+    import rolo.targetd.installer as installer_module
+    import rolo.targets.executor as executor_module
+
+    monkeypatch.setattr(installer_module, "TargetdInstaller", forbidden)
+    monkeypatch.setattr(executor_module, "SshTargetExecutor", forbidden)
+    trace = _legacy_trace_module()
+    monkeypatch.setattr(Path, "mkdir", forbidden)
+    monkeypatch.setattr(Path, "write_text", forbidden)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "targetd_mapping_trace.py",
+            "--target",
+            "ssh://pi@192.0.2.8/home/pi",
+            "--known-hosts",
+            str(tmp_path / "known_hosts"),
+            "--artifact-root",
+            str(artifact_root),
+            *legacy_flags,
+        ],
+    )
+
+    with pytest.raises(SystemExit) as raised:
+        trace.main()
+
+    diagnostic = json.loads(str(raised.value))
+    assert diagnostic == trace.legacy_mapping_trace_diagnostic()
+    assert diagnostic["code"] == "LEGACY_MAPPING_TRACE_DISABLED"
+    assert diagnostic["boundary"] == "before-target-or-artifact-side-effects"
+    assert touched == []
+    assert not artifact_root.exists()

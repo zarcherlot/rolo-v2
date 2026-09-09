@@ -6,6 +6,8 @@ import hashlib
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from rolo.dsl.admission import MappingConfirmationStore
+
 from .harness_execution import HarnessCodeExecutor, make_code_bundle
 from .probe_registration import ExecutionBinding, load_registered_codegen_artifact
 
@@ -62,14 +64,44 @@ class ApplicationBindingDispatcher:
 class RegisteredCodegenInvoker:
     """Reconstruct and execute a registered Harness function for Trace."""
 
-    def __init__(self, registry_root: Any, target_id: str, target_executor: Any) -> None:
+    def __init__(
+        self,
+        registry_root: Any,
+        target_id: str,
+        target_executor: Any,
+        *,
+        confirmation_store: MappingConfirmationStore | None = None,
+        target_fingerprint: str | None = None,
+    ) -> None:
         self.registry_root = registry_root
         self.target_id = target_id
         self.target_executor = target_executor
+        self.confirmation_store = confirmation_store
+        self.target_fingerprint = target_fingerprint
 
     def invoke(self, tool_id: str, arguments: Mapping[str, Any], session_id: str) -> dict[str, Any]:
         del session_id
-        artifact = load_registered_codegen_artifact(self.registry_root, self.target_id, tool_id)
+        if not isinstance(self.confirmation_store, MappingConfirmationStore):
+            return {
+                "status": "BLOCKED",
+                "error": "MAPPING_CONFIRMATION_STORE_REQUIRED",
+            }
+        if (
+            not isinstance(self.target_fingerprint, str)
+            or not self.target_fingerprint.strip()
+            or self.target_fingerprint.upper() == "UNKNOWN"
+        ):
+            return {
+                "status": "BLOCKED",
+                "error": "MAPPING_TARGET_FINGERPRINT_REQUIRED",
+            }
+        artifact = load_registered_codegen_artifact(
+            self.registry_root,
+            self.target_id,
+            tool_id,
+            confirmation_store=self.confirmation_store,
+            target_fingerprint=self.target_fingerprint,
+        )
         if artifact is None:
             return {"status": "BLOCKED", "error": "CODEGEN_ARTIFACT_UNAVAILABLE"}
         bundle_payload = artifact.get("bundle")

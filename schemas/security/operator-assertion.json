@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-operator-assertion/v1",
+  "title": "Rolo signed operator assertion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "issuer_id",
+    "principal_id",
+    "key_id",
+    "algorithm",
+    "audience",
+    "nonce",
+    "challenge_digest",
+    "authentication_method",
+    "issued_at",
+    "expires_at",
+    "payload_digest",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-operator-assertion/v1"},
+    "issuer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "principal_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "key_id": {"$ref": "#/$defs/identifier"},
+    "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+    "audience": {"const": "rolo-mapping-admission"},
+    "nonce": {"$ref": "#/$defs/identifier"},
+    "challenge_digest": {"$ref": "#/$defs/digest"},
+    "authentication_method": {"enum": ["MFA", "HARDWARE_KEY", "FEDERATED_MFA"]},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "payload_digest": {"$ref": "#/$defs/digest"},
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{32,2048}$"}
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "authority_class": "DEBUG_ONLY_USER_ATTESTED",
+  "blockers": [
+    "DEBUG_PINNED_TARGETD_PEER_BOOTSTRAP_EXPIRED"
+  ],
+  "call_attempt_count": 0,
+  "call_id": "n7-call-20260909T071556Z-7fd8664a",
+  "channel_id": "sha256:b9ea2656ca0bca809267baef450bef03baf4c58206ad2cacace3daeeea6f7852",
+  "completed_at": "2026-09-09T07:16:56.174402Z",
+  "fresh_estop_challenge_verified": false,
+  "message": "Pi-host targetd action failed closed",
+  "motion": {
+    "angle_degrees": 1.0,
+    "max_speed_rad_s": 0.03
+  },
+  "onsite_safety_drill_performed": false,
+  "production_authority": false,
+  "provider_invocation_count": 0,
+  "query_attempt_count": 0,
+  "run_id": "n7-physical-20260909T071556Z-7fd8664a",
+  "schema_version": "rolo-landerpi-n7-physical-trace/v1",
+  "session_id": "n7-session-20260909T071556Z-7fd8664a",
+  "stage_cleanup_verified": false,
+  "stage_root": "/dev/shm/rolo-n7-physical-62760c7099b6b5c93d83",
+  "started_at": "2026-09-09T07:16:52.090288Z",
+  "status": "BLOCKED",
+  "target_id": "mentorpi",
+  "user_attestation_digest": "sha256:02f0a92c9f823f2c562afbc414abcde3a2695104c2c596b775b967f3896a805a"
+}

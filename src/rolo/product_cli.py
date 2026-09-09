@@ -8,6 +8,7 @@ registration, a frozen Tool Surface, and execution of digest-bound plans.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -20,6 +21,9 @@ from rolo.commands.common import emit
 from rolo.commands.lifecycle import run_probe_start
 from rolo.core.artifacts import ArtifactStore
 from rolo.core.config import get_settings
+from rolo.dsl.admission import MappingConfirmationStore
+from rolo.dsl.parser import loads_unique_json
+from rolo.dsl.proposal import MappingProposal
 from rolo.mvp.binding_dispatch import ApplicationBindingDispatcher
 from rolo.mvp.contracts import RunMode
 from rolo.mvp.probe_registration import (
@@ -233,6 +237,88 @@ def _write_conformance(session) -> tuple[object, str]:
     return report, f"artifact://{relative}"
 
 
+def _load_json_mapping(path: Path, *, label: str) -> dict[str, object]:
+    payload = loads_unique_json(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"{label} must contain a JSON object")
+    return dict(payload)
+
+
+def _load_verified_target_evidence(
+    evidence_path: Path,
+    *,
+    expected_target_id: str | None = None,
+) -> tuple[TargetEvidenceBundle, Mapping[str, object]]:
+    """Load evidence only through the target's pinned deployment verifier."""
+
+    bundle = TargetEvidenceBundle.model_validate_json(
+        evidence_path.read_text(encoding="utf-8")
+    )
+    if expected_target_id is not None and bundle.robot_id != expected_target_id:
+        raise ValueError("evidence target does not match profile")
+    fingerprint = bundle.target_host_fingerprint
+    if (
+        not isinstance(fingerprint, str)
+        or not fingerprint.strip()
+        or fingerprint.upper() == "UNKNOWN"
+    ):
+        raise ValueError("verified evidence requires a known target fingerprint")
+    deployment = load_deployment(
+        get_settings().rolo_config_dir
+        / "target-evidence"
+        / f"{bundle.robot_id}.json"
+    )
+    verified_probes = verify_evidence_bundle(bundle, deployment=deployment)
+    if not isinstance(verified_probes, Mapping):
+        raise ValueError("target evidence verifier did not return bound probes")
+    return bundle, verified_probes
+
+
+def _registered_admission_context(
+    profile: str,
+    *,
+    evidence: Path | None,
+    admission_store: Path | None,
+) -> tuple[TargetEvidenceBundle, Mapping[str, object], MappingConfirmationStore]:
+    if evidence is None:
+        raise ValueError("--evidence is required for registered Tools")
+    if admission_store is None:
+        raise ValueError("--admission-store is required for registered Tools")
+    bundle, verified_probes = _load_verified_target_evidence(
+        evidence,
+        expected_target_id=profile,
+    )
+    return bundle, verified_probes, MappingConfirmationStore(admission_store)
+
+
+def _load_active_registered_descriptors(
+    profile: str,
+    *,
+    bundle: TargetEvidenceBundle,
+    confirmation_store: MappingConfirmationStore,
+):
+    return load_registered_descriptors(
+        get_settings().rolo_config_dir / "registered-tools",
+        profile,
+        confirmation_store=confirmation_store,
+        target_fingerprint=bundle.target_host_fingerprint,
+    )
+
+
+def _load_active_registered_proposals(
+    profile: str,
+    *,
+    bundle: TargetEvidenceBundle,
+    confirmation_store: MappingConfirmationStore,
+):
+    return load_registered_proposals(
+        get_settings().rolo_config_dir / "registered-tools",
+        profile,
+        confirmation_store=confirmation_store,
+        target_fingerprint=bundle.target_host_fingerprint,
+    )
+
+
 @target_app.command("inspect")
 def target_inspect(
     target: Annotated[str, typer.Argument(help="Local path or ssh:// workspace URI")],
@@ -308,18 +394,38 @@ def target_bootstrap_plan_profile(
 @target_app.command("tool-surface")
 def target_tool_surface(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
+    evidence: Annotated[
+        Path | None,
+        typer.Option("--evidence", help="Verified target evidence required with --include-registered"),
+    ] = None,
+    admission_store: Annotated[
+        Path | None,
+        typer.Option("--admission-store", help="Trusted Mapping confirmation ledger root"),
+    ] = None,
     timeout: Annotated[float, typer.Option("--timeout", min=1.0, max=300.0)] = 15.0,
     include_registered: Annotated[bool, typer.Option("--include-registered/--native-only")] = False,
 ) -> None:
     """Publish the native surface, optionally merged with Probe-registered tools."""
     session = None
     try:
+        additional_descriptors = None
+        if include_registered:
+            bundle, _, confirmation_store = _registered_admission_context(
+                profile,
+                evidence=evidence,
+                admission_store=admission_store,
+            )
+            additional_descriptors = _load_active_registered_descriptors(
+                profile,
+                bundle=bundle,
+                confirmation_store=confirmation_store,
+            )
         session = create_profile_native_tool_session(
             profile,
             config_root=get_settings().rolo_config_dir,
             artifact_root=get_settings().rolo_artifact_dir,
             timeout_s=timeout,
-            additional_descriptors=(load_registered_descriptors(get_settings().rolo_config_dir / "registered-tools", profile) if include_registered else None),
+            additional_descriptors=additional_descriptors,
             allow_experimental_write=include_registered,
         )
         conformance = conform_tool_surface(
@@ -352,6 +458,14 @@ def target_tool_surface(
 def target_tool_plan(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
     plan_file: Annotated[Path, typer.Argument(help="JSON file containing an Agent ToolPlan")],
+    evidence: Annotated[
+        Path | None,
+        typer.Option("--evidence", help="Verified target evidence required with --include-registered"),
+    ] = None,
+    admission_store: Annotated[
+        Path | None,
+        typer.Option("--admission-store", help="Trusted Mapping confirmation ledger root"),
+    ] = None,
     timeout: Annotated[float, typer.Option("--timeout", min=1.0, max=300.0)] = 15.0,
     include_registered: Annotated[bool, typer.Option("--include-registered/--native-only")] = False,
     allow_mutating: Annotated[bool, typer.Option("--allow-mutating/--readonly")] = False,
@@ -360,6 +474,20 @@ def target_tool_plan(
     session = None
     try:
         plan = ToolPlan.model_validate_json(plan_file.read_text(encoding="utf-8"))
+        bundle = None
+        confirmation_store = None
+        additional_descriptors = None
+        if include_registered:
+            bundle, _, confirmation_store = _registered_admission_context(
+                profile,
+                evidence=evidence,
+                admission_store=admission_store,
+            )
+            additional_descriptors = _load_active_registered_descriptors(
+                profile,
+                bundle=bundle,
+                confirmation_store=confirmation_store,
+            )
         session = create_profile_native_tool_session(
             profile,
             config_root=get_settings().rolo_config_dir,
@@ -367,7 +495,7 @@ def target_tool_plan(
             timeout_s=timeout,
             session_id=plan.session_id,
             session_nonce=plan.session_nonce,
-            additional_descriptors=(load_registered_descriptors(get_settings().rolo_config_dir / "registered-tools", profile) if include_registered else None),
+            additional_descriptors=additional_descriptors,
             allow_experimental_write=include_registered,
         )
         conformance = conform_tool_surface(
@@ -378,6 +506,18 @@ def target_tool_plan(
         relative = f"native/{session.descriptor.robot_id}/sessions/{session.descriptor.session_id}/conformance.json"
         conformance_ref = f"artifact://{relative}"
         session.artifacts.write_json(relative, conformance.model_dump(mode="json"))
+        if include_registered:
+            if bundle is None or confirmation_store is None:
+                raise ValueError("registered Tool admission context is unavailable")
+            current_descriptors = _load_active_registered_descriptors(
+                profile,
+                bundle=bundle,
+                confirmation_store=confirmation_store,
+            )
+            if current_descriptors != additional_descriptors:
+                raise ValueError(
+                    "registered Tool admission changed before plan execution"
+                )
         results = session.execute_plan(plan, allow_mutating=allow_mutating)
         emit(
             {
@@ -399,10 +539,24 @@ def target_tool_plan(
 @target_app.command("application-surface")
 def target_application_surface(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
+    evidence: Annotated[Path, typer.Option("--evidence", help="Verified target evidence JSON")],
+    admission_store: Annotated[
+        Path,
+        typer.Option("--admission-store", help="Trusted Mapping confirmation ledger root"),
+    ],
 ) -> None:
     """Emit registered evidence-bound application Tools for a target."""
     try:
-        proposals = load_registered_proposals(get_settings().rolo_config_dir / "registered-tools", profile)
+        bundle, _, confirmation_store = _registered_admission_context(
+            profile,
+            evidence=evidence,
+            admission_store=admission_store,
+        )
+        proposals = _load_active_registered_proposals(
+            profile,
+            bundle=bundle,
+            confirmation_store=confirmation_store,
+        )
     except (OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     emit(
@@ -841,7 +995,7 @@ def _run_certify_command(
     except (FileNotFoundError, OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     emit(result)
-    if result.get("status") != "PASS":
+    if result.get("status") not in {"PASS", "SIMULATED_PASS"}:
         raise typer.Exit(code=2)
 
 
@@ -893,6 +1047,10 @@ def execute_rotation(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
     proposal: Annotated[Path, typer.Option("--proposal")],
     evidence: Annotated[Path, typer.Option("--evidence")],
+    admission_store: Annotated[
+        Path,
+        typer.Option("--admission-store", help="Trusted Mapping confirmation ledger root"),
+    ],
     angle_degrees: Annotated[float, typer.Option("--angle-degrees", min=-360.0, max=360.0)],
     max_speed_rad_s: Annotated[float, typer.Option("--max-speed-rad-s", min=0.0001, max=1.0)],
     safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
@@ -911,22 +1069,30 @@ def execute_rotation(
         emit({"status": "BLOCKED", "reason": "physical safety confirmation is required"})
         raise typer.Exit(code=2)
     try:
-        bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
-        if bundle.robot_id != profile:
-            raise ValueError("evidence target does not match profile")
-        proposals = load_registered_proposals(get_settings().rolo_config_dir / "registered-tools", profile)
+        bundle, verified_probes = _load_verified_target_evidence(
+            evidence,
+            expected_target_id=profile,
+        )
+        confirmation_store = MappingConfirmationStore(admission_store)
+        proposals = _load_active_registered_proposals(
+            profile,
+            bundle=bundle,
+            confirmation_store=confirmation_store,
+        )
         registered = next((item for item in proposals if item.tool_id == "app.base.rotate"), None)
         if registered is None or registered.implementation != "binding" or registered.binding is None:
-            raise ValueError("registered app.base.rotate binding is unavailable")
+            raise ValueError("active registered app.base.rotate binding is unavailable")
         supplied = ToolRegistrationProposal.model_validate_json(proposal.read_text(encoding="utf-8"))
         if supplied.digest() != registered.digest():
             raise ValueError("supplied proposal differs from registered Tool")
-        deployment = load_deployment(get_settings().rolo_config_dir / "target-evidence" / f"{profile}.json")
-        verify_evidence_bundle(bundle, deployment=deployment)
         expected_ref = f"target-evidence:{bundle.payload_sha256}"
         if expected_ref not in registered.evidence_refs or expected_ref not in registered.binding.evidence_refs:
             raise ValueError("registered rotation binding is stale for this Probe evidence")
-        routes = {route.resource_id: route for probe in bundle.probes.values() for route in observed_probe_routes(probe)}
+        routes = {
+            route.resource_id: route
+            for probe in verified_probes.values()
+            for route in observed_probe_routes(probe)
+        }
         command = routes.get(registered.binding.command_resource_id)
         if command is None or command.interface_type != registered.binding.interface_type:
             raise ValueError("command binding differs from Probe observations")
@@ -934,6 +1100,25 @@ def execute_rotation(
             feedback = routes.get(f"ros_topic:{endpoint}")
             if feedback is None or feedback.interface_type != "nav_msgs/msg/Odometry":
                 raise ValueError("rotation feedback must be observed Odometry")
+        current_proposals = _load_active_registered_proposals(
+            profile,
+            bundle=bundle,
+            confirmation_store=confirmation_store,
+        )
+        current = next(
+            (item for item in current_proposals if item.tool_id == registered.tool_id),
+            None,
+        )
+        if (
+            current is None
+            or current.digest() != registered.digest()
+            or current.implementation != "binding"
+            or current.binding is None
+        ):
+            raise ValueError(
+                "registered app.base.rotate admission is unavailable before execution"
+            )
+        registered = current
         run_id = uuid4().hex
         evidence_payload = {
             "schema_version": "rolo-rotation-execution-evidence/v1",
@@ -1004,6 +1189,10 @@ def invoke_tool(
     profile: Annotated[str, typer.Option("--profile", "--robot")],
     proposal: Annotated[Path, typer.Option("--proposal")],
     evidence: Annotated[Path, typer.Option("--evidence")],
+    admission_store: Annotated[
+        Path,
+        typer.Option("--admission-store", help="Trusted Mapping confirmation ledger root"),
+    ],
     arguments: Annotated[Path, typer.Option("--arguments", help="JSON object with descriptor-defined arguments")],
     safety_confirmed: Annotated[bool, typer.Option("--safety-confirmed/--safety-not-confirmed")],
     autonomous_source_confirmed: Annotated[
@@ -1024,11 +1213,17 @@ def invoke_tool(
         emit({"status": "BLOCKED", "reason": "physical safety confirmation is required"})
         raise typer.Exit(code=2)
     try:
-        bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
-        if bundle.robot_id != profile:
-            raise ValueError("evidence target does not match profile")
+        bundle, verified_probes = _load_verified_target_evidence(
+            evidence,
+            expected_target_id=profile,
+        )
+        confirmation_store = MappingConfirmationStore(admission_store)
         supplied = ToolRegistrationProposal.model_validate_json(proposal.read_text(encoding="utf-8"))
-        proposals = load_registered_proposals(get_settings().rolo_config_dir / "registered-tools", profile)
+        proposals = _load_active_registered_proposals(
+            profile,
+            bundle=bundle,
+            confirmation_store=confirmation_store,
+        )
         registered = next((item for item in proposals if item.tool_id == supplied.tool_id), None)
         if registered is None or registered.digest() != supplied.digest():
             raise ValueError("supplied proposal differs from registered Tool")
@@ -1040,15 +1235,36 @@ def invoke_tool(
             raise ValueError("arguments must contain a JSON object") from exc
         if not isinstance(call_arguments, dict):
             raise ValueError("arguments must contain a JSON object")
-        deployment = load_deployment(get_settings().rolo_config_dir / "target-evidence" / f"{profile}.json")
-        verify_evidence_bundle(bundle, deployment=deployment)
         expected_ref = f"target-evidence:{bundle.payload_sha256}"
         if expected_ref not in registered.evidence_refs or expected_ref not in registered.binding.evidence_refs:
             raise ValueError("registered Tool binding is stale for this Probe evidence")
-        routes = {route.resource_id: route for probe in bundle.probes.values() for route in observed_probe_routes(probe)}
+        routes = {
+            route.resource_id: route
+            for probe in verified_probes.values()
+            for route in observed_probe_routes(probe)
+        }
         command = routes.get(registered.binding.command_resource_id)
         if command is None or command.interface_type != registered.binding.interface_type:
             raise ValueError("Tool command binding differs from Probe observations")
+        current_proposals = _load_active_registered_proposals(
+            profile,
+            bundle=bundle,
+            confirmation_store=confirmation_store,
+        )
+        current = next(
+            (item for item in current_proposals if item.tool_id == registered.tool_id),
+            None,
+        )
+        if (
+            current is None
+            or current.digest() != registered.digest()
+            or current.implementation != "binding"
+            or current.binding is None
+        ):
+            raise ValueError(
+                "registered Tool admission is unavailable before execution"
+            )
+        registered = current
         target_executor = create_profile_target_executor(
             profile,
             config_root=get_settings().rolo_config_dir,
@@ -1099,14 +1315,37 @@ def invoke_tool(
 def register_tool(
     proposal: Annotated[Path, typer.Option("--proposal", help="Harness-produced ToolRegistrationProposal JSON")],
     evidence: Annotated[Path, typer.Option("--evidence", help="Probe evidence used by the proposal")],
+    mapping_proposal: Annotated[
+        Path,
+        typer.Option("--mapping-proposal", help="Confirmed MappingProposal JSON"),
+    ],
+    mapping_dsl: Annotated[
+        Path,
+        typer.Option("--mapping-dsl", help="Canonical Mapping DSL JSON reviewed by the operator"),
+    ],
+    admission_store: Annotated[
+        Path,
+        typer.Option("--admission-store", help="Trusted Mapping confirmation ledger root"),
+    ],
+    confirmation_receipt_digest: Annotated[
+        str,
+        typer.Option("--confirmation-receipt-digest"),
+    ],
+    journey_session_id: Annotated[str, typer.Option("--journey-session-id")],
 ) -> None:
     """Validate and register one harness-generated application Tool."""
     try:
-        bundle = TargetEvidenceBundle.model_validate_json(evidence.read_text(encoding="utf-8"))
-        parsed = ToolRegistrationProposal.model_validate_json(proposal.read_text(encoding="utf-8"))
+        bundle, verified_probes = _load_verified_target_evidence(evidence)
+        parsed = ToolRegistrationProposal.model_validate(
+            _load_json_mapping(proposal, label="Tool registration proposal")
+        )
+        parsed_mapping_proposal = MappingProposal.model_validate(
+            _load_json_mapping(mapping_proposal, label="Mapping proposal")
+        )
+        parsed_mapping_dsl = _load_json_mapping(mapping_dsl, label="Mapping DSL")
         observed_route_ids = {
             route.resource_id
-            for probe_result in bundle.probes.values()
+            for probe_result in verified_probes.values()
             for route in observed_probe_routes(probe_result)
         }
         result = register_tool_proposal(
@@ -1115,8 +1354,14 @@ def register_tool(
             evidence_refs={f"target-evidence:{bundle.payload_sha256}"},
             observed_route_ids=observed_route_ids,
             registry_root=get_settings().rolo_config_dir / "registered-tools",
+            mapping_proposal=parsed_mapping_proposal,
+            mapping_dsl=parsed_mapping_dsl,
+            confirmation_store=MappingConfirmationStore(admission_store),
+            confirmation_receipt_digest=confirmation_receipt_digest,
+            journey_session_id=journey_session_id,
+            target_fingerprint=bundle.target_host_fingerprint,
         )
-    except (OSError, ValueError) as exc:
+    except (OSError, TypeError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     emit(result)
     if result.status == "BLOCKED":

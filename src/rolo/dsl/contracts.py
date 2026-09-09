@@ -10,23 +10,41 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Final
 
+from rolo.security.authority import (
+    ACL_DECISION_SCHEMA_VERSION,
+    LEDGER_HEAD_SCHEMA_VERSION,
+    OPERATOR_ASSERTION_SCHEMA_VERSION,
+)
+
 DSL_SCHEMA_VERSION: Final = "rolo-dsl/v1"
 COMPILE_CONTEXT_SCHEMA_VERSION: Final = "rolo-compile-context/v1"
 TARGETD_PROTOCOL_SCHEMA_VERSION: Final = "rolo-targetd/v1"
 CANONICAL_IR_SCHEMA_VERSION: Final = "rolo-canonical-ir/v1"
-BUNDLE_PLAN_SCHEMA_VERSION: Final = "rolo-bundle-plan/v1"
-COMPILE_REQUEST_SCHEMA_VERSION: Final = "rolo-dsl-compile-request/v1"
-COMPILE_RESULT_SCHEMA_VERSION: Final = "rolo-dsl-compile-result/v1"
+LEGACY_BUNDLE_PLAN_SCHEMA_VERSION: Final = "rolo-bundle-plan/v1"
+BUNDLE_PLAN_SCHEMA_VERSION: Final = "rolo-bundle-plan/v2"
+LEGACY_COMPILE_REQUEST_SCHEMA_VERSION: Final = "rolo-dsl-compile-request/v1"
+COMPILE_REQUEST_SCHEMA_VERSION: Final = "rolo-dsl-compile-request/v2"
+LEGACY_COMPILE_RESULT_SCHEMA_VERSION: Final = "rolo-dsl-compile-result/v1"
+COMPILE_RESULT_SCHEMA_VERSION: Final = "rolo-dsl-compile-result/v2"
 DIAGNOSTICS_SCHEMA_VERSION: Final = "rolo-diagnostics/v1"
-BACKEND_SPI_VERSION: Final = "rolo-backend-spi/v1"
+LEGACY_BACKEND_SPI_VERSION: Final = "rolo-backend-spi/v1"
+BACKEND_SPI_VERSION: Final = "rolo-backend-spi/v2"
 TARGETD_FRAME_SCHEMA_VERSION: Final = "rolo-targetd-dsl-frame/v1"
 TARGETD_PUT_SCHEMA_VERSION: Final = "rolo-targetd-dsl-put/v1"
-TARGETD_COMPILE_SCHEMA_VERSION: Final = "rolo-targetd-dsl-compile/v1"
+LEGACY_TARGETD_COMPILE_SCHEMA_VERSION: Final = "rolo-targetd-dsl-compile/v1"
+TARGETD_COMPILE_SCHEMA_VERSION: Final = "rolo-targetd-dsl-compile/v2"
 MAPPING_REQUEST_SCHEMA_VERSION: Final = "rolo-adapter-mapping-request/v1"
+MAPPING_PROPOSAL_SCHEMA_VERSION: Final = "rolo-mapping-proposal/v2"
+MAPPING_CONFIRMATION_RECEIPT_SCHEMA_VERSION: Final = "rolo-mapping-confirmation-receipt/v1"
+MAPPING_AUTHORITY_COMMAND_SCHEMA_VERSION: Final = "rolo-mapping-authority-command/v1"
+MAPPING_AUTHORITY_RECEIPT_SCHEMA_VERSION: Final = "rolo-mapping-authority-receipt/v1"
+MAPPING_AUTHORITY_PENDING_SCHEMA_VERSION: Final = "rolo-mapping-authority-pending/v1"
 PROBE_FOLLOW_UP_SCHEMA_VERSION: Final = "rolo-probe-follow-up-request/v1"
-TARGET_CONFORMANCE_SCHEMA_VERSION: Final = "rolo-target-conformance/v1"
+LEGACY_TARGET_CONFORMANCE_SCHEMA_VERSION: Final = "rolo-target-conformance/v2"
+TARGET_CONFORMANCE_SCHEMA_VERSION: Final = "rolo-target-conformance/v3"
 RELEASE_BINDING_SCHEMA_VERSION: Final = "rolo-release-binding/v1"
-JOURNEY_RESULT_SCHEMA_VERSION: Final = "rolo-post-compiler-journey-result/v1"
+LEGACY_JOURNEY_RESULT_SCHEMA_VERSION: Final = "rolo-post-compiler-journey-result/v1"
+JOURNEY_RESULT_SCHEMA_VERSION: Final = "rolo-post-compiler-journey-result/v2"
 RELEASE_READ_MODEL_SCHEMA_VERSION: Final = "rolo-release-read-model/v1"
 
 CONTRACT_VERSIONS: Final[dict[str, str]] = {
@@ -43,6 +61,14 @@ CONTRACT_VERSIONS: Final[dict[str, str]] = {
     "targetd_put": TARGETD_PUT_SCHEMA_VERSION,
     "targetd_compile": TARGETD_COMPILE_SCHEMA_VERSION,
     "mapping_request": MAPPING_REQUEST_SCHEMA_VERSION,
+    "mapping_proposal": MAPPING_PROPOSAL_SCHEMA_VERSION,
+    "mapping_confirmation_receipt": MAPPING_CONFIRMATION_RECEIPT_SCHEMA_VERSION,
+    "mapping_authority_command": MAPPING_AUTHORITY_COMMAND_SCHEMA_VERSION,
+    "mapping_authority_receipt": MAPPING_AUTHORITY_RECEIPT_SCHEMA_VERSION,
+    "mapping_authority_pending": MAPPING_AUTHORITY_PENDING_SCHEMA_VERSION,
+    "operator_assertion": OPERATOR_ASSERTION_SCHEMA_VERSION,
+    "acl_decision": ACL_DECISION_SCHEMA_VERSION,
+    "ledger_head": LEDGER_HEAD_SCHEMA_VERSION,
     "probe_follow_up": PROBE_FOLLOW_UP_SCHEMA_VERSION,
     "target_conformance": TARGET_CONFORMANCE_SCHEMA_VERSION,
     "release_binding": RELEASE_BINDING_SCHEMA_VERSION,
@@ -97,6 +123,18 @@ __all__ = [
     "DIAGNOSTICS_SCHEMA_VERSION",
     "DSL_SCHEMA_VERSION",
     "JOURNEY_RESULT_SCHEMA_VERSION",
+    "LEGACY_COMPILE_RESULT_SCHEMA_VERSION",
+    "LEGACY_JOURNEY_RESULT_SCHEMA_VERSION",
+    "LEGACY_COMPILE_REQUEST_SCHEMA_VERSION",
+    "LEGACY_BACKEND_SPI_VERSION",
+    "LEGACY_BUNDLE_PLAN_SCHEMA_VERSION",
+    "LEGACY_TARGETD_COMPILE_SCHEMA_VERSION",
+    "LEGACY_TARGET_CONFORMANCE_SCHEMA_VERSION",
+    "MAPPING_CONFIRMATION_RECEIPT_SCHEMA_VERSION",
+    "MAPPING_AUTHORITY_COMMAND_SCHEMA_VERSION",
+    "MAPPING_AUTHORITY_RECEIPT_SCHEMA_VERSION",
+    "MAPPING_AUTHORITY_PENDING_SCHEMA_VERSION",
+    "MAPPING_PROPOSAL_SCHEMA_VERSION",
     "MAPPING_REQUEST_SCHEMA_VERSION",
     "PROBE_FOLLOW_UP_SCHEMA_VERSION",
     "RELEASE_BINDING_SCHEMA_VERSION",

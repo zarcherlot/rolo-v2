@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-ledger-head/v1",
+  "title": "Rolo externally anchored ledger head",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "anchor_provider_id",
+    "ledger_id",
+    "epoch",
+    "sequence",
+    "head_digest",
+    "previous_anchor_digest",
+    "recorded_at",
+    "anchor_digest",
+    "challenge_digest",
+    "witnessed_at",
+    "expires_at",
+    "issuer_id",
+    "key_id",
+    "algorithm",
+    "payload_digest",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-ledger-head/v1"},
+    "anchor_provider_id": {"$ref": "#/$defs/identifier"},
+    "ledger_id": {"$ref": "#/$defs/identifier"},
+    "epoch": {"type": "integer", "minimum": 1},
+    "sequence": {"type": "integer", "minimum": 0},
+    "head_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "previous_anchor_digest": {"anyOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "anchor_digest": {"$ref": "#/$defs/digest"},
+    "challenge_digest": {"$ref": "#/$defs/digest"},
+    "witnessed_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "issuer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "key_id": {"$ref": "#/$defs/identifier"},
+    "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+    "payload_digest": {"$ref": "#/$defs/digest"},
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{32,2048}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"sequence": {"const": 0}}},
+      "then": {
+        "properties": {
+          "head_digest": {"type": "null"},
+          "previous_anchor_digest": {"type": "null"}
+        }
+      },
+      "else": {
+        "properties": {
+          "head_digest": {"$ref": "#/$defs/digest"},
+          "previous_anchor_digest": {"$ref": "#/$defs/digest"}
+        }
+      }
+    }
+  ]
+}

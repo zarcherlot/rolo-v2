@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-production-authority-composition/v1",
+  "title": "Rolo production authority composition policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authority_roles",
+    "trusted_time",
+    "foundation_artifact",
+    "current_head",
+    "signature_verifier_provider_id",
+    "trusted_time_provider_id",
+    "acl_resolver_provider_id",
+    "ledger_head_provider_id",
+    "foundation_resolver_provider_id",
+    "current_head_resolver_provider_id",
+    "ledger_id",
+    "clock_id",
+    "current_head_namespace",
+    "provider_timeout_ms",
+    "max_clock_uncertainty_ms"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-production-authority-composition/v1"},
+    "authority_roles": {"$ref": "authority-role-policy.json"},
+    "trusted_time": {"$ref": "#/$defs/trustedTimePin"},
+    "foundation_artifact": {"$ref": "#/$defs/foundationPin"},
+    "current_head": {"$ref": "#/$defs/currentHeadPin"},
+    "signature_verifier_provider_id": {"$ref": "#/$defs/identifier"},
+    "trusted_time_provider_id": {"$ref": "#/$defs/identifier"},
+    "acl_resolver_provider_id": {"$ref": "#/$defs/identifier"},
+    "ledger_head_provider_id": {"$ref": "#/$defs/identifier"},
+    "foundation_resolver_provider_id": {"$ref": "#/$defs/identifier"},
+    "current_head_resolver_provider_id": {"$ref": "#/$defs/identifier"},
+    "ledger_id": {"$ref": "#/$defs/identifier"},
+    "clock_id": {"$ref": "#/$defs/identifier"},
+    "current_head_namespace": {"$ref": "#/$defs/identifier"},
+    "provider_timeout_ms": {"type": "integer", "minimum": 10, "maximum": 30000},
+    "max_clock_uncertainty_ms": {"type": "integer", "minimum": 0, "maximum": 60000}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["purpose", "issuer_id", "key_id", "trust_root_digest"],
+      "properties": {
+        "purpose": {"enum": ["TRUSTED_TIME", "FOUNDATION_ARTIFACT", "CURRENT_HEAD"]},
+        "issuer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "key_id": {"$ref": "#/$defs/identifier"},
+        "trust_root_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "trustedTimePin": {
+      "allOf": [{"$ref": "#/$defs/pin"}, {"properties": {"purpose": {"const": "TRUSTED_TIME"}}}]
+    },
+    "foundationPin": {
+      "allOf": [{"$ref": "#/$defs/pin"}, {"properties": {"purpose": {"const": "FOUNDATION_ARTIFACT"}}}]
+    },
+    "currentHeadPin": {
+      "allOf": [{"$ref": "#/$defs/pin"}, {"properties": {"purpose": {"const": "CURRENT_HEAD"}}}]
+    }
+  }
+}

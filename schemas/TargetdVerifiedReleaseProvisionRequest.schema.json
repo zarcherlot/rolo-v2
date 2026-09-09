@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.dev/schemas/rolo-targetd-verified-release-provision-v1.json",
+  "title": "Rolo targetd verified Release provision request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_digest",
+    "candidate_release",
+    "conformance_cache_key",
+    "execution_bundle_digest",
+    "expected_catalog_head_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "rolo-targetd-verified-release-provision/v1"
+    },
+    "release_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "candidate_release": {
+      "$ref": "#/$defs/ToolRelease"
+    },
+    "conformance_cache_key": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "execution_bundle_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expected_catalog_head_digest": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "ToolRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_id",
+        "target_id",
+        "operation_kind",
+        "dsl_digest",
+        "ir_digest",
+        "probe_evidence_digest",
+        "mhs_manifest_digests",
+        "compiler_version",
+        "generated_bundle_digest",
+        "conformance_digest",
+        "target_fingerprint",
+        "compile_context_digest",
+        "route_digest",
+        "target_conformance_digest",
+        "mapping_confirmation_receipt_digest",
+        "mapping_admission",
+        "status",
+        "agent_callable"
+      ],
+      "properties": {
+        "tool_id": {"type": "string", "minLength": 1},
+        "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+        "operation_kind": {"enum": ["OBSERVE", "COMPOSE", "INVOKE", "EXECUTE"]},
+        "dsl_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "ir_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "probe_evidence_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "mhs_manifest_digests": {"type": "array", "maxItems": 0},
+        "compiler_version": {"type": "string", "minLength": 1},
+        "generated_bundle_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "conformance_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "target_fingerprint": {"type": "string", "minLength": 1},
+        "compile_context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "route_digest": {"type": "null"},
+        "target_conformance_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "mapping_confirmation_receipt_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "mapping_admission": {"$ref": "TargetdExecutionAuthority.schema.json#/$defs/mapping_admission"},
+        "status": {"const": "PUBLISHED"},
+        "agent_callable": {"const": true}
+      }
+    }
+  }
+}

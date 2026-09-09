@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mapping-foundation-references/v1",
+  "title": "Rolo production Mapping foundation references",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "journey_session_id", "proposal_ref", "context_ref", "candidate_index_ref",
+    "candidate_ref", "dsl_ref", "evidence_ref", "tool_catalog_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-mapping-foundation-references/v1"},
+    "journey_session_id": {"$ref": "#/$defs/identifier"},
+    "proposal_ref": {"$ref": "#/$defs/reference"},
+    "context_ref": {"$ref": "#/$defs/reference"},
+    "candidate_index_ref": {"$ref": "#/$defs/reference"},
+    "candidate_ref": {"$ref": "#/$defs/reference"},
+    "dsl_ref": {"$ref": "#/$defs/reference"},
+    "evidence_ref": {"$ref": "#/$defs/reference"},
+    "tool_catalog_ref": {"$ref": "#/$defs/reference"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "reference": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^[^\\s\\u0000-\\u001f\\u007f]+$"}
+  }
+}

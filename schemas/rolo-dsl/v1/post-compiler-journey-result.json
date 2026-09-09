@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "rolo-post-compiler-journey-result/v1",
+  "$id": "rolo-post-compiler-journey-result/v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,16 +10,32 @@
     "target_id",
     "dsl_digest",
     "context_digest",
-    "target_compile_status"
+    "target_compile_status",
+    "confirmation_receipt_digest",
+    "proposal_digest"
   ],
   "properties": {
-    "schema_version": {"const": "rolo-post-compiler-journey-result/v1"},
+    "schema_version": {"const": "rolo-post-compiler-journey-result/v2"},
     "status": {"enum": ["PASS", "BLOCKED"]},
-    "journey_session_id": {"type": "string", "minLength": 1},
-    "target_id": {"type": "string", "minLength": 1},
-    "dsl_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "journey_session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "target_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "dsl_digest": {"type": "string", "pattern": "^(?:|sha256:[0-9a-f]{64})$"},
     "context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "target_compile_status": {"type": "string", "minLength": 1},
+    "confirmation_receipt_digest": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "proposal_digest": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
     "target_conformance_digest": {"type": ["string", "null"]},
     "release_digest": {"type": ["string", "null"]},
     "diagnostics": {"type": "array", "items": {"type": "string"}}

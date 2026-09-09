@@ -8,13 +8,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Response
 
 from rolo.dsl.contracts import RELEASE_READ_MODEL_SCHEMA_VERSION
 
-from .artifacts import build_artifact_index, write_artifact_index
-from .certify import CertificationRunner, load_suite, write_report
+from .artifacts import build_artifact_index
+from .certify import CertificationRunner, load_suite, write_new_artifact, write_report
 from .contracts import CertifyRequest, TargetCatalog, ToolState, TraceCall, TraceSessionRequest, TraceStartRequest
+from .episodes import EpisodeStore
 from .trace import TraceService
 
 router = APIRouter(prefix="/v1/mvp", tags=["mvp"])
@@ -22,6 +23,7 @@ _catalogs: dict[str, TargetCatalog] = {}
 _services: dict[str, TraceService] = {}
 _rkb: dict[str, dict[str, Any]] = {}
 _publishers: dict[str, Any] = {}
+_certify_release_bindings: dict[str, dict[str, Any]] = {}
 _certify_runners: dict[str, CertificationRunner] = {}
 _certify_runs: dict[str, dict[str, Any]] = {}
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -34,6 +36,10 @@ def _is_digest(value: str, *, allow_unknown: bool = True) -> bool:
 
 def _artifact_root() -> Path:
     return Path(os.getenv("ROLO_ARTIFACT_ROOT", os.getenv("ROLO_ARTIFACT_DIR", ".rolo/artifacts"))).expanduser()
+
+
+def _episode_store() -> EpisodeStore:
+    return EpisodeStore(_artifact_root() / "episodes")
 
 
 def register_catalog(
@@ -76,6 +82,11 @@ def register_catalog(
     _catalogs[catalog.target_id] = catalog
     _services[catalog.target_id] = service
     _rkb[catalog.target_id] = dict(rkb or {})
+    # Re-registering a target through the plain catalog API must revoke any
+    # older release authority; otherwise Certify could retain a stale
+    # publisher/binding from a previous registration.
+    _publishers.pop(catalog.target_id, None)
+    _certify_release_bindings.pop(catalog.target_id, None)
     _certify_runners[catalog.target_id] = certify_runner or CertificationRunner(
         certify_invoker or default_invoker,
         target_id=catalog.target_id,
@@ -94,9 +105,11 @@ def register_release_bound_catalog(
     route_digest: str | None = None,
     mhs_manifest_digests: tuple[str, ...] = (),
     rkb: Mapping[str, Any] | None = None,
+    artifact_root: Path | None = None,
 ) -> None:
     """Register an HTTP catalog whose calls are pinned to current releases."""
 
+    from rolo.releases.consumers import CertifyConsumer
     from rolo.releases.journey import PublishedReleaseInvoker
 
     bound = {
@@ -128,7 +141,24 @@ def register_release_bound_catalog(
         callback = bound.get(tool_id)
         if callback is None:
             raise ValueError("RELEASE_NOT_CURRENT")
-        return callback(tool_id, arguments, session_id, idempotency_key)
+        current = publisher.current(tool_id)
+        release_digest = release_digests.get(tool_id)
+        if current is None or release_digest is None or current[0] != release_digest:
+            raise ValueError("RELEASE_NOT_CURRENT")
+        CertifyConsumer(confirmation_store=publisher.confirmation_store).consume(
+            current[1],
+            release_digest=release_digest,
+            session_id=session_id,
+            idempotency_key=idempotency_key,
+            evidence_digest=evidence_digest,
+            target_fingerprint=target_fingerprint,
+            compile_context_digest=compile_context_digest,
+            route_digest=route_digest,
+            mhs_manifest_digests=mhs_manifest_digests,
+            input=dict(arguments),
+            test_case_id=idempotency_key.rsplit(":", 1)[-1] if idempotency_key else None,
+        )
+        return callback._invoke_target(tool_id, arguments, session_id, idempotency_key)
 
     register_catalog(
         catalog,
@@ -137,8 +167,14 @@ def register_release_bound_catalog(
         compile_context_digest=compile_context_digest,
         target_fingerprint=target_fingerprint,
         rkb=rkb,
+        artifact_root=artifact_root,
     )
     _publishers[catalog.target_id] = publisher
+    _certify_release_bindings[catalog.target_id] = {
+        "release_digests": dict(release_digests),
+        "target_fingerprint": target_fingerprint,
+        "compile_context_digest": compile_context_digest,
+    }
 
 
 @router.get("/targets/{target_id}/catalog", response_model=TargetCatalog)
@@ -461,6 +497,23 @@ def _persist_trace(service: TraceService, run_id: str) -> dict[str, str]:
     return {str(key): str(value) for key, value in paths.items()}
 
 
+def _publish_trace_episode(session: Any, paths: Mapping[str, str]) -> None:
+    try:
+        _episode_store().publish(
+            episode_id=session.session_id,
+            run_id=session.session_id,
+            target_id=session.target_id,
+            kind="TRACE",
+            status=session.state.value,
+            artifact_index_path=Path(paths["index"]),
+            release_digest=session.release_digest,
+            compile_context_digest=session.compile_context_digest,
+            target_fingerprint=session.target_fingerprint,
+        )
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=f"TRACE_EPISODE_PERSIST_FAILED: {exc}") from exc
+
+
 def _coerce_start_trace(payload: Any) -> tuple[TraceSessionRequest, list[TraceCall]]:
     """Accept the direct request and the optional ``TraceStartRequest`` envelope."""
 
@@ -519,6 +572,7 @@ def start_trace(request: TraceSessionRequest | TraceStartRequest = _REQUIRED_BOD
     payload["run_id"] = session.session_id
     if paths:
         payload["artifact_paths"] = paths
+        _publish_trace_episode(session, paths)
     return payload
 
 
@@ -542,6 +596,7 @@ def add_trace_calls(run_id: str, payload: Any = _REQUIRED_BODY, target_id: str |
     result["run_id"] = run_id
     if paths:
         result["artifact_paths"] = paths
+        _publish_trace_episode(session, paths)
     return result
 
 
@@ -573,7 +628,8 @@ def cancel_trace_run(run_id: str, target_id: str | None = None) -> dict[str, Any
         session = service.cancel(run_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="run not found") from exc
-    _persist_trace(service, run_id)
+    paths = _persist_trace(service, run_id)
+    _publish_trace_episode(session, paths)
     payload = session.model_dump(mode="json")
     payload["run_id"] = run_id
     return payload
@@ -586,7 +642,8 @@ def stop_trace_run(run_id: str, target_id: str | None = None) -> dict[str, Any]:
         session = service.stop(run_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="run not found") from exc
-    _persist_trace(service, run_id)
+    paths = _persist_trace(service, run_id)
+    _publish_trace_episode(session, paths)
     payload = session.model_dump(mode="json")
     payload["run_id"] = run_id
     return payload
@@ -599,7 +656,8 @@ def resume_trace_run(run_id: str, target_id: str | None = None) -> dict[str, Any
         session = service.resume(run_id)
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    _persist_trace(service, run_id)
+    paths = _persist_trace(service, run_id)
+    _publish_trace_episode(session, paths)
     payload = session.model_dump(mode="json")
     payload["run_id"] = run_id
     return payload
@@ -685,9 +743,32 @@ def start_certify(request: CertifyRequest) -> dict[str, Any]:
     catalog = _catalogs[request.target_id]
     try:
         effective_snapshot, effective_fingerprint = _validate_certify_binding(catalog, request, suite)
+        release_binding = _certify_release_bindings.get(request.target_id)
+        publisher = _publishers.get(request.target_id)
+        if release_binding is None or publisher is None:
+            raise ValueError("RELEASE_AUTHORITY_REQUIRED")
+        tool_id = suite.cases[0].tool_id
+        registered_releases = release_binding["release_digests"]
+        registered_digest = registered_releases.get(tool_id)
+        if registered_digest is None or request.release_digest != registered_digest:
+            raise ValueError("RELEASE_DIGEST_MISMATCH")
+        current = publisher.current(tool_id)
+        if current is None or current[0] != request.release_digest:
+            raise ValueError("RELEASE_NOT_CURRENT")
+        release = current[1]
+        if release.status != "PUBLISHED" or not release.agent_callable:
+            raise ValueError("RELEASE_NOT_CURRENT")
+        if release.target_id != request.target_id:
+            raise ValueError("TARGET_ID_MISMATCH")
+        if release.target_fingerprint != request.target_fingerprint:
+            raise ValueError("TARGET_FINGERPRINT_MISMATCH")
+        if release.compile_context_digest != request.compile_context_digest:
+            raise ValueError("CONTEXT_DIGEST_MISMATCH")
+        if release.target_conformance_digest is None:
+            raise ValueError("TARGET_CONFORMANCE_REQUIRED")
         if (
             service.compile_context_digest is not None
-            and request.compile_context_digest not in (None, service.compile_context_digest)
+            and request.compile_context_digest != service.compile_context_digest
         ):
             raise ValueError("compile context digest does not match bound service")
         if (
@@ -697,7 +778,7 @@ def start_certify(request: CertifyRequest) -> dict[str, Any]:
             raise ValueError("target fingerprint does not match bound service")
         if service.target_fingerprint == "UNKNOWN" and effective_fingerprint not in (None, "UNKNOWN"):
             raise ValueError("bound service target fingerprint is unknown")
-        effective_context = request.compile_context_digest or service.compile_context_digest
+        effective_context = request.compile_context_digest
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=f"CERTIFY_BLOCKED: {exc}") from exc
     # Keep certification evidence beside the Trace evidence for this
@@ -718,9 +799,14 @@ def start_certify(request: CertifyRequest) -> dict[str, Any]:
             session_id=run_id,
             compile_context_digest=effective_context,
             target_fingerprint=effective_fingerprint,
+            release_digests={tool_id: request.release_digest},
             fail_fast=request.failure_policy == "fail_fast",
         )
-        json_path, md_path = write_report(report, output_root / "certify-test-report.json")
+        json_path, md_path = write_report(
+            report,
+            output_root / "certify-test-report.json",
+            write_index=False,
+        )
         requested_report = output_root / "certify-test-report.json"
         suffix_name = json_path.name != requested_report.name
         stem_prefix = json_path.stem if suffix_name else "certify"
@@ -736,13 +822,28 @@ def start_certify(request: CertifyRequest) -> dict[str, Any]:
         for artifact_path in (suite_artifact, request_artifact, event_artifact, html_path, index_path):
             if artifact_path.is_symlink():
                 raise ValueError(f"certification artifact path must not be a symlink: {artifact_path}")
-        suite_artifact.write_text(json.dumps(suite.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        request_artifact.write_text(json.dumps(request.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        event_artifact.write_text("".join(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n" for item in runner.events), encoding="utf-8")
+        write_new_artifact(
+            suite_artifact,
+            json.dumps(suite.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n",
+        )
+        write_new_artifact(
+            request_artifact,
+            json.dumps(request.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n",
+        )
+        write_new_artifact(
+            event_artifact,
+            "".join(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n" for item in runner.events),
+        )
         if not html_path.is_file() or html_path.is_symlink():
             raise ValueError("derived HTML certification report is missing")
         files = [json_path, md_path, suite_artifact, request_artifact, event_artifact, html_path]
-        write_artifact_index(index_path, build_artifact_index(run_id=report.run_id, target_id=report.target_id, files=files, root=json_path.parent))
+        index = build_artifact_index(
+            run_id=report.run_id,
+            target_id=report.target_id,
+            files=files,
+            root=json_path.parent,
+        )
+        write_new_artifact(index_path, index.model_dump_json(indent=2) + "\n")
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=500, detail=f"CERTIFY_FAILED: {exc}") from exc
     artifact_paths = {
@@ -755,12 +856,28 @@ def start_certify(request: CertifyRequest) -> dict[str, Any]:
         "index": str(index_path),
     }
     _certify_runs[report.run_id] = {"report": report, "artifact_paths": artifact_paths, "events": list(runner.events)}
+    try:
+        _episode_store().publish(
+            episode_id=report.run_id,
+            run_id=report.run_id,
+            target_id=report.target_id,
+            kind="CERTIFY",
+            status=report.conclusion,
+            artifact_index_path=index_path,
+            release_digest=report.release_digest,
+            compile_context_digest=report.compile_context_digest,
+            target_fingerprint=report.target_fingerprint,
+        )
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=f"CERTIFY_EPISODE_PERSIST_FAILED: {exc}") from exc
     return {
         "schema_version": "rolo-certify-run/v1",
         "status": report.conclusion,
         "run_id": report.run_id,
         "target_id": report.target_id,
         "suite_digest": report.suite_digest,
+        "tool_id": report.tool_id,
+        "release_digest": report.release_digest,
         "artifact_paths": artifact_paths,
         "report": report.model_dump(mode="json"),
     }
@@ -805,6 +922,66 @@ def read_certify_events(run_id: str, target_id: str | None = None) -> dict[str, 
     }
 
 
+@router.get("/episodes")
+def list_episodes(after: str | None = None, limit: int = 50) -> dict[str, Any]:
+    try:
+        items = _episode_store().list(after=after, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=f"EPISODE_STORE_INVALID: {exc}") from exc
+    return {
+        "schema_version": "rolo-episode-collection/v1",
+        "items": [item.public_payload() for item in items],
+        "count": len(items),
+        "next_cursor": items[-1].episode_id if len(items) == limit else None,
+    }
+
+
+@router.get("/episodes/{episode_id}")
+def read_episode(episode_id: str) -> dict[str, Any]:
+    try:
+        return _episode_store().get(episode_id).public_payload()
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="episode not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=f"EPISODE_STORE_INVALID: {exc}") from exc
+
+
+@router.get("/episodes/{episode_id}/history")
+def read_episode_history(episode_id: str) -> dict[str, Any]:
+    try:
+        items = _episode_store().history(episode_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="episode not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=f"EPISODE_STORE_INVALID: {exc}") from exc
+    if not items:
+        raise HTTPException(status_code=404, detail="episode not found")
+    return {
+        "schema_version": "rolo-episode-history/v1",
+        "episode_id": episode_id,
+        "items": [item.public_payload() for item in items],
+        "count": len(items),
+    }
+
+
+@router.get("/episodes/{episode_id}/artifacts/{artifact_name:path}")
+def download_episode_artifact(episode_id: str, artifact_name: str) -> Response:
+    try:
+        payload, artifact = _episode_store().download(episode_id, artifact_name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="episode artifact not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=f"EPISODE_ARTIFACT_INVALID: {exc}") from exc
+    return Response(
+        content=payload,
+        media_type=artifact.media_type,
+        headers={
+            "ETag": f'"sha256:{artifact.sha256}"',
+            "Content-Disposition": f'attachment; filename="{Path(artifact.name).name}"',
+        },
+    )
+
+
 # Register the same handlers on the public /v1 connector prefix.  Keeping a
 # separate router avoids changing the historical /v1/mvp paths used by older
 # integrations while making the normative Agent contract available directly.
@@ -822,6 +999,10 @@ connector_router.add_api_route("/runs/{run_id}/resume", resume_trace_run, method
 connector_router.add_api_route("/certify/runs", start_certify, methods=["POST"])
 connector_router.add_api_route("/certify/runs/{run_id}/report", read_certify_report, methods=["GET"])
 connector_router.add_api_route("/certify/runs/{run_id}/events", read_certify_events, methods=["GET"])
+connector_router.add_api_route("/episodes", list_episodes, methods=["GET"])
+connector_router.add_api_route("/episodes/{episode_id}", read_episode, methods=["GET"])
+connector_router.add_api_route("/episodes/{episode_id}/history", read_episode_history, methods=["GET"])
+connector_router.add_api_route("/episodes/{episode_id}/artifacts/{artifact_name:path}", download_episode_artifact, methods=["GET"])
 
 
 __all__ = [
@@ -839,4 +1020,8 @@ __all__ = [
     "start_certify",
     "read_certify_report",
     "read_certify_events",
+    "list_episodes",
+    "read_episode",
+    "read_episode_history",
+    "download_episode_artifact",
 ]

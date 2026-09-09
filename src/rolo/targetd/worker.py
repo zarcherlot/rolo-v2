@@ -7,17 +7,25 @@ reuse the same runtime without adding tool-specific branches to targetd.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
 import subprocess
+import threading
+import time
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 from rolo.dsl.parser import loads_unique_json
 
+from .lifecycle import WorkerCompletion
+from .lifecycle_integration import LeasedProviderOutcome
+from .process_worker import ProcessWorkerControl
 from .protocol import ExecutionBundleManifest, ProtocolError
+from .ros2_runtime import Ros2RuntimeSnapshot
 
 MAX_ROTATION_ANGLE_DEGREES = 30.0
 MAX_ROTATION_SPEED_RAD_S = 0.15
@@ -36,9 +44,7 @@ MAPPING_TOOL_OPERATIONS = {
     "app.mapping.stop": "mapping.stop",
 }
 MAPPING_OPERATIONS = frozenset(MAPPING_TOOL_OPERATIONS.values())
-MAPPING_STATUSES = frozenset(
-    {"SUCCEEDED", "RUNNING", "STOPPED", "CANCELLED", "FAILED", "UNKNOWN", "NOT_ACCEPTED", "BLOCKED"}
-)
+MAPPING_STATUSES = frozenset({"SUCCEEDED", "RUNNING", "STOPPED", "CANCELLED", "FAILED", "UNKNOWN", "NOT_ACCEPTED", "BLOCKED"})
 _MAPPING_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 # These defaults are also the only filesystem locations accepted by the
@@ -84,12 +90,177 @@ class Provider(Protocol):
     def invoke(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]: ...
 
 
+@dataclass(frozen=True)
+class Ros2OdomProcessWorker:
+    """Spawn-safe, fixed-argv `/odom` observer with cooperative STOP."""
+
+    snapshot: Ros2RuntimeSnapshot
+    timeout_s: float = 10.0
+
+    provider_id = "ros2-readonly"
+    provider_operation = "odom.sample"
+    mode = "READ_ONLY"
+    physical_capable = False
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.timeout_s <= 60:
+            raise ValueError("ROS2 read-only process timeout is invalid")
+        topic = next(
+            (item for item in self.snapshot.topics if item.name == "/odom" and item.interface_type == "nav_msgs/msg/Odometry"),
+            None,
+        )
+        if topic is None or not self.snapshot.ros2_path or "\x00" in self.snapshot.ros2_path:
+            raise ValueError("ROS2 /odom process route is unavailable")
+
+    def __call__(self, control: ProcessWorkerControl) -> LeasedProviderOutcome:
+        process = subprocess.Popen(
+            [
+                self.snapshot.ros2_path,
+                "topic",
+                "echo",
+                "--no-daemon",
+                "--spin-time",
+                "5",
+                "--once",
+                "/odom",
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+        )
+        stdout = bytearray()
+        stderr = bytearray()
+        overflow = threading.Event()
+
+        def drain(stream, target: bytearray, limit: int) -> None:
+            if stream is None:
+                return
+            try:
+                while True:
+                    chunk = stream.read(4096)
+                    if not chunk:
+                        return
+                    remaining = limit - len(target)
+                    if remaining > 0:
+                        target.extend(chunk[:remaining])
+                    if len(chunk) > remaining:
+                        overflow.set()
+            except OSError:
+                overflow.set()
+
+        readers = (
+            threading.Thread(target=drain, args=(process.stdout, stdout, 65_536), daemon=True),
+            threading.Thread(target=drain, args=(process.stderr, stderr, 4_096), daemon=True),
+        )
+        for reader in readers:
+            reader.start()
+        deadline = time.monotonic() + self.timeout_s
+        while process.poll() is None:
+            if control.aborted():
+                self._terminate(process)
+                raise ProtocolError("ROS2_READ_ONLY_WORKER_ABORTED")
+            intent = control.interrupt_intent()
+            if intent is not None:
+                self._terminate(process)
+                for reader in readers:
+                    reader.join(1.0)
+                status = "CANCELLED" if intent == "CANCEL" else "STOPPED"
+                return LeasedProviderOutcome(
+                    WorkerCompletion(status, f"ODOM_{intent}_CONFIRMED"),
+                    {"status": status, "code": f"ODOM_{intent}_CONFIRMED"},
+                )
+            if overflow.is_set():
+                self._terminate(process)
+                raise ProtocolError("ROS2_READ_ONLY_OUTPUT_TOO_LARGE")
+            if time.monotonic() >= deadline:
+                self._terminate(process)
+                raise ProtocolError("ROS2_TOPIC_ECHO_TIMEOUT")
+            time.sleep(0.02)
+        for reader in readers:
+            reader.join(1.0)
+        if any(reader.is_alive() for reader in readers) or overflow.is_set():
+            self._terminate(process)
+            raise ProtocolError("ROS2_READ_ONLY_OUTPUT_TOO_LARGE")
+        if process.returncode != 0:
+            return LeasedProviderOutcome(
+                WorkerCompletion("FAILED", "ROS2_TOPIC_ECHO_FAILED"),
+                {"status": "FAILED", "error": "ROS2_TOPIC_ECHO_FAILED"},
+            )
+        if not bytes(stdout).strip():
+            return LeasedProviderOutcome(
+                WorkerCompletion("FAILED", "ROS2_TOPIC_ECHO_EMPTY"),
+                {"status": "FAILED", "error": "ROS2_TOPIC_ECHO_EMPTY"},
+            )
+        return LeasedProviderOutcome(
+            WorkerCompletion("SUCCEEDED", "ODOM_SAMPLE_SUCCEEDED"),
+            {
+                "status": "SUCCEEDED",
+                "sha256": f"sha256:{hashlib.sha256(stdout).hexdigest()}",
+                "byte_count": len(stdout),
+            },
+        )
+
+    @staticmethod
+    def _terminate(process: subprocess.Popen[bytes]) -> None:
+        if process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=1.0)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=1.0)
+
+
+@dataclass(frozen=True)
+class Ros2OdomLiveFence:
+    """Re-observe the exact read-only `/odom` route at the START boundary."""
+
+    snapshot: Ros2RuntimeSnapshot
+    timeout_s: float = 3.0
+
+    def __call__(self, _request, _authority) -> None:
+        try:
+            completed = subprocess.run(
+                [
+                    self.snapshot.ros2_path,
+                    "topic",
+                    "type",
+                    "--no-daemon",
+                    "/odom",
+                ],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                check=False,
+                timeout=self.timeout_s,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise ProtocolError("ROS2_ODOM_LIVE_FENCE_UNAVAILABLE") from exc
+        stdout = bytes(completed.stdout or b"")
+        stderr = bytes(completed.stderr or b"")
+        if len(stdout) > 4_096 or len(stderr) > 4_096:
+            raise ProtocolError("ROS2_ODOM_LIVE_FENCE_OUTPUT_TOO_LARGE")
+        if completed.returncode != 0:
+            raise ProtocolError("ROS2_ODOM_LIVE_FENCE_UNAVAILABLE")
+        try:
+            observed = stdout.decode("utf-8").strip().splitlines()
+        except UnicodeDecodeError as exc:
+            raise ProtocolError("ROS2_ODOM_LIVE_FENCE_INVALID") from exc
+        if observed != ["nav_msgs/msg/Odometry"]:
+            raise ProtocolError("ROS2_ODOM_LIVE_FENCE_MISMATCH")
+
+
 class RosContainerProvider:
     """Run a bounded ROS provider program inside an existing Docker runtime."""
 
     def __init__(
-        self, container: str = "MentorPi", *, timeout_s: float = 120.0,
-        container_user: str = "ubuntu", autonomous_source_confirmed: bool = False,
+        self,
+        container: str = "MentorPi",
+        *,
+        timeout_s: float = 120.0,
+        container_user: str = "ubuntu",
+        autonomous_source_confirmed: bool = False,
     ) -> None:
         if not container or any(c in container for c in "\x00\r\n '"):
             raise ValueError("ROS container name is invalid")
@@ -131,13 +302,7 @@ class RosContainerProvider:
 
     @staticmethod
     def _safe_endpoint(value: Any, field: str) -> str:
-        if (
-            not isinstance(value, str)
-            or not value.startswith("/")
-            or len(value) > 127
-            or ".." in value
-            or any(character in value for character in "\x00\r\n '\";")
-        ):
+        if not isinstance(value, str) or not value.startswith("/") or len(value) > 127 or ".." in value or any(character in value for character in "\x00\r\n '\";"):
             raise ProtocolError(f"mapping {field} is invalid")
         return value
 
@@ -166,8 +331,7 @@ class RosContainerProvider:
             raise ProtocolError("mapping runtime contract is unsupported")
         if tool_id is not None:
             expected_tool = next(
-                (candidate for candidate, candidate_operation in MAPPING_TOOL_OPERATIONS.items()
-                 if candidate_operation == operation),
+                (candidate for candidate, candidate_operation in MAPPING_TOOL_OPERATIONS.items() if candidate_operation == operation),
                 None,
             )
             if tool_id != expected_tool:
@@ -254,26 +418,16 @@ class RosContainerProvider:
             raise ProtocolError(f"mapping arguments have unknown fields: {unknown}")
         values = {**defaults, **arguments}
         if operation == "mapping.status":
-            values["status_window_s"] = cls._number(
-                values["status_window_s"], "status_window_s", lower=1.0, upper=30.0
-            )
+            values["status_window_s"] = cls._number(values["status_window_s"], "status_window_s", lower=1.0, upper=30.0)
         elif operation == "mapping.run":
-            values["duration_s"] = cls._number(
-                values["duration_s"], "duration_s", lower=5.0, upper=120.0
-            )
-            values["max_distance_m"] = cls._number(
-                values["max_distance_m"], "max_distance_m", lower=0.2, upper=10.0
-            )
-            values["obstacle_stop_m"] = cls._number(
-                values["obstacle_stop_m"], "obstacle_stop_m", lower=0.3, upper=1.2
-            )
+            values["duration_s"] = cls._number(values["duration_s"], "duration_s", lower=5.0, upper=120.0)
+            values["max_distance_m"] = cls._number(values["max_distance_m"], "max_distance_m", lower=0.2, upper=10.0)
+            values["obstacle_stop_m"] = cls._number(values["obstacle_stop_m"], "obstacle_stop_m", lower=0.3, upper=1.2)
         elif operation == "mapping.save":
             map_name = values["map_name"]
             if not isinstance(map_name, str) or not _MAPPING_NAME.fullmatch(map_name):
                 raise ProtocolError("mapping map_name is invalid")
-            values["save_timeout_s"] = cls._number(
-                values["save_timeout_s"], "save_timeout_s", lower=5.0, upper=120.0
-            )
+            values["save_timeout_s"] = cls._number(values["save_timeout_s"], "save_timeout_s", lower=5.0, upper=120.0)
         return values
 
     @staticmethod
@@ -310,14 +464,22 @@ class RosContainerProvider:
         mode = operation.rsplit(".", 1)[1]
         argv = [
             "rolo_mapping_runtime",
-            "--mode", mode,
-            "--cmd-topic", contract["cmd_topic"],
-            "--scan-topic", contract["scan_topic"],
-            "--odom-topic", contract["odom_topic"],
-            "--map-topic", contract["map_topic"],
-            "--stop-marker", contract["stop_marker"],
-            "--status-file", contract["status_file"],
-            "--map-dir", contract["map_dir"],
+            "--mode",
+            mode,
+            "--cmd-topic",
+            contract["cmd_topic"],
+            "--scan-topic",
+            contract["scan_topic"],
+            "--odom-topic",
+            contract["odom_topic"],
+            "--map-topic",
+            contract["map_topic"],
+            "--stop-marker",
+            contract["stop_marker"],
+            "--status-file",
+            contract["status_file"],
+            "--map-dir",
+            contract["map_dir"],
         ]
         for key, flag in (
             ("status_window_s", "--status-window-s"),
@@ -351,8 +513,16 @@ class RosContainerProvider:
         execution_timeout = max(provider_timeout, float(values.get("duration_s", 0.0)) + 8.0)
         reaper_timeout = max(1.0, execution_timeout - 1.0)
         command = [
-            "docker", "exec", "-i", "-u", self.container_user, self.container,
-            "bash", "--noprofile", "--norc", "-c",
+            "docker",
+            "exec",
+            "-i",
+            "-u",
+            self.container_user,
+            self.container,
+            "bash",
+            "--noprofile",
+            "--norc",
+            "-c",
             "if [ -f /opt/ros/humble/setup.bash ]; then . /opt/ros/humble/setup.bash; fi; "
             "if [ -f /home/ubuntu/ros2_ws/install/setup.bash ]; then . /home/ubuntu/ros2_ws/install/setup.bash; fi; "
             # The provider is fed over stdin.  GNU timeout inside the
@@ -374,9 +544,7 @@ class RosContainerProvider:
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise ProtocolError(f"mapping provider execution failed: {exc}") from exc
         if completed.returncode not in {0, 2}:
-            raise ProtocolError(
-                f"mapping provider exited {completed.returncode}: {completed.stderr[-512:]}"
-            )
+            raise ProtocolError(f"mapping provider exited {completed.returncode}: {completed.stderr[-512:]}")
         try:
             output = completed.stdout.strip().splitlines()[-1]
             result = loads_unique_json(output)
@@ -425,21 +593,13 @@ class RosContainerProvider:
         # retaining the same bounded feedback defaults.
         legacy_topic = contract.get("topic")
         command_endpoint = contract.get("command_endpoint")
-        if (
-            raw_contract is not None
-            and command_endpoint is None
-            and legacy_topic is None
-        ):
+        if raw_contract is not None and command_endpoint is None and legacy_topic is None:
             raise ProtocolError("rotation command endpoint is required")
         if command_endpoint is None and legacy_topic is not None:
             command_endpoint = legacy_topic
         if command_endpoint is None:
             command_endpoint = "/cmd_vel"
-        if (
-            legacy_topic is not None
-            and contract.get("command_endpoint") is not None
-            and legacy_topic != command_endpoint
-        ):
+        if legacy_topic is not None and contract.get("command_endpoint") is not None and legacy_topic != command_endpoint:
             raise ProtocolError("rotation command endpoint conflicts with legacy topic")
         feedback_endpoints = contract.get("feedback_endpoints", ["/odom_raw", "/odom"])
         independent_endpoints = contract.get(
@@ -452,23 +612,15 @@ class RosContainerProvider:
                 raise ProtocolError(f"rotation {field} is invalid")
             result = []
             for item in value:
-                if not isinstance(item, str) or not item.startswith("/") or any(
-                    character in item for character in "\x00\r\n '"
-                ):
+                if not isinstance(item, str) or not item.startswith("/") or any(character in item for character in "\x00\r\n '"):
                     raise ProtocolError(f"rotation {field} is invalid")
                 result.append(item)
             return list(dict.fromkeys(result))
 
-        if (
-            not isinstance(command_endpoint, str)
-            or not command_endpoint.startswith("/")
-            or any(character in command_endpoint for character in "\x00\r\n '")
-        ):
+        if not isinstance(command_endpoint, str) or not command_endpoint.startswith("/") or any(character in command_endpoint for character in "\x00\r\n '"):
             raise ProtocolError("rotation command endpoint is invalid")
         feedback_endpoints = endpoint_list(feedback_endpoints, "feedback_endpoints")
-        independent_endpoints = endpoint_list(
-            independent_endpoints, "independent_feedback_endpoints"
-        )
+        independent_endpoints = endpoint_list(independent_endpoints, "independent_feedback_endpoints")
         if contract.get("interface_type") not in {None, "geometry_msgs/msg/Twist"}:
             raise ProtocolError("rotation command interface is unsupported")
         if contract.get("stop_strategy") not in {None, "zero_velocity"}:
@@ -483,13 +635,7 @@ class RosContainerProvider:
             speed = float(raw_speed)
         except (KeyError, TypeError, ValueError) as exc:
             raise ProtocolError("rotate arguments are invalid") from exc
-        if (
-            not math.isfinite(angle)
-            or not math.isfinite(speed)
-            or speed <= 0
-            or speed > MAX_ROTATION_SPEED_RAD_S
-            or not 0 < abs(angle) <= MAX_ROTATION_ANGLE_DEGREES
-        ):
+        if not math.isfinite(angle) or not math.isfinite(speed) or speed <= 0 or speed > MAX_ROTATION_SPEED_RAD_S or not 0 < abs(angle) <= MAX_ROTATION_ANGLE_DEGREES:
             raise ProtocolError("rotate arguments are outside provider limits")
         goal_rad = math.radians(angle)
         minimum_observation = min(0.5, max(0.2, abs(goal_rad) / speed * 0.5))
@@ -521,16 +667,28 @@ class RosContainerProvider:
             f"exec(compile({json.dumps(runtime)}, '<rolo-bounded-twist>', 'exec'), {{'__name__': '__main__'}})\n"
         )
         command = [
-            "docker", "exec", "-i", "-u", self.container_user, self.container,
-            "bash", "--noprofile", "--norc", "-c",
+            "docker",
+            "exec",
+            "-i",
+            "-u",
+            self.container_user,
+            self.container,
+            "bash",
+            "--noprofile",
+            "--norc",
+            "-c",
             "if [ -f /opt/ros/humble/setup.bash ]; then . /opt/ros/humble/setup.bash; fi; "
             "if [ -f /home/ubuntu/ros2_ws/install/setup.bash ]; then . /home/ubuntu/ros2_ws/install/setup.bash; fi; "
             "exec python3 -",
         ]
         try:
             completed = subprocess.run(
-                command, input=f"{program}\n", text=True,
-                capture_output=True, check=False, timeout=max(1.0, self.timeout_s + 1.5),
+                command,
+                input=f"{program}\n",
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=max(1.0, self.timeout_s + 1.5),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise ProtocolError(f"ROS provider execution failed: {exc}") from exc
@@ -554,9 +712,7 @@ class PythonBundleWorker:
     def __init__(self, provider: Provider | None = None) -> None:
         self.provider = provider
 
-    def execute(
-        self, manifest: ExecutionBundleManifest, source: bytes, arguments: dict[str, Any]
-    ) -> dict[str, Any]:
+    def execute(self, manifest: ExecutionBundleManifest, source: bytes, arguments: dict[str, Any]) -> dict[str, Any]:
         namespace: dict[str, Any] = {"__name__": f"rolo_bundle_{manifest.bundle_digest}"}
         try:
             exec(compile(source, f"<bundle:{manifest.bundle_digest}>", "exec"), namespace, namespace)
@@ -587,9 +743,7 @@ class PythonBundleWorker:
                         if manifest.observation_contract.get("operation") == "base.rotate":
                             # Preserve the stable diagnostic used by the
                             # rotation aliasing gate and its callers.
-                            raise ProtocolError(
-                                "ROS rotation provider requires app.base.rotate"
-                            )
+                            raise ProtocolError("ROS rotation provider requires app.base.rotate")
                         raise ProtocolError("ROS provider tool is not registered")
                     provider_arguments["__rolo_observation_contract"] = manifest.observation_contract
                     if manifest.tool_id in MAPPING_TOOL_OPERATIONS:

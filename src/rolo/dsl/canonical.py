@@ -10,6 +10,13 @@ from .models import DslDocument
 def canonical_dict(document: Any) -> dict[str, Any]:
     if isinstance(document, dict):
         return document
+    # Bundle Plan is a closed handoff envelope whose schema requires every
+    # field, including the explicit ``source_bundle_ref: null`` sentinel.
+    # Other historical DSL models retain their established exclude-none rule.
+    from .bundle_plan import BundlePlan
+
+    if isinstance(document, BundlePlan):
+        return document.model_dump(mode="json")
     return document.model_dump(mode="json", exclude_none=True)
 
 
@@ -17,8 +24,14 @@ def canonical_json(document: Any) -> str:
     return json.dumps(canonical_dict(document), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def canonical_bytes(document: Any) -> bytes:
+    """Return the UTF-8 bytes used by every DSL contract digest."""
+
+    return canonical_json(document).encode("utf-8")
+
+
 def _digest(value: Any) -> str:
-    return "sha256:" + hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+    return "sha256:" + hashlib.sha256(canonical_bytes(value)).hexdigest()
 
 
 def dsl_digest(document: DslDocument) -> str:
@@ -49,3 +62,11 @@ def context_digest(context: Any) -> str:
 
 def ir_digest(ir: Any) -> str:
     return _digest(ir)
+
+
+def bundle_plan_digest(plan: Any) -> str:
+    """Digest a normalized ``rolo-bundle-plan/v2`` payload in full."""
+
+    from .bundle_plan import parse_bundle_plan
+
+    return _digest(parse_bundle_plan(plan))

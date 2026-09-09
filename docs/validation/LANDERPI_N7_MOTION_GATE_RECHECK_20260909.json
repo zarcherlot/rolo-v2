@@ -1,0 +1,69 @@
+{
+  "schema_version": "rolo-landerpi-n7-motion-gate-recheck/v1",
+  "captured_at": "2026-09-09T00:10:48.4676699Z",
+  "capture_mode": "SSH_KEY_ONLY_READ_ONLY",
+  "target": {
+    "target_id": "mentorpi",
+    "ssh_user": "pi",
+    "host": "192.168.10.167",
+    "container": "MentorPi",
+    "strict_host_key_checking": true,
+    "password_used": false
+  },
+  "disk": {
+    "filesystem": "/dev/mmcblk0p2",
+    "mount": "/",
+    "blocks_1024": 59275300,
+    "used_blocks_1024": 43026380,
+    "available_blocks_1024": 13686208,
+    "capacity_percent": 76,
+    "gate": "PASS"
+  },
+  "ros_graph": {
+    "controller_cmd_vel": {
+      "topic": "/controller/cmd_vel",
+      "type": "geometry_msgs/msg/Twist",
+      "publisher_count": 6,
+      "publishers": [
+        "/robot_api",
+        "/lidar_app",
+        "/line_following",
+        "/object_tracking",
+        "/hand_gesture",
+        "/joystick_control"
+      ]
+    },
+    "direct_motor": {
+      "topic": "/ros_robot_controller/set_motor",
+      "type": "ros_robot_controller_msgs/msg/MotorsState",
+      "publisher_count": 2,
+      "publishers": [
+        "/odom_publisher",
+        "/hand_gesture"
+      ]
+    }
+  },
+  "formal_r0_stage": {
+    "path": "/dev/shm/rolo-n7-r0-a034c91c92d94479e6d2",
+    "absent": true
+  },
+  "side_effects": {
+    "ros_publish": false,
+    "ros_service_call": false,
+    "ros_action": false,
+    "motor_command": false,
+    "motion_started": false
+  },
+  "motion_gates": {
+    "capacity": "PASS",
+    "cmd_vel_publisher_isolation": "BLOCKED",
+    "direct_motor_publisher_isolation": "BLOCKED",
+    "independent_estop": "NOT_VERIFIED",
+    "onsite_operator": "NOT_VERIFIED",
+    "safe_area": "NOT_VERIFIED",
+    "exact_call_target_stop_acknowledgement": "NOT_VERIFIED",
+    "os_process_worker_and_duplex_stop": "PARTIAL_LOCAL_SUBSTRATE_ONLY",
+    "physical_motion": "BLOCKED"
+  },
+  "decision": "No physical-motion request was issued. Continue only zero-motion R0 development until every independent motion gate passes at the same provider boundary."
+}

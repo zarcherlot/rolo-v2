@@ -1,0 +1,137 @@
+{
+  "access": "read",
+  "authority_head_digest": "f20953df62d18518756ae7478cb8e9e9ec0cd818181fe20e0b6f99aa80551801",
+  "authority_partial": true,
+  "certify": [
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-01",
+      "raw_byte_count": 1250,
+      "raw_sha256": "sha256:b05d42a32c7ba59088f9d52dcae135ce57cfc4b8554690ef5638b83752cce293",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-02",
+      "raw_byte_count": 1247,
+      "raw_sha256": "sha256:293aface98ed7d5a4ab979536e04822c497f37e7cc75c3905e674ce6815fa174",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-03",
+      "raw_byte_count": 1244,
+      "raw_sha256": "sha256:147a73ff4fa3e71b32a4118df4a298ff33046a11cc8cf9588863db76165602ed",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-04",
+      "raw_byte_count": 1242,
+      "raw_sha256": "sha256:31d29219a4fa66334c4069f85c20630bc5933aa047a70bdfd9bb04957df72b10",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-05",
+      "raw_byte_count": 1254,
+      "raw_sha256": "sha256:2fbdb1fc6794ba6c8e1b1491f385c628fe1146759750798fb2e6135e922eb89e",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-06",
+      "raw_byte_count": 1249,
+      "raw_sha256": "sha256:5cffd67b6490bd6cb4f0254092c69256c88ca5d281b7534eaf696654f9d77ff5",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-07",
+      "raw_byte_count": 1248,
+      "raw_sha256": "sha256:4ea4aad6f036afe0e014a1404b3c87f678a37c370d30f8a053f18ef6fca3231e",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-08",
+      "raw_byte_count": 1246,
+      "raw_sha256": "sha256:2d7c1a5371767873f325b5c8e0598c34056ed74aa495436e968539234f5c8e47",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-09",
+      "raw_byte_count": 1247,
+      "raw_sha256": "sha256:d1fe846e6d021bdf72f620104cfcae3a57a436ab77672958b24ca96f344b189f",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    },
+    {
+      "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:certify-10",
+      "raw_byte_count": 1248,
+      "raw_sha256": "sha256:2d19227dd319f40418b70a1dd802ba9768d5c566b9b7611bbe7874e1b157e14a",
+      "status": "SUCCEEDED",
+      "topic": "/odom"
+    }
+  ],
+  "certify_case_count": 10,
+  "channel_id": "ssh-stdio:78a05d85acda1eca803e69601a2d16bb9f3fa6564334be3c1eab42cd1eb6ee0b",
+  "cleanup": {
+    "cleanup_fallback_connection": false,
+    "residual_count": 0,
+    "stage_root": "/dev/shm/rolo-n7-r0-1a1c0b60201c60c03187"
+  },
+  "container": "MentorPi",
+  "evidence_mode": "LIVE",
+  "executor_invocation_evidence": {
+    "observed_total": 12,
+    "target_conformance_t3": {
+      "basis": "single-fresh-cache-target-conformance-frame",
+      "conformance_idempotency_key": "sha256:99d61af2f366ffc6034316999a8403fdfed60a075a673e81df8bdeadf14df21f",
+      "count": 1,
+      "runtime_result_digest": "sha256:d1d8c66a2bf2b5fe383742b810229d07e76dcdae53261b1655621f470dec3874"
+    },
+    "targetd_call_provider": {
+      "basis": "targetd-process-monotonic-counter",
+      "count": 11
+    }
+  },
+  "limits": {
+    "expanded_bytes": 134217728,
+    "package_bytes": 33554432,
+    "result_bytes": 65536
+  },
+  "operation_kind": "OBSERVE",
+  "operator_auth": "FIXTURE",
+  "post_cancel": {
+    "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:post-cancel-new-key",
+    "status": "BLOCKED",
+    "targetd_call_provider_invocation_count": 11
+  },
+  "raw_persisted": false,
+  "release_digest": "sha256:155e2378e21d3db147f56689cb90c8f299b7a555df2a5c7457f32ad0df69b8eb",
+  "risk": "R0",
+  "schema_version": "rolo-landerpi-n7-r0-canary/v1",
+  "session_id": "n7-r0-20260908T133113Z-ea821eea",
+  "stage": {
+    "admission_ledger_sha256": "sha256:e5963447a6600af3908fb77f1449434f5ec302345a179ef527ca23c1e52858d7",
+    "executor_user": "ubuntu",
+    "expanded_bytes": 1725855,
+    "package_bytes": 1863680,
+    "package_sha256": "sha256:5b4c5294e7e48482c2ed8aed8f00527471be13ae51ab0d556e56dfda9f8c8c83",
+    "root": "/dev/shm/rolo-n7-r0-1a1c0b60201c60c03187",
+    "ros2_path": "/opt/ros/humble/bin/ros2",
+    "ros2_snapshot_digest": "sha256:5c95da842ffe8c2e0d22f8482d7600dd78bae892b4eeba45d9e781750b6570f1"
+  },
+  "status": "PASS",
+  "target_conformance_digest": "sha256:03b2a66145fb32886e97d6bf263e5a3fe53b0db55dff0f75f3dd4439b78af652",
+  "target_id": "mentorpi",
+  "topic": "/odom",
+  "trace": {
+    "idempotency_key": "n7-r0-20260908T133113Z-ea821eea:trace-01",
+    "raw_byte_count": 1246,
+    "raw_sha256": "sha256:8ab0160f3f9ea8ded9c42356982757aaa1161214850b2d6ccec504b77e2d1adf",
+    "status": "SUCCEEDED",
+    "topic": "/odom"
+  }
+}

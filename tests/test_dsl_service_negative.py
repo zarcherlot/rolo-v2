@@ -1,5 +1,6 @@
 from rolo.dsl.api import DslCheckRequest, DslCompileRequest
 from rolo.dsl.canonical import context_digest
+from rolo.dsl.contracts import COMPILE_REQUEST_SCHEMA_VERSION
 from rolo.dsl.service import RoloDslCompiler
 
 
@@ -44,6 +45,9 @@ def test_service_compile_rejects_target_fingerprint_drift(tmp_path):
     checked = RoloDslCompiler().check(DslCheckRequest(dsl=dsl, context=context))
     result = RoloDslCompiler().compile(
         DslCompileRequest(
+            schema_version=COMPILE_REQUEST_SCHEMA_VERSION,
+            journey_session_id="journey-1",
+            confirmation_receipt_digest="sha256:" + "0" * 64,
             dsl=dsl,
             context=context,
             dsl_digest=checked.dsl_digest,
@@ -80,6 +84,9 @@ def test_service_compile_rejects_malformed_context_without_writing_artifact(tmp_
     }
     result = RoloDslCompiler().compile(
         DslCompileRequest(
+            schema_version=COMPILE_REQUEST_SCHEMA_VERSION,
+            journey_session_id="journey-1",
+            confirmation_receipt_digest="sha256:" + "0" * 64,
             dsl=dsl,
             context={"robot_id": "r"},
             dsl_digest="sha256:" + "0" * 64,

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.local/schemas/ReleaseCatalogTransaction.schema.json",
+  "title": "Append-only Release Catalog Transaction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mutation", "target_signature", "transaction_digest"],
+  "properties": {
+    "schema_version": {"const": "rolo-release-catalog-transaction/v1"},
+    "transaction_digest": {"$ref": "#/$defs/digest"},
+    "target_signature": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "TargetReleaseSignature.schema.json"}
+      ]
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "sequence", "previous_transaction_digest",
+        "expected_current_release_digest", "operation", "tool_id", "target_id",
+        "release_digest", "context_digest", "manifest_digest", "release", "status", "stale_reasons"
+      ],
+      "properties": {
+        "schema_version": {"const": "rolo-release-catalog-mutation/v1"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "previous_transaction_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "expected_current_release_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "operation": {"enum": ["PUBLISH", "MARK_STALE", "ROLLBACK"]},
+        "tool_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+        "release_digest": {"$ref": "#/$defs/digest"},
+        "context_digest": {"$ref": "#/$defs/digest"},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "release": {"type": "object"},
+        "status": {"enum": ["PUBLISHED", "STALE"]},
+        "stale_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

@@ -10,6 +10,8 @@ from rolo.targets.models import TargetConnectionState
 
 def test_execute_without_operator_id_preserves_authorization_and_distinct_audits(tmp_path, monkeypatch):
     proposal = rotation_tool_proposal(target_id='mentorpi', evidence_ref='target-evidence:' + 'a' * 64)
+    assert proposal.binding is not None
+    proposal = proposal.model_copy(update={'binding_digest': proposal.binding.digest()})
     proposal_path = tmp_path / 'proposal.json'
     proposal_path.write_text(proposal.model_dump_json(), encoding='utf-8')
     evidence_path = tmp_path / 'evidence.json'
@@ -17,9 +19,9 @@ def test_execute_without_operator_id_preserves_authorization_and_distinct_audits
     bundle = SimpleNamespace(robot_id='mentorpi', payload_sha256='a' * 64, target_host_fingerprint='b' * 64, probes={'ros': None})
     monkeypatch.setattr(cli, 'TargetEvidenceBundle', SimpleNamespace(model_validate_json=lambda _: bundle))
     monkeypatch.setattr(cli, 'get_settings', lambda: SimpleNamespace(rolo_config_dir=tmp_path, rolo_artifact_dir=tmp_path / 'artifacts'))
-    monkeypatch.setattr(cli, 'load_registered_proposals', lambda *_: [proposal])
+    monkeypatch.setattr(cli, 'load_registered_proposals', lambda *_, **__: [proposal])
     monkeypatch.setattr(cli, 'load_deployment', lambda *_: None)
-    monkeypatch.setattr(cli, 'verify_evidence_bundle', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cli, 'verify_evidence_bundle', lambda *_args, **_kwargs: bundle.probes)
     monkeypatch.setattr(cli, 'observed_probe_routes', lambda _: [
         SimpleNamespace(resource_id='ros_topic:/cmd_vel', interface_type='geometry_msgs/msg/Twist'),
         SimpleNamespace(resource_id='ros_topic:/odom_raw', interface_type='nav_msgs/msg/Odometry'),
@@ -41,6 +43,7 @@ def test_execute_without_operator_id_preserves_authorization_and_distinct_audits
 
     monkeypatch.setattr(cli, 'RosBindingExecutor', Provider)
     args = ['execute-rotation', '--profile', 'mentorpi', '--proposal', str(proposal_path), '--evidence', str(evidence_path),
+            '--admission-store', str(tmp_path / 'admission'),
             '--angle-degrees', '15', '--max-speed-rad-s', '0.2']
     rejected = CliRunner().invoke(cli.app, [*args, '--safety-not-confirmed'])
     assert rejected.exit_code == 2

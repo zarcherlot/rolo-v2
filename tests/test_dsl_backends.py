@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from rolo.dsl.backends import default_backends
+from rolo.dsl.canonical import dsl_digest
 from rolo.dsl.frontend import compile_frontend
 from rolo.dsl.parser import parse_document
 
@@ -18,5 +19,15 @@ def test_each_kind_has_fake_backend(tmp_path: Path):
         ir, checked, _ = compile_frontend(doc)
         assert checked.ok and ir
         backend = next(item for item in default_backends() if item.supports(ir))
-        bundle = backend.compile(ir, tmp_path / kind)
+        bundle = backend.compile_v2(
+            ir,
+            tmp_path / kind,
+            dsl_digest=dsl_digest(doc),
+            context_digest="sha256:" + "c" * 64,
+            target_fingerprint="target-fingerprint",
+            compiler_version="rolo-compiler/0.1",
+            negotiated_capabilities=backend.capabilities(),
+            bindings=(ir.binding,) if ir.binding else (),
+            runtime_context={},
+        )
         assert bundle.manifest["kind"] == kind

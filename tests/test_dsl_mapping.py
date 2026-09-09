@@ -41,6 +41,24 @@ def test_repair_loop_returns_compilable_candidate():
     assert calls == [()]
 
 
+def test_repair_loop_cannot_compile_before_mapping_confirmation(tmp_path):
+    context = _context()
+
+    def generate(request, diagnostics):
+        return {
+            "tool_id": "app.state",
+            "kind": "OBSERVE",
+            "target": {"robot_id": "r", "evidence_digest": "sha256:e"},
+            "binding": {"resource_id": "route:/state"},
+        }
+
+    output = tmp_path / "compile"
+    result = DslRepairLoop(generate).run(_request(context), context=context, output_dir=str(output))
+    assert result.status == "BLOCKED"
+    assert result.diagnostics == ("MAPPING_CONFIRMATION_REQUIRED",)
+    assert not output.exists()
+
+
 def test_repair_loop_blocks_with_bounded_probe_follow_up(tmp_path):
     context = _context()
 

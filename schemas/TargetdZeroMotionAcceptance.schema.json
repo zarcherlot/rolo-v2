@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.local/schemas/TargetdZeroMotionAcceptance.schema.json",
+  "title": "Targetd zero-motion acceptance protocol",
+  "description": "Fail-closed zero-motion rehearsal, target challenge, and fresh provider-boundary CAS receipts. No shape in this schema authorizes physical motion.",
+  "oneOf": [
+    { "$ref": "#/$defs/acceptanceRequest" },
+    { "$ref": "#/$defs/acceptanceReceipt" },
+    { "$ref": "#/$defs/consumptionReceipt" }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^/?[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,254}$"
+    },
+    "route": {
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9_./-]{1,126}$"
+    },
+    "interface": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^hmac-sha256:[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullableIdentifier": {
+      "oneOf": [{ "$ref": "#/$defs/identifier" }, { "type": "null" }]
+    },
+    "nullableIdentity": {
+      "oneOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }]
+    },
+    "nullableDigest": {
+      "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }]
+    },
+    "motionIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "requested_at",
+        "ros_graph_digest",
+        "command_route",
+        "command_interface",
+        "publisher_identity",
+        "direct_motor_route",
+        "direct_motor_interface",
+        "direct_motor_publisher_identity",
+        "direct_motor_fence_digest",
+        "stop_action_digest"
+      ],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-motion-intent/v1" },
+        "call_id": { "$ref": "#/$defs/identifier" },
+        "session_id": { "$ref": "#/$defs/identifier" },
+        "target_id": { "$ref": "#/$defs/identifier" },
+        "target_identity": { "$ref": "#/$defs/identity" },
+        "operator_id": { "$ref": "#/$defs/identity" },
+        "execution_subject_digest": { "$ref": "#/$defs/digest" },
+        "requested_at": { "$ref": "#/$defs/timestamp" },
+        "ros_graph_digest": { "$ref": "#/$defs/digest" },
+        "command_route": { "$ref": "#/$defs/route" },
+        "command_interface": { "$ref": "#/$defs/interface" },
+        "publisher_identity": { "$ref": "#/$defs/identity" },
+        "direct_motor_route": { "$ref": "#/$defs/route" },
+        "direct_motor_interface": { "$ref": "#/$defs/interface" },
+        "direct_motor_publisher_identity": { "$ref": "#/$defs/identity" },
+        "direct_motor_fence_digest": { "$ref": "#/$defs/digest" },
+        "stop_action_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "signedMotionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evidence_id",
+        "kind",
+        "issuer_id",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "ros_graph_digest",
+        "issued_at",
+        "expires_at",
+        "claims",
+        "payload_sha256",
+        "signature_hmac_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-motion-evidence/v1" },
+        "evidence_id": { "$ref": "#/$defs/identifier" },
+        "kind": {
+          "enum": [
+            "OPERATOR_AUTHORIZATION",
+            "ONSITE_PRESENCE",
+            "SAFE_ZONE_CONFIRMATION",
+            "ESTOP_VERIFICATION",
+            "ROS_GRAPH_SNAPSHOT",
+            "DIRECT_MOTOR_FENCE",
+            "TARGET_STOP_ACKNOWLEDGEMENT"
+          ]
+        },
+        "issuer_id": { "$ref": "#/$defs/identity" },
+        "call_id": { "$ref": "#/$defs/identifier" },
+        "session_id": { "$ref": "#/$defs/identifier" },
+        "target_id": { "$ref": "#/$defs/identifier" },
+        "target_identity": { "$ref": "#/$defs/identity" },
+        "operator_id": { "$ref": "#/$defs/identity" },
+        "execution_subject_digest": { "$ref": "#/$defs/digest" },
+        "ros_graph_digest": { "$ref": "#/$defs/digest" },
+        "issued_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "claims": { "type": "object", "maxProperties": 16 },
+        "payload_sha256": { "$ref": "#/$defs/digest" },
+        "signature_hmac_sha256": { "$ref": "#/$defs/signature" }
+      }
+    },
+    "evidenceBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operator_authorization",
+        "onsite_presence",
+        "safe_zone_confirmation",
+        "estop_verification",
+        "ros_graph_snapshot",
+        "direct_motor_fence",
+        "target_stop_acknowledgement"
+      ],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-motion-evidence-bundle/v1" },
+        "operator_authorization": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] },
+        "onsite_presence": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] },
+        "safe_zone_confirmation": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] },
+        "estop_verification": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] },
+        "ros_graph_snapshot": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] },
+        "direct_motor_fence": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] },
+        "target_stop_acknowledgement": { "oneOf": [{ "$ref": "#/$defs/signedMotionEvidence" }, { "type": "null" }] }
+      }
+    },
+    "motionAdmission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "intent", "evidence"],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-motion-safety-admission/v1" },
+        "intent": { "$ref": "#/$defs/motionIntent" },
+        "evidence": { "$ref": "#/$defs/evidenceBundle" }
+      }
+    },
+    "acceptanceRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "acceptance_id", "admission"],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-zero-motion-acceptance-request/v1" },
+        "acceptance_id": { "$ref": "#/$defs/identifier" },
+        "admission": { "$ref": "#/$defs/motionAdmission" }
+      }
+    },
+    "signedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "artifact_id",
+        "kind",
+        "issuer_id",
+        "acceptance_id",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "ros_graph_digest",
+        "command_route",
+        "command_interface",
+        "publisher_identity",
+        "direct_motor_route",
+        "direct_motor_interface",
+        "direct_motor_publisher_identity",
+        "issued_at",
+        "expires_at",
+        "claims",
+        "payload_sha256",
+        "signature_hmac_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-zero-motion-artifact/v1" },
+        "artifact_id": { "$ref": "#/$defs/identifier" },
+        "kind": {
+          "enum": [
+            "LIVE_ISOLATION_SNAPSHOT",
+            "LIVE_FENCE_CAS",
+            "ZERO_MOTION_START_ACK",
+            "ZERO_MOTION_STOP_ACK",
+            "ZERO_MOTION_ABORT_ACK",
+            "DEBUG_USER_ATTESTED_ADMISSION",
+            "LIVE_FENCE_RELEASE",
+            "PROVIDER_GATE_CHALLENGE",
+            "PROVIDER_GATE_CONSUMED"
+          ]
+        },
+        "issuer_id": { "$ref": "#/$defs/identity" },
+        "acceptance_id": { "$ref": "#/$defs/identifier" },
+        "call_id": { "$ref": "#/$defs/identifier" },
+        "session_id": { "$ref": "#/$defs/identifier" },
+        "target_id": { "$ref": "#/$defs/identifier" },
+        "target_identity": { "$ref": "#/$defs/identity" },
+        "operator_id": { "$ref": "#/$defs/identity" },
+        "execution_subject_digest": { "$ref": "#/$defs/digest" },
+        "ros_graph_digest": { "$ref": "#/$defs/digest" },
+        "command_route": { "$ref": "#/$defs/route" },
+        "command_interface": { "$ref": "#/$defs/interface" },
+        "publisher_identity": { "$ref": "#/$defs/identity" },
+        "direct_motor_route": { "$ref": "#/$defs/route" },
+        "direct_motor_interface": { "$ref": "#/$defs/interface" },
+        "direct_motor_publisher_identity": { "$ref": "#/$defs/identity" },
+        "issued_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "claims": { "type": "object", "minProperties": 1, "maxProperties": 32 },
+        "payload_sha256": { "$ref": "#/$defs/digest" },
+        "signature_hmac_sha256": { "$ref": "#/$defs/signature" }
+      }
+    },
+    "artifactDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_isolation_snapshot",
+        "fence_cas",
+        "start_ack",
+        "stop_ack",
+        "post_stop_isolation_snapshot",
+        "fence_release",
+        "provider_gate_challenge"
+      ],
+      "properties": {
+        "pre_isolation_snapshot": { "$ref": "#/$defs/nullableDigest" },
+        "fence_cas": { "$ref": "#/$defs/nullableDigest" },
+        "start_ack": { "$ref": "#/$defs/nullableDigest" },
+        "stop_ack": { "$ref": "#/$defs/nullableDigest" },
+        "post_stop_isolation_snapshot": { "$ref": "#/$defs/nullableDigest" },
+        "fence_release": { "$ref": "#/$defs/nullableDigest" },
+        "provider_gate_challenge": { "$ref": "#/$defs/nullableDigest" }
+      }
+    },
+    "acceptanceReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "reasons",
+        "evaluated_at",
+        "acceptance_id",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "ros_graph_digest",
+        "command_route",
+        "command_interface",
+        "publisher_identity",
+        "direct_motor_route",
+        "direct_motor_interface",
+        "direct_motor_publisher_identity",
+        "static_decision_digest",
+        "static_evidence_digests",
+        "artifacts",
+        "provider_gate",
+        "provider_invocation_count",
+        "motion_command_emitted",
+        "motion_authorized",
+        "requires_live_provider_cas"
+      ],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-zero-motion-acceptance-receipt/v1" },
+        "status": { "enum": ["BLOCKED", "READY_FOR_PROVIDER_GATE"] },
+        "reasons": { "type": "array", "items": { "type": "string", "maxLength": 128 }, "maxItems": 64 },
+        "evaluated_at": { "$ref": "#/$defs/timestamp" },
+        "acceptance_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "call_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "session_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "target_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "target_identity": { "$ref": "#/$defs/nullableIdentity" },
+        "operator_id": { "$ref": "#/$defs/nullableIdentity" },
+        "execution_subject_digest": { "$ref": "#/$defs/nullableDigest" },
+        "ros_graph_digest": { "$ref": "#/$defs/nullableDigest" },
+        "command_route": { "oneOf": [{ "$ref": "#/$defs/route" }, { "type": "null" }] },
+        "command_interface": { "oneOf": [{ "$ref": "#/$defs/interface" }, { "type": "null" }] },
+        "publisher_identity": { "$ref": "#/$defs/nullableIdentity" },
+        "direct_motor_route": { "oneOf": [{ "$ref": "#/$defs/route" }, { "type": "null" }] },
+        "direct_motor_interface": { "oneOf": [{ "$ref": "#/$defs/interface" }, { "type": "null" }] },
+        "direct_motor_publisher_identity": { "$ref": "#/$defs/nullableIdentity" },
+        "static_decision_digest": { "$ref": "#/$defs/nullableDigest" },
+        "static_evidence_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "maxItems": 7 },
+        "artifacts": { "$ref": "#/$defs/artifactDigests" },
+        "provider_gate": { "oneOf": [{ "$ref": "#/$defs/signedArtifact" }, { "type": "null" }] },
+        "provider_invocation_count": { "const": 0 },
+        "motion_command_emitted": { "const": false },
+        "motion_authorized": { "const": false },
+        "requires_live_provider_cas": { "const": true }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "READY_FOR_PROVIDER_GATE" } } },
+          "then": {
+            "properties": {
+              "reasons": { "maxItems": 0 },
+              "provider_gate": {
+                "allOf": [
+                  { "$ref": "#/$defs/signedArtifact" },
+                  { "properties": { "kind": { "const": "PROVIDER_GATE_CHALLENGE" } } }
+                ]
+              }
+            }
+          },
+          "else": { "properties": { "reasons": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "consumptionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "reasons",
+        "evaluated_at",
+        "acceptance_id",
+        "call_id",
+        "session_id",
+        "target_id",
+        "target_identity",
+        "operator_id",
+        "execution_subject_digest",
+        "ros_graph_digest",
+        "command_route",
+        "command_interface",
+        "publisher_identity",
+        "direct_motor_route",
+        "direct_motor_interface",
+        "direct_motor_publisher_identity",
+        "challenge_artifact_digest",
+        "provider_fence_digest",
+        "consume_artifact",
+        "provider_boundary_open",
+        "provider_invocation_limit",
+        "motion_authorized"
+      ],
+      "properties": {
+        "schema_version": { "const": "rolo-targetd-provider-gate-consumption/v1" },
+        "status": { "enum": ["BLOCKED", "CONSUMED"] },
+        "reasons": { "type": "array", "items": { "type": "string", "maxLength": 128 }, "maxItems": 64 },
+        "evaluated_at": { "$ref": "#/$defs/timestamp" },
+        "acceptance_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "call_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "session_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "target_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "target_identity": { "$ref": "#/$defs/nullableIdentity" },
+        "operator_id": { "$ref": "#/$defs/nullableIdentity" },
+        "execution_subject_digest": { "$ref": "#/$defs/nullableDigest" },
+        "ros_graph_digest": { "$ref": "#/$defs/nullableDigest" },
+        "command_route": { "oneOf": [{ "$ref": "#/$defs/route" }, { "type": "null" }] },
+        "command_interface": { "oneOf": [{ "$ref": "#/$defs/interface" }, { "type": "null" }] },
+        "publisher_identity": { "$ref": "#/$defs/nullableIdentity" },
+        "direct_motor_route": { "oneOf": [{ "$ref": "#/$defs/route" }, { "type": "null" }] },
+        "direct_motor_interface": { "oneOf": [{ "$ref": "#/$defs/interface" }, { "type": "null" }] },
+        "direct_motor_publisher_identity": { "$ref": "#/$defs/nullableIdentity" },
+        "challenge_artifact_digest": { "$ref": "#/$defs/nullableDigest" },
+        "provider_fence_digest": { "$ref": "#/$defs/nullableDigest" },
+        "consume_artifact": { "oneOf": [{ "$ref": "#/$defs/signedArtifact" }, { "type": "null" }] },
+        "provider_boundary_open": { "type": "boolean" },
+        "provider_invocation_limit": { "const": 1 },
+        "motion_authorized": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "CONSUMED" } } },
+          "then": {
+            "properties": {
+              "reasons": { "maxItems": 0 },
+              "provider_boundary_open": { "const": true },
+              "consume_artifact": {
+                "allOf": [
+                  { "$ref": "#/$defs/signedArtifact" },
+                  { "properties": { "kind": { "const": "PROVIDER_GATE_CONSUMED" } } }
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "reasons": { "minItems": 1 },
+              "provider_boundary_open": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

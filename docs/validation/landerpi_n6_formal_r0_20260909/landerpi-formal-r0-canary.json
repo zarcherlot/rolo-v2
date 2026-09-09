@@ -1,0 +1,147 @@
+{
+  "access": "read",
+  "authority_head_digest": "d0a2d9e7f368829c9661b4adf20074ed9f5ff12d267800540a20e9071d92186f",
+  "authority_partial": true,
+  "certify_case_count": 10,
+  "certify_run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+  "channel_id": "ssh-stdio:73c804b9fef136dff8e3cb92430c2cf6263c172b3e466708299b8609590a132c",
+  "cleanup": {
+    "cleanup_fallback_connection": false,
+    "residual_count": 0,
+    "stage_root": "/dev/shm/rolo-n7-r0-a034c91c92d94479e6d2"
+  },
+  "container": "MentorPi",
+  "evidence_mode": "LIVE",
+  "executor_invocation_evidence": {
+    "observed_total": 12,
+    "target_conformance_t3": {
+      "basis": "single-fresh-cache-target-conformance-frame",
+      "conformance_idempotency_key": "sha256:cd3bd51b074cb4ffff797bb287fd751ac745ec46a5d62ff17626cca5d93c9faf",
+      "count": 1,
+      "runtime_result_digest": "sha256:b5b29be765d6f295fcbde7f5c434e4c48313fc7d5e04a3847b239aa2da30a9a5"
+    },
+    "targetd_call_provider": {
+      "basis": "targetd-process-monotonic-counter",
+      "count": 11
+    }
+  },
+  "formal_certify": {
+    "artifact_index": {
+      "artifact_count": 16,
+      "manifest_sha256": "329fc19a1432b490a89da727e561f0e6c457b7c31919a96ab048a958af6f05f1",
+      "path": "artifact-index.json",
+      "sha256": "265eb20f861f2e32505fd56622d8af296e26eec20adcc9f68083a72d4f29f3c7"
+    },
+    "case_count": 10,
+    "conclusion": "PASS",
+    "raw_persisted": false,
+    "receipt_count": 10,
+    "report": {
+      "path": "certification-report.json",
+      "sha256": "3a4e6fc63d6deae9368d2ba2c6531c5fcf44c24a0bbbe9f22a9daf494f43d194"
+    },
+    "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+    "sequence_attestation": {
+      "channel_id": "ssh-stdio:73c804b9fef136dff8e3cb92430c2cf6263c172b3e466708299b8609590a132c",
+      "results": [
+        {
+          "frame_digest": "2373e6037e89e7c988bb9f92d0092dbf9e98faa5ceb551f6d48a335a8ea40ec0",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 17
+        },
+        {
+          "frame_digest": "280e9e87d0739b2a77e9d43dc769af642648bd969cece2a5b7b81f2229871594",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 19
+        },
+        {
+          "frame_digest": "8035af22f523e558616742583c842f46231ee6b310358956cb11bca2435ee689",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 21
+        },
+        {
+          "frame_digest": "4c515daf6fa68f5e5ea443785cb4b84b321a66ec18e6699be0bc0703c79f1bab",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 23
+        },
+        {
+          "frame_digest": "7e17aa0b2129cf88b02f206b3430c7461e9e6e864eb475f67f80d474c7acd992",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 25
+        },
+        {
+          "frame_digest": "8e86fb6befdfd63eaf0d33a1e08afb1b633a964be63ea3d0ba99d6206959dbb6",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 27
+        },
+        {
+          "frame_digest": "9eaf736281dea76a106992d6ae0954b928e91d9c274e5687f2dcb7aba1e93c45",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 29
+        },
+        {
+          "frame_digest": "cfff7eb4d2e0f2376443a559d77aeab9836b4c63ec003217fb3c539d2d0978f0",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 31
+        },
+        {
+          "frame_digest": "382b8d040e29d6cc0d74fab30c09ca7c55069dce1b0c8d3cccd325d11b0a70bf",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 33
+        },
+        {
+          "frame_digest": "72bfef93cd17e0c3033bbade4bf72c4a43dc398037726cd6be10884bb028561b",
+          "run_id": "n6-formal-r0-20260908T161029Z-48905bd7",
+          "sequence": 35
+        }
+      ],
+      "verified_result_count": 10
+    },
+    "session_id": "n7-r0-20260908T161029Z-7cda2170",
+    "status": "PASS",
+    "suite_digest": "6835c1603dd1397f779916b97c5cb8e3389c7f3f92adbd5422b7b553f0e8da24",
+    "suite_id": "landerpi-odom-formal-r0-10",
+    "target_call_attempt_count": 10,
+    "target_call_count": 10,
+    "targetd_call_provider_invocation_count": 11
+  },
+  "limits": {
+    "expanded_bytes": 134217728,
+    "package_bytes": 33554432,
+    "result_bytes": 65536
+  },
+  "operation_kind": "OBSERVE",
+  "operator_auth": "FIXTURE",
+  "outer_artifact_index_ref": "canary-artifact-index.json",
+  "post_cancel": {
+    "idempotency_key": "n7-r0-20260908T161029Z-7cda2170:post-cancel-new-key",
+    "status": "BLOCKED",
+    "targetd_call_provider_invocation_count": 11
+  },
+  "raw_persisted": false,
+  "release_digest": "sha256:835dd954cfeb3ca311dfa23c2ea18c4472067c640374daf3d5b9d7539d62f554",
+  "risk": "R0",
+  "schema_version": "rolo-landerpi-n7-r0-canary/v1",
+  "session_id": "n7-r0-20260908T161029Z-7cda2170",
+  "stage": {
+    "admission_ledger_sha256": "sha256:28b9161b145baf8d7ee768eeb4f5cae4ab3651d13ef2ee0fa16b877270302260",
+    "executor_user": "ubuntu",
+    "expanded_bytes": 2041346,
+    "package_bytes": 2191360,
+    "package_sha256": "sha256:f139515885c91d937180379e6793a4df212e3033dcd1fe92684224c7f135c54d",
+    "root": "/dev/shm/rolo-n7-r0-a034c91c92d94479e6d2",
+    "ros2_path": "/opt/ros/humble/bin/ros2",
+    "ros2_snapshot_digest": "sha256:5c95da842ffe8c2e0d22f8482d7600dd78bae892b4eeba45d9e781750b6570f1"
+  },
+  "status": "PASS",
+  "target_conformance_digest": "sha256:cbf38375e0be1e731579f035bd9796eda8bd0a3fc9222357a7f43faf516fc520",
+  "target_id": "mentorpi",
+  "topic": "/odom",
+  "trace": {
+    "byte_count": 1248,
+    "idempotency_key": "n7-r0-20260908T161029Z-7cda2170:trace-01",
+    "sha256": "sha256:c972b1d0f4091a2a20a0262ee47351ef6b9ac48fe640e0736b3ccc1ffecb40cf",
+    "status": "SUCCEEDED",
+    "topic": "/odom"
+  }
+}

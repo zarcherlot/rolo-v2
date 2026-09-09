@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rolo-mapping-authority-pending/v1",
+  "title": "Rolo Mapping authority pending commit marker",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ledger_id",
+    "phase",
+    "sequence",
+    "mapping_receipt_digest",
+    "authority_receipt_digest",
+    "expected_anchor_epoch",
+    "expected_anchor_digest",
+    "next_head_digest",
+    "created_at",
+    "updated_at",
+    "pending_digest"
+  ],
+  "properties": {
+    "schema_version": {"const": "rolo-mapping-authority-pending/v1"},
+    "ledger_id": {"$ref": "#/$defs/identifier"},
+    "phase": {"enum": ["PREPARED", "MAPPING_APPENDED", "LOCAL_PAIR_APPENDED", "ANCHOR_UNCERTAIN"]},
+    "sequence": {"type": "integer", "minimum": 1},
+    "mapping_receipt_digest": {"$ref": "#/$defs/digest"},
+    "authority_receipt_digest": {"$ref": "#/$defs/digest"},
+    "expected_anchor_epoch": {"type": "integer", "minimum": 1},
+    "expected_anchor_digest": {"$ref": "#/$defs/digest"},
+    "next_head_digest": {"$ref": "#/$defs/digest"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "pending_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}
+  }
+}

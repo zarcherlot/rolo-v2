@@ -34,19 +34,29 @@ a bounded Probe gap path, where Rolo probes, verifies, conforms, and publishes o
 
 When a capability is absent, the harness owns an interactive coding loop with
 the user. Request `rolo probe-analysis-input --evidence <bundle>`, inspect its
-  software-stack observations and evidence references, load `rolo-harness-codegen`
-  to prepare the typed operation arguments and derived target request once, and
-  implement the adapter in the current harness workspace. For a write-capable application Tool, emit an
+software-stack observations and evidence references, load `rolo-harness-codegen`
+to prepare the typed operation arguments and derived target request once, and
+implement the adapter in the current harness workspace. For a write-capable application Tool, emit an
 evidence-bound `ExecutionBinding` describing the observed transport, bounded
 parameters, feedback and stop strategy. Revise it with the user's feedback and
-emit a typed `rolo-tool-registration-proposal/v1`; submit it with
-`rolo register-tool --proposal <proposal> --evidence <bundle>`.
+for Compiler mapping emit a `rolo-mapping-proposal/v2` bound to the exact
+candidate, DSL, Context, evidence, target, catalog and scope digests. Persist
+the proposal for review; never send it directly to registration.
 
-Rolo validates target identity, evidence references, binding endpoints against
-Probe observations, descriptor schema, risk and digests, then persists the
-registered application Tool. No pre-existing route is required; transport
-execution remains inside Rolo's typed provider boundary. The harness
-conversation is the MVP review loop, so there is no second rolo-vis approval
-step. Every registered Tool remains callable only through a target-bound Rolo
-session and typed ToolPlan. The same protocol applies to rotation, mapping,
-navigation and future application adapters.
+## Mapping admission
+
+An authorized actor must explicitly record `CONFIRMED` for the exact
+MappingProposal v2 in the append-only confirmation ledger. Preserve the
+resulting `confirmation_receipt_digest`; chat agreement, user feedback,
+proposal status, `--status-only`, and safety flags are not a ledger decision.
+
+Proceed only as `proposal → ledger confirm → compile → register → release →
+consume`. At compile, registration, Release publication, and consumption, Rolo
+must independently resolve the committed receipt from the trusted ledger and
+revalidate the complete target-bound identity. A missing, rejected, cancelled,
+expired, tampered, or cross-target receipt fails closed before artifact writes,
+installation, SSH, or CALL. No pre-existing route is required; transport
+execution remains inside Rolo's typed provider boundary. Every admitted Tool
+remains callable only through a target-bound Rolo session and typed ToolPlan.
+The same admission protocol applies to rotation, mapping, navigation and future
+application adapters.

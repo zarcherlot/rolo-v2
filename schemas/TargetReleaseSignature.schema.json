@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolo.local/schemas/TargetReleaseSignature.schema.json",
+  "title": "Target Release Signature",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "key_id", "algorithm", "signed_digest", "signature"],
+  "properties": {
+    "schema_version": {"const": "rolo-target-release-signature/v1"},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "key_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "algorithm": {"enum": ["EdDSA", "ES256", "RS256"]},
+    "signed_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{32,8192}$"}
+  }
+}
